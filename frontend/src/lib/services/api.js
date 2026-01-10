@@ -1,5 +1,6 @@
-// API base URL - configured in vite.config.js proxy
-const API_BASE = '/api';
+// API base URL - uses Vite build-time env `VITE_PUBLIC_API_URL` if provided,
+// otherwise falls back to same-origin `/api`.
+const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
 
 /**
  * Make an API request with proper error handling

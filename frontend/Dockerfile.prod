@@ -11,6 +11,10 @@ RUN npm ci
 # Copy application code
 COPY . .
 
+# Allow passing a build-time API base (Vite uses VITE_* prefix)
+ARG VITE_PUBLIC_API_URL
+ENV VITE_PUBLIC_API_URL=$VITE_PUBLIC_API_URL
+
 # Build application
 RUN npm run build
 
