@@ -3,8 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-# Import routes (will be created in later phases)
-# from routes import auth, events, photos, reminders, sync, reports
+# Import database initialization
+from database import init_db
+
+# Import routes
+from routes import auth
+# from routes import events, photos, reminders, sync, reports
 
 app = FastAPI(
     title="Care Documentation API",
@@ -27,6 +31,12 @@ os.makedirs("photos", exist_ok=True)
 # Mount static files for photos
 app.mount("/photos", StaticFiles(directory="photos"), name="photos")
 
+# Initialize database tables
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on application startup"""
+    init_db()
+
 # Health check endpoint
 @app.get("/api/health")
 async def health_check():
@@ -41,8 +51,8 @@ async def root():
         "docs": "/docs"
     }
 
-# Register routes (will be uncommented as routes are created)
-# app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
+# Register routes
+app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 # app.include_router(events.router, prefix="/api/events", tags=["events"])
 # app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
 # app.include_router(reminders.router, prefix="/api/reminders", tags=["reminders"])
