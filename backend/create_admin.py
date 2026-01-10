@@ -43,12 +43,19 @@ def create_admin_user():
         print("Error: Email cannot be empty")
         sys.exit(1)
 
-    password = getpass("Password (min 6 characters): ")
+    password = getpass("Password (min 6 characters, max 72 bytes): ")
     if len(password) < 6:
         print("Error: Password must be at least 6 characters")
         sys.exit(1)
 
+    # Truncate to 72 bytes for bcrypt compatibility
+    password_bytes = password.encode('utf-8')[:72]
+    password = password_bytes.decode('utf-8', errors='ignore')
+
     password_confirm = getpass("Confirm password: ")
+    password_confirm_bytes = password_confirm.encode('utf-8')[:72]
+    password_confirm = password_confirm_bytes.decode('utf-8', errors='ignore')
+
     if password != password_confirm:
         print("Error: Passwords do not match")
         sys.exit(1)

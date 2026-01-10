@@ -12,12 +12,18 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password"""
-    return pwd_context.verify(plain_password, hashed_password)
+    # Bcrypt has a 72-byte limit, truncate if necessary
+    password_bytes = plain_password.encode('utf-8')[:72]
+    password_truncated = password_bytes.decode('utf-8', errors='ignore')
+    return pwd_context.verify(password_truncated, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password for storage"""
-    return pwd_context.hash(password)
+    """Hash a password for storage (truncates to 72 bytes for bcrypt)"""
+    # Bcrypt has a 72-byte limit, truncate if necessary
+    password_bytes = password.encode('utf-8')[:72]
+    password_truncated = password_bytes.decode('utf-8', errors='ignore')
+    return pwd_context.hash(password_truncated)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
