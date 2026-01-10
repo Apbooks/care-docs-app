@@ -58,14 +58,61 @@
   - scripts/deploy.sh for Raspberry Pi deployment
 - [x] Made initial git commit
 
-#### Next Steps (Phase 2: Authentication System)
-- [ ] Create User model with SQLAlchemy
-- [ ] Implement JWT token generation and validation
-- [ ] Build authentication endpoints (login, logout, register)
-- [ ] Create authentication middleware
-- [ ] Build login page UI
-- [ ] Implement auth state management in frontend
-- [ ] Test multi-user access
+### 2026-01-10 - Phase 2: Authentication System Complete ✓
+
+#### Completed
+- [x] Created User model with SQLAlchemy
+  - UUID primary key
+  - Fields: username, email, password_hash, role, is_active
+  - Timestamps: created_at, updated_at
+- [x] Implemented JWT token generation and validation service
+  - Access tokens (15 min expiry)
+  - Refresh tokens (7 day expiry)
+  - Password hashing with bcrypt
+  - Token verification and type checking
+- [x] Built authentication endpoints (login, logout, register, refresh, /me)
+  - Login with HTTP-only cookie support
+  - Logout (cookie clearing)
+  - Register new users (admin only)
+  - Token refresh endpoint
+  - Get current user info
+- [x] Created authentication middleware
+  - Cookie-based token extraction
+  - Role-based access control
+  - get_current_user dependency
+  - get_current_active_admin dependency
+- [x] Built login page UI
+  - Responsive design with Tailwind CSS
+  - Error handling and loading states
+  - Redirect to dashboard after login
+- [x] Built register page UI
+  - Admin-only access
+  - Form validation
+  - Role selection (admin/caregiver)
+  - Success/error feedback
+- [x] Implemented auth state management in frontend
+  - Svelte stores for auth state
+  - LocalStorage persistence
+  - Derived stores (isAuthenticated, isAdmin)
+  - API service layer
+- [x] Created admin initialization script (create_admin.py)
+  - Interactive CLI for creating first admin user
+  - Password validation
+  - Duplicate checking
+- [x] Updated dashboard with user info and logout
+
+#### Next Steps (Phase 3: Core Data Entry Interface)
+- [ ] Create Event model with SQLAlchemy
+- [ ] Build event CRUD endpoints
+- [ ] Create floating + button component
+- [ ] Build quick entry modal with event type selector
+- [ ] Implement medication entry form
+- [ ] Implement feeding entry form
+- [ ] Implement diaper change form
+- [ ] Implement demeanor log form
+- [ ] Implement general observation form
+- [ ] Add timestamp auto-generation
+- [ ] Tag entries with current user
 
 ---
 
@@ -107,15 +154,15 @@
 - [ ] Timestamp auto-generation
 - [ ] User tagging
 
-#### 2. Multi-User Authentication
-- [ ] JWT token generation
-- [ ] HTTP-only cookie handling
-- [ ] Login page
-- [ ] Logout functionality
-- [ ] User registration (admin only)
-- [ ] Protected routes
-- [ ] Session management
-- [ ] Offline auth persistence
+#### 2. Multi-User Authentication ✓
+- [x] JWT token generation
+- [x] HTTP-only cookie handling
+- [x] Login page
+- [x] Logout functionality
+- [x] User registration (admin only)
+- [x] Protected routes
+- [x] Session management
+- [ ] Offline auth persistence (Phase 4)
 
 #### 3. Offline-First Architecture
 - [ ] Service worker setup
@@ -160,7 +207,7 @@
 ## Database Schema
 
 ### Tables Created
-- [ ] users
+- [x] users (id, username, email, password_hash, role, is_active, created_at, updated_at)
 - [ ] events
 - [ ] photos
 - [ ] reminders
@@ -268,3 +315,37 @@ _None yet_
 ---
 
 **Last Updated:** 2026-01-10
+
+---
+
+## Quick Docker Setup Guide
+
+### Prerequisites
+- Install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop/)
+- Or on macOS: `brew install --cask docker`
+
+### Running the Development Environment
+
+```bash
+cd /Users/jackhenryinvestments/Documents/Code/care-docs-app
+
+# Start all services
+docker compose up --build
+
+# Create first admin user (in another terminal)
+docker exec -it care-docs-backend python create_admin.py
+
+# Access the app
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000/docs
+```
+
+### Stopping the Environment
+
+```bash
+# Stop all containers
+docker compose down
+
+# Stop and remove all data (database will be reset)
+docker compose down -v
+```
