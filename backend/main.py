@@ -1,0 +1,54 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Import routes (will be created in later phases)
+# from routes import auth, events, photos, reminders, sync, reports
+
+app = FastAPI(
+    title="Care Documentation API",
+    description="API for tracking care activities, medications, and feeding schedules",
+    version="0.1.0"
+)
+
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # Development origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Create photos directory if it doesn't exist
+os.makedirs("photos", exist_ok=True)
+
+# Mount static files for photos
+app.mount("/photos", StaticFiles(directory="photos"), name="photos")
+
+# Health check endpoint
+@app.get("/api/health")
+async def health_check():
+    return {"status": "healthy", "message": "Care Documentation API is running"}
+
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Care Documentation API",
+        "version": "0.1.0",
+        "docs": "/docs"
+    }
+
+# Register routes (will be uncommented as routes are created)
+# app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
+# app.include_router(events.router, prefix="/api/events", tags=["events"])
+# app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
+# app.include_router(reminders.router, prefix="/api/reminders", tags=["reminders"])
+# app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
+# app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
