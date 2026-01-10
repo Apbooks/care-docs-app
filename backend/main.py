@@ -7,8 +7,8 @@ import os
 from database import init_db
 
 # Import routes
-from routes import auth
-# from routes import events, photos, reminders, sync, reports
+from routes import auth, events
+# from routes import photos, reminders, sync, reports
 
 app = FastAPI(
     title="Care Documentation API",
@@ -53,7 +53,7 @@ async def root():
 
 # Register routes
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
-# app.include_router(events.router, prefix="/api/events", tags=["events"])
+app.include_router(events.router, prefix="/api/events", tags=["events"])
 # app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
 # app.include_router(reminders.router, prefix="/api/reminders", tags=["reminders"])
 # app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
