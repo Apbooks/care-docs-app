@@ -1,27 +1,37 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import hashlib
+import bcrypt
 from config import get_settings
 
 settings = get_settings()
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
-
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hashed password"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a plain password against a stored bcrypt(sha256(password))."""
+    if isinstance(hashed_password, str):
+        hashed_bytes = hashed_password.encode('utf-8')
+    else:
+        hashed_bytes = hashed_password
+
+    sha = hashlib.sha256(plain_password.encode('utf-8')).digest()
+    try:
+        return bcrypt.checkpw(sha, hashed_bytes)
+    except ValueError:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password for storage.
+    """Hash a password for storage using bcrypt over SHA-256.
 
-    Uses `bcrypt_sha256` (with a `bcrypt` fallback) so passwords longer than
-    72 bytes or containing multibyte characters are handled safely.
+    This avoids passlib/bcrypt backend detection issues and handles passwords
+    longer than 72 bytes or containing multibyte characters safely.
+    Returns the bcrypt hash as a UTF-8 string.
     """
-    return pwd_context.hash(password)
+    sha = hashlib.sha256(password.encode('utf-8')).digest()
+    hashed = bcrypt.hashpw(sha, bcrypt.gensalt())
+    return hashed.decode('utf-8')
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
