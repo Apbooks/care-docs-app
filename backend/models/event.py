@@ -23,13 +23,13 @@ class Event(Base):
     # General notes (optional)
     notes = Column(Text, nullable=True)
 
-    # Type-specific metadata stored as JSON
+    # Type-specific data stored as JSON
     # Examples:
     # - Medication: {"med_name": "Aspirin", "dosage": "100mg", "route": "oral"}
     # - Feeding: {"amount_ml": 240, "duration_min": 20, "formula_type": "Standard"}
     # - Diaper: {"condition": "wet", "rash": false, "skin_notes": "Normal"}
     # - Demeanor: {"mood": "happy", "activity_level": "active", "concerns": ""}
-    metadata = Column(JSONB, nullable=True, default={})
+    event_data = Column(JSONB, nullable=True, default={})
 
     # Sync tracking for offline support (Phase 4)
     synced = Column(Boolean, default=True, nullable=False)

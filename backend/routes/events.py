@@ -75,7 +75,7 @@ async def create_event(
         timestamp=event_data.timestamp or datetime.utcnow(),
         user_id=current_user.id,
         notes=event_data.notes,
-        metadata=event_data.metadata or {},
+        event_data=event_data.metadata or {},
         synced=True,  # Created online, so already synced
         created_offline=False
     )
@@ -91,7 +91,7 @@ async def create_event(
         user_id=str(new_event.user_id),
         user_name=current_user.username,
         notes=new_event.notes,
-        metadata=new_event.metadata,
+        metadata=new_event.event_data,
         synced=new_event.synced,
         created_offline=new_event.created_offline,
         created_at=new_event.created_at.isoformat(),
@@ -136,7 +136,7 @@ async def get_events(
             user_id=str(event.user_id),
             user_name=user.username if user else "Unknown",
             notes=event.notes,
-            metadata=event.metadata,
+            metadata=event.event_data,
             synced=event.synced,
             created_offline=event.created_offline,
             created_at=event.created_at.isoformat(),
@@ -201,7 +201,7 @@ async def update_event(
         event.notes = event_update.notes
 
     if event_update.metadata is not None:
-        event.metadata = event_update.metadata
+        event.event_data = event_update.metadata
 
     event.updated_at = datetime.utcnow()
 
