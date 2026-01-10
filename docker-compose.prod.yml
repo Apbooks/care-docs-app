@@ -49,6 +49,9 @@ services:
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - VAPID_CLAIM_EMAIL=${VAPID_CLAIM_EMAIL}
       - DEBUG=false
+      # Allow overriding CORS origins via env (JSON array string). Example:
+      # CORS_ORIGINS=["http://192.168.1.101:3000"]
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000"]}
     volumes:
       - backend_photos:/app/photos
     depends_on:
