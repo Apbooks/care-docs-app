@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-	import { logout as logoutApi } from '$lib/services/api';
+	import { logout as logoutApi, getCurrentUser } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 
@@ -19,8 +19,22 @@
 		userIsAdmin = value;
 	});
 
-	onMount(() => {
+	onMount(async () => {
+		// If no user in localStorage, redirect to login
 		if (!user) {
+			goto('/login');
+			return;
+		}
+
+		// Verify authentication with backend by fetching current user
+		try {
+			const currentUser = await getCurrentUser();
+			// Update user in store with latest data from server
+			authStore.setUser(currentUser);
+		} catch (error) {
+			console.error('Authentication verification failed:', error);
+			// If verification fails, clear auth and redirect to login
+			authStore.logout();
 			goto('/login');
 		}
 	});
