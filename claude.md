@@ -164,13 +164,14 @@
 - ✓ CORS_ORIGINS JSON parsing error
 - ✓ Frontend unable to connect to backend API
 
-#### Current Status
+#### Current Status (2026-01-11)
 - Backend: Running on Raspberry Pi at http://192.168.1.101:8000
-- Frontend: Needs rebuild with PUBLIC_API_URL configuration
+- Frontend: Running at http://192.168.1.101:3000
 - Database: PostgreSQL 15 running with optimized settings for Pi
-- Setup endpoint: Available at http://192.168.1.101:8000/setup.html
-- Admin creation: Use web-based setup instead of Docker exec
-- Next step: Create admin via setup.html, then rebuild frontend
+- Admin account: Created successfully
+- Authentication: Login works but cookie persistence issue identified
+- Issue: Dashboard shows "Not authenticated" after login
+- Fix: Committed (needs deployment) - added auth verification on page load
 
 ---
 
@@ -335,10 +336,18 @@ _To be measured after deployment_
 
 ## Known Issues
 
-### In Progress
-- Frontend container needs rebuild with PUBLIC_API_URL=http://192.168.1.101:8000 to fix API connection
-  - Current workaround: Use setup.html to create admin, skip frontend for now
-  - Frontend rebuild can be done later once admin account exists
+### Fixed (Pending Deployment - 2026-01-11)
+- ✓ Cookie path issue - cookies weren't set with path=/ causing availability problems
+- ✓ Authentication persistence - dashboard now verifies JWT cookie on load
+- ✓ Frontend API URL - PUBLIC_API_URL correctly set to http://192.168.1.101:8000/api
+
+### Deployment Instructions
+On Raspberry Pi, run:
+```bash
+cd ~/Docker/care-docs-app
+git pull origin main
+docker compose -f docker-compose.prod.yml up -d --build
+```
 
 ### To Address
 - Missing PWA icons (/icon-192.png, /icon-512.png)
@@ -391,7 +400,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-10 (Bug fixes, production deployment to Raspberry Pi complete)
+**Last Updated:** 2026-01-11 (Authentication cookie persistence fix - pending deployment)
 
 ---
 
