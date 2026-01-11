@@ -19,23 +19,11 @@
 		userIsAdmin = value;
 	});
 
-	onMount(async () => {
+	onMount(() => {
 		// If no user in localStorage, redirect to login
 		if (!user) {
 			goto('/login');
 			return;
-		}
-
-		// Verify authentication with backend by fetching current user
-		try {
-			const currentUser = await getCurrentUser();
-			// Update user in store with latest data from server
-			authStore.setUser(currentUser);
-		} catch (error) {
-			console.error('Authentication verification failed:', error);
-			// If verification fails, clear auth and redirect to login
-			authStore.logout();
-			goto('/login');
 		}
 	});
 
