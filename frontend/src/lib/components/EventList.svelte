@@ -158,15 +158,12 @@
 		}
 	}
 
-	async function confirmDelete(eventId) {
-		deleteTargetId = eventId;
-	}
-
 	async function handleDelete(eventId) {
 		try {
 			await deleteEvent(eventId);
 			events = events.filter(item => item.id !== eventId);
 			deleteTargetId = null;
+			closeEdit();
 		} catch (err) {
 			error = err.message || 'Failed to delete event';
 		}
@@ -195,7 +192,11 @@
 		</div>
 	{:else}
 		{#each events as event (event.id)}
-			<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-4 sm:p-5 hover:shadow-md transition-shadow">
+			<button
+				type="button"
+				on:click={() => startEdit(event)}
+				class="text-left bg-white dark:bg-slate-900 rounded-xl shadow p-4 sm:p-5 hover:shadow-md transition-shadow w-full"
+			>
 				<div class="flex items-start gap-3">
 					<!-- Event Icon -->
 					<div class="text-3xl flex-shrink-0">
@@ -233,39 +234,9 @@
 							<span>{event.user_name}</span>
 						</div>
 
-						<!-- Actions -->
-						<div class="mt-3 flex flex-wrap items-center gap-2">
-							<button
-								on:click={() => startEdit(event)}
-								class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-							>
-								Details
-							</button>
-							{#if deleteTargetId === event.id}
-								<button
-									on:click={() => handleDelete(event.id)}
-									class="px-3 py-2 text-xs font-semibold rounded-full bg-red-600 text-white hover:bg-red-700"
-								>
-									Confirm Delete
-								</button>
-								<button
-									on:click={() => deleteTargetId = null}
-									class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-								>
-									Cancel
-								</button>
-							{:else}
-								<button
-									on:click={() => confirmDelete(event.id)}
-									class="px-3 py-2 text-xs font-semibold rounded-full border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950"
-								>
-									Delete
-								</button>
-							{/if}
-						</div>
 					</div>
 				</div>
-			</div>
+			</button>
 		{/each}
 	{/if}
 </div>
@@ -273,12 +244,12 @@
 {#if editEvent}
 	<div class="fixed inset-0 bg-black/60 z-50" on:click={closeEdit}></div>
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl" on:click|stopPropagation>
+		<div class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex flex-col" on:click|stopPropagation>
 			<div class="p-6 border-b border-gray-200 dark:border-slate-800">
-				<h3 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Edit Event</h3>
+				<h3 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Event Details</h3>
 				<p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Update time, type, and details.</p>
 			</div>
-			<div class="p-6 space-y-4">
+			<div class="p-6 space-y-4 overflow-y-auto flex-1">
 				{#if editError}
 					<div class="p-3 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
 						<p class="text-red-800 dark:text-red-200 text-sm">{editError}</p>
@@ -512,7 +483,33 @@
 					></textarea>
 				</div>
 			</div>
-			<div class="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-slate-800">
+			<div class="flex flex-wrap items-center justify-between gap-3 p-6 border-t border-gray-200 dark:border-slate-800">
+				<div class="flex items-center gap-2">
+					{#if deleteTargetId === editEvent.id}
+						<button
+							type="button"
+							on:click={() => handleDelete(editEvent.id)}
+							class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700"
+						>
+							Confirm Delete
+						</button>
+						<button
+							type="button"
+							on:click={() => deleteTargetId = null}
+							class="px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+						>
+							Cancel
+						</button>
+					{:else}
+						<button
+							type="button"
+							on:click={() => deleteTargetId = editEvent.id}
+							class="px-4 py-2 text-sm font-semibold rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950"
+						>
+							Delete
+						</button>
+					{/if}
+				</div>
 				<button
 					type="button"
 					on:click={closeEdit}
