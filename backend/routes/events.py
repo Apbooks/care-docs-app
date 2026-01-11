@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from database import get_db
@@ -12,6 +12,12 @@ from models.event import Event
 from routes.auth import get_current_user
 
 router = APIRouter()
+
+
+def to_utc_iso(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
 
 
 # Pydantic models for request/response
@@ -89,15 +95,15 @@ async def create_event(
     return EventResponse(
         id=str(new_event.id),
         type=new_event.type,
-        timestamp=new_event.timestamp.isoformat(),
+        timestamp=to_utc_iso(new_event.timestamp),
         user_id=str(new_event.user_id),
         user_name=current_user.username,
         notes=new_event.notes,
         metadata=new_event.event_data,
         synced=new_event.synced,
         created_offline=new_event.created_offline,
-        created_at=new_event.created_at.isoformat(),
-        updated_at=new_event.updated_at.isoformat()
+        created_at=to_utc_iso(new_event.created_at),
+        updated_at=to_utc_iso(new_event.updated_at)
     )
 
 
@@ -134,15 +140,15 @@ async def get_events(
         response.append(EventResponse(
             id=str(event.id),
             type=event.type,
-            timestamp=event.timestamp.isoformat(),
+            timestamp=to_utc_iso(event.timestamp),
             user_id=str(event.user_id),
             user_name=user.username if user else "Unknown",
             notes=event.notes,
             metadata=event.event_data,
             synced=event.synced,
             created_offline=event.created_offline,
-            created_at=event.created_at.isoformat(),
-            updated_at=event.updated_at.isoformat()
+            created_at=to_utc_iso(event.created_at),
+            updated_at=to_utc_iso(event.updated_at)
         ))
 
     return response
@@ -169,15 +175,15 @@ async def get_event(
     return EventResponse(
         id=str(event.id),
         type=event.type,
-        timestamp=event.timestamp.isoformat(),
+        timestamp=to_utc_iso(event.timestamp),
         user_id=str(event.user_id),
         user_name=user.username if user else "Unknown",
         notes=event.notes,
         metadata=event.event_data,
         synced=event.synced,
         created_offline=event.created_offline,
-        created_at=event.created_at.isoformat(),
-        updated_at=event.updated_at.isoformat()
+        created_at=to_utc_iso(event.created_at),
+        updated_at=to_utc_iso(event.updated_at)
     )
 
 
@@ -227,15 +233,15 @@ async def update_event(
     return EventResponse(
         id=str(event.id),
         type=event.type,
-        timestamp=event.timestamp.isoformat(),
+        timestamp=to_utc_iso(event.timestamp),
         user_id=str(event.user_id),
         user_name=user.username if user else "Unknown",
         notes=event.notes,
         metadata=event.event_data,
         synced=event.synced,
         created_offline=event.created_offline,
-        created_at=event.created_at.isoformat(),
-        updated_at=event.updated_at.isoformat()
+        created_at=to_utc_iso(event.created_at),
+        updated_at=to_utc_iso(event.updated_at)
     )
 
 
