@@ -64,7 +64,7 @@ cd ..
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 5. Create admin user
-docker exec -it care-docs-backend python create_admin.py
+docker compose -f docker-compose.prod.yml exec backend python create_admin.py
 ```
 
 ---

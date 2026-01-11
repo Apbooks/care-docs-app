@@ -155,7 +155,7 @@ echo ""
 echo "Next Steps:"
 echo ""
 echo "1. Create an admin user:"
-echo "   docker exec -it care-docs-backend python create_admin.py"
+echo "   docker compose -f docker-compose.prod.yml exec backend python create_admin.py"
 echo ""
 echo "2. Access the application:"
 echo "   http://localhost:3000/login"
@@ -173,7 +173,7 @@ read -p "Create admin user now? (y/n): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
-    docker exec -it care-docs-backend python create_admin.py
+    docker compose -f docker-compose.prod.yml exec backend python create_admin.py
     echo ""
     echo "=========================================="
     echo "You can now log in at: http://localhost:3000/login"

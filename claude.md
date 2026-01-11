@@ -333,7 +333,7 @@ cd /Users/jackhenryinvestments/Documents/Code/care-docs-app
 docker compose up --build
 
 # Create first admin user (in another terminal)
-docker exec -it care-docs-backend python create_admin.py
+docker compose exec backend python create_admin.py
 
 # Access the app
 # Frontend: http://localhost:3000

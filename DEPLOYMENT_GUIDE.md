@@ -94,7 +94,7 @@ care-docs-db           running   5432/tcp
 
 ```bash
 # Run the admin creation script inside the backend container
-docker exec -it care-docs-backend python create_admin.py
+docker compose -f docker-compose.prod.yml exec backend python create_admin.py
 ```
 
 Follow the interactive prompts:
