@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
 	import { login } from '$lib/services/api';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	let username = '';
 	let password = '';
@@ -38,28 +39,31 @@
 	<title>Login - Care Documentation App</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center px-4">
 	<div class="max-w-md w-full">
 		<!-- Logo/Title -->
 		<div class="text-center mb-8">
-			<h1 class="text-4xl font-bold text-gray-900 mb-2">Care Docs</h1>
-			<p class="text-gray-600">Track care activities with ease</p>
+			<div class="flex justify-center mb-4">
+				<ThemeToggle />
+			</div>
+			<h1 class="text-4xl font-bold text-gray-900 dark:text-slate-100 mb-2">Care Docs</h1>
+			<p class="text-gray-600 dark:text-slate-300">Track care activities with ease</p>
 		</div>
 
 		<!-- Login Card -->
-		<div class="bg-white rounded-xl shadow-xl p-8">
-			<h2 class="text-2xl font-semibold text-gray-900 mb-6">Sign In</h2>
+		<div class="bg-white dark:bg-slate-900 rounded-xl shadow-xl p-8">
+			<h2 class="text-2xl font-semibold text-gray-900 dark:text-slate-100 mb-6">Sign In</h2>
 
 			{#if error}
-				<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-					<p class="text-red-800 text-base">{error}</p>
+				<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
 				</div>
 			{/if}
 
 			<form on:submit={handleLogin} class="space-y-6">
 				<!-- Username -->
 				<div>
-					<label for="username" class="block text-base font-medium text-gray-700 mb-2">
+					<label for="username" class="block text-base font-medium text-gray-700 dark:text-slate-300 mb-2">
 						Username
 					</label>
 					<input
@@ -75,7 +79,7 @@
 
 				<!-- Password -->
 				<div>
-					<label for="password" class="block text-base font-medium text-gray-700 mb-2">
+					<label for="password" class="block text-base font-medium text-gray-700 dark:text-slate-300 mb-2">
 						Password
 					</label>
 					<input
@@ -110,15 +114,15 @@
 			</form>
 
 			<!-- Info -->
-			<div class="mt-6 pt-6 border-t border-gray-200">
-				<p class="text-sm text-gray-600 text-center">
+			<div class="mt-6 pt-6 border-t border-gray-200 dark:border-slate-800">
+				<p class="text-sm text-gray-600 dark:text-slate-400 text-center">
 					New user accounts can only be created by administrators.
 				</p>
 			</div>
 		</div>
 
 		<!-- Footer -->
-		<p class="text-center text-gray-600 text-sm mt-8">
+		<p class="text-center text-gray-600 dark:text-slate-400 text-sm mt-8">
 			Care Documentation App &copy; 2024
 		</p>
 	</div>

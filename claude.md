@@ -217,6 +217,7 @@
 - [x] Added optional quick medication note toggle for fast context entry
 - [x] Updated Quick Entry modal to a touch-friendly bottom sheet layout
 - [x] Increased touch target sizes across dashboard, admin panel, login, and register
+- [x] Added dark mode with system default + manual toggle
 
 ---
 
@@ -497,7 +498,6 @@ _To be measured after deployment_
 - Vital signs tracking
 - Chart generation for medical reports
 - Multi-language support
-- Dark mode
 - Barcode scanning for medications
 - Swipe gestures for common actions
 - Haptic feedback (PWA vibration API)
@@ -530,7 +530,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-11 (Phase 4 quick actions + touch-friendly UI in progress)
+**Last Updated:** 2026-01-11 (Phase 4 quick actions + dark mode in progress)
 
 ---
 

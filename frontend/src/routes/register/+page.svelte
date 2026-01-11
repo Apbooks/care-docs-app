@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { authStore, isAdmin } from '$lib/stores/auth';
 	import { registerUser } from '$lib/services/api';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	let username = '';
 	let email = '';
@@ -78,7 +79,7 @@
 	<title>Register User - Care Documentation App</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 px-4 py-8">
 	<div class="max-w-2xl mx-auto">
 		<!-- Header -->
 		<div class="mb-8">
@@ -91,28 +92,33 @@
 				</svg>
 				Back to Dashboard
 			</button>
-			<h1 class="text-3xl font-bold text-gray-900">Register New User</h1>
-			<p class="text-gray-600 mt-2">Create a new caregiver or admin account</p>
+			<div class="flex items-center justify-between gap-3">
+				<div>
+					<h1 class="text-3xl font-bold text-gray-900 dark:text-slate-100">Register New User</h1>
+					<p class="text-gray-600 dark:text-slate-300 mt-2">Create a new caregiver or admin account</p>
+				</div>
+				<ThemeToggle />
+			</div>
 		</div>
 
 		<!-- Registration Card -->
-		<div class="bg-white rounded-xl shadow-xl p-8">
+		<div class="bg-white dark:bg-slate-900 rounded-xl shadow-xl p-8">
 			{#if error}
-				<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-					<p class="text-red-800 text-base">{error}</p>
+				<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
 				</div>
 			{/if}
 
 			{#if success}
-				<div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-					<p class="text-green-800 text-base">{success}</p>
+				<div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl dark:bg-emerald-950 dark:border-emerald-800">
+					<p class="text-green-800 dark:text-emerald-200 text-base">{success}</p>
 				</div>
 			{/if}
 
 			<form on:submit={handleRegister} class="space-y-6">
 				<!-- Username -->
 				<div>
-					<label for="username" class="block text-base font-medium text-gray-700 mb-2">
+					<label for="username" class="block text-base font-medium text-gray-700 dark:text-slate-300 mb-2">
 						Username <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -128,7 +134,7 @@
 
 				<!-- Email -->
 				<div>
-					<label for="email" class="block text-base font-medium text-gray-700 mb-2">
+					<label for="email" class="block text-base font-medium text-gray-700 dark:text-slate-300 mb-2">
 						Email <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -144,7 +150,7 @@
 
 				<!-- Role -->
 				<div>
-					<label for="role" class="block text-base font-medium text-gray-700 mb-2">
+					<label for="role" class="block text-base font-medium text-gray-700 dark:text-slate-300 mb-2">
 						Role <span class="text-red-500">*</span>
 					</label>
 					<select
@@ -156,7 +162,7 @@
 						<option value="caregiver">Caregiver</option>
 						<option value="admin">Administrator</option>
 					</select>
-					<p class="mt-1 text-sm text-gray-500">
+					<p class="mt-1 text-sm text-gray-500 dark:text-slate-400">
 						{#if role === 'admin'}
 							Administrators can create users and access all features.
 						{:else}
@@ -167,7 +173,7 @@
 
 				<!-- Password -->
 				<div>
-					<label for="password" class="block text-base font-medium text-gray-700 mb-2">
+					<label for="password" class="block text-base font-medium text-gray-700 dark:text-slate-300 mb-2">
 						Password <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -184,7 +190,7 @@
 
 				<!-- Confirm Password -->
 				<div>
-					<label for="confirmPassword" class="block text-base font-medium text-gray-700 mb-2">
+					<label for="confirmPassword" class="block text-base font-medium text-gray-700 dark:text-slate-300 mb-2">
 						Confirm Password <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -217,7 +223,7 @@
 						type="button"
 						on:click={() => goto('/')}
 						disabled={loading}
-						class="px-6 py-3 border border-gray-300 rounded-xl font-semibold text-base text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+						class="px-6 py-3 border border-gray-300 rounded-xl font-semibold text-base text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-800"
 					>
 						Cancel
 					</button>

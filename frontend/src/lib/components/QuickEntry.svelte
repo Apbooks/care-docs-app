@@ -71,7 +71,7 @@
 			id: 'observation',
 			label: 'Observation',
 			icon: '📝',
-			cardClass: 'border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
+			cardClass: 'border-gray-200 dark:border-slate-800 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
 		}
 	];
 
@@ -263,10 +263,10 @@
 
 	<!-- Modal -->
 	<div class="fixed inset-0 flex items-end sm:items-center justify-center z-50">
-		<div class="bg-white w-full sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-xl">
+		<div class="bg-white dark:bg-slate-900 w-full sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-xl">
 			<!-- Header -->
-			<div class="flex justify-between items-center p-5 sm:p-6 border-b border-gray-200">
-				<h2 class="text-2xl sm:text-3xl font-bold text-gray-900">
+			<div class="flex justify-between items-center p-5 sm:p-6 border-b border-gray-200 dark:border-slate-800 dark:border-slate-800">
+				<h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100 dark:text-slate-100">
 					{#if step === 'select'}
 						Quick Entry
 					{:else}
@@ -275,7 +275,7 @@
 				</h2>
 				<button
 					on:click={close}
-					class="text-gray-400 hover:text-gray-600 transition-colors"
+					class="text-gray-400 hover:text-gray-600 dark:text-slate-300 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
 					aria-label="Close"
 				>
 					<svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -287,8 +287,8 @@
 			<!-- Content -->
 			<div class="p-5 sm:p-6">
 				{#if error}
-					<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-						<p class="text-red-800 text-base">{error}</p>
+					<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
+						<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
 					</div>
 				{/if}
 
@@ -304,7 +304,7 @@
 
 				{#if step === 'select'}
 					<!-- Event Type Selection -->
-					<p class="text-gray-600 text-base mb-4">Select the type of event to log:</p>
+					<p class="text-gray-600 dark:text-slate-300 dark:text-slate-300 text-base mb-4">Select the type of event to log:</p>
 					<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 						{#each eventTypes as type}
 							<button
@@ -312,7 +312,7 @@
 								class={`p-4 min-h-[88px] border-2 rounded-xl transition-all text-center ${type.cardClass}`}
 							>
 								<div class="text-4xl mb-2">{type.icon}</div>
-								<div class="font-semibold text-gray-900 text-base">{type.label}</div>
+								<div class="font-semibold text-gray-900 dark:text-slate-100 text-base">{type.label}</div>
 							</button>
 						{/each}
 					</div>
@@ -321,8 +321,8 @@
 					{#if quickMeds.length > 0}
 						<div class="mb-6">
 							<div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-								<h3 class="text-lg font-semibold text-gray-900">Quick Medications</h3>
-								<label class="flex items-center gap-3 text-sm font-medium text-gray-700">
+								<h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Quick Medications</h3>
+								<label class="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-slate-300">
 									<input
 										type="checkbox"
 										bind:checked={quickNoteEnabled}
@@ -346,9 +346,9 @@
 										class="p-3 min-h-[72px] rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 text-left"
 										disabled={loading}
 									>
-										<div class="font-semibold text-gray-900 text-sm">{med.name}</div>
+										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm">{med.name}</div>
 										<div class="text-xs text-gray-700 mt-1">{med.dosage}</div>
-										<div class="text-xs text-gray-500 capitalize">{med.route}</div>
+										<div class="text-xs text-gray-500 dark:text-slate-400 capitalize">{med.route}</div>
 									</button>
 								{/each}
 							</div>
@@ -358,7 +358,7 @@
 					<!-- Medication Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Medication Name <span class="text-red-500">*</span>
 							</label>
 							<input
@@ -371,7 +371,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Dosage <span class="text-red-500">*</span>
 							</label>
 							<input
@@ -384,7 +384,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Route
 							</label>
 							<select
@@ -399,7 +399,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Notes (Optional)
 							</label>
 							<textarea
@@ -431,7 +431,7 @@
 				{:else if step === 'feeding'}
 					{#if quickFeeds.length > 0}
 						<div class="mb-6">
-							<h3 class="text-lg font-semibold text-gray-900 mb-3">Quick Feeds</h3>
+							<h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-3">Quick Feeds</h3>
 							<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 								{#each quickFeeds as feed}
 									<button
@@ -439,13 +439,13 @@
 										class="p-3 min-h-[72px] rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 text-left"
 										disabled={loading}
 									>
-										<div class="font-semibold text-gray-900 text-sm">
+										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm">
 											{#if feed.amount_ml}{feed.amount_ml}ml{/if}
 											{#if feed.amount_ml && feed.duration_min} · {/if}
 											{#if feed.duration_min}{feed.duration_min} min{/if}
 										</div>
 										{#if feed.formula_type}
-											<div class="text-xs text-gray-600 mt-1">{feed.formula_type}</div>
+											<div class="text-xs text-gray-600 dark:text-slate-300 mt-1">{feed.formula_type}</div>
 										{/if}
 									</button>
 								{/each}
@@ -456,7 +456,7 @@
 					<!-- Feeding Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Amount (ml)
 							</label>
 							<input
@@ -469,7 +469,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Duration (minutes)
 							</label>
 							<input
@@ -482,7 +482,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Formula/Food Type
 							</label>
 							<input
@@ -494,7 +494,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Notes (Optional)
 							</label>
 							<textarea
@@ -527,7 +527,7 @@
 					<!-- Diaper Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Condition
 							</label>
 							<select
@@ -548,12 +548,12 @@
 									bind:checked={rash}
 									class="w-6 h-6 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
 								/>
-								<span class="text-sm font-medium text-gray-700">Rash present</span>
+								<span class="text-sm font-medium text-gray-700 dark:text-slate-300">Rash present</span>
 							</label>
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Skin Condition Notes
 							</label>
 							<textarea
@@ -565,7 +565,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Additional Notes (Optional)
 							</label>
 							<textarea
@@ -598,7 +598,7 @@
 					<!-- Demeanor Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Mood
 							</label>
 							<select
@@ -615,7 +615,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Activity Level
 							</label>
 							<select
@@ -632,7 +632,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Concerns
 							</label>
 							<textarea
@@ -644,7 +644,7 @@
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Additional Notes (Optional)
 							</label>
 							<textarea
@@ -677,7 +677,7 @@
 					<!-- General Observation Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 mb-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Observation <span class="text-red-500">*</span>
 							</label>
 							<textarea

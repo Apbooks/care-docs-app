@@ -98,20 +98,20 @@
 	{#if loading}
 		<div class="text-center py-10">
 			<div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
-			<p class="mt-3 text-gray-600 text-base">Loading events...</p>
+			<p class="mt-3 text-gray-600 dark:text-slate-300 text-base">Loading events...</p>
 		</div>
 	{:else if error}
-		<div class="p-4 bg-red-50 border border-red-200 rounded-lg">
-			<p class="text-red-800 text-base">{error}</p>
+		<div class="p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
+			<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
 		</div>
 	{:else if events.length === 0}
 		<div class="text-center py-10">
-			<p class="text-gray-600 text-base">No events recorded yet</p>
-			<p class="text-sm text-gray-500 mt-1">Tap the + button to create your first entry</p>
+			<p class="text-gray-600 dark:text-slate-300 text-base">No events recorded yet</p>
+			<p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Tap the + button to create your first entry</p>
 		</div>
 	{:else}
 		{#each events as event (event.id)}
-			<div class="bg-white rounded-xl shadow p-5 hover:shadow-md transition-shadow">
+			<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-5 hover:shadow-md transition-shadow">
 				<div class="flex items-start gap-3">
 					<!-- Event Icon -->
 					<div class="text-3xl flex-shrink-0">
@@ -122,14 +122,14 @@
 					<div class="flex-1 min-w-0">
 						<div class="flex items-start justify-between gap-2">
 							<div class="flex-1">
-								<h3 class="font-semibold text-gray-900 capitalize text-base">
+								<h3 class="font-semibold text-gray-900 dark:text-slate-100 capitalize text-base">
 									{event.type.replace('_', ' ')}
 								</h3>
-								<p class="text-base text-gray-600 mt-1">
+								<p class="text-base text-gray-600 dark:text-slate-300 mt-1">
 									{formatMetadata(event)}
 								</p>
 								{#if event.notes && event.type !== 'observation'}
-									<p class="text-sm text-gray-500 mt-1 italic">
+									<p class="text-sm text-gray-500 dark:text-slate-400 mt-1 italic">
 										{event.notes}
 									</p>
 								{/if}
@@ -142,7 +142,7 @@
 						</div>
 
 						<!-- User Info -->
-						<div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
+						<div class="mt-3 flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
 							<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
 								<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
 							</svg>

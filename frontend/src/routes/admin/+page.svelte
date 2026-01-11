@@ -2,17 +2,18 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-import {
-	apiRequest,
+	import {
+		apiRequest,
 	getQuickMeds,
 	createQuickMed,
 	updateQuickMed,
 	deleteQuickMed,
 	getQuickFeeds,
 	createQuickFeed,
-	updateQuickFeed,
-	deleteQuickFeed
-} from '$lib/services/api';
+		updateQuickFeed,
+		deleteQuickFeed
+	} from '$lib/services/api';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -229,21 +230,24 @@ import {
 	<title>Admin Panel - Care Documentation</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-gray-50 dark:bg-slate-950">
 	<!-- Header -->
-	<header class="bg-white shadow">
+	<header class="bg-white dark:bg-slate-900 shadow">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 			<div class="flex justify-between items-center">
 				<div>
-					<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Admin Panel</h1>
-					<p class="text-base text-gray-600 mt-1">Manage users and system settings</p>
+					<h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">Admin Panel</h1>
+					<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage users and system settings</p>
 				</div>
-				<button
-					on:click={() => goto('/')}
-					class="px-4 py-2 text-base text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl"
-				>
-					Back to Dashboard
-				</button>
+				<div class="flex items-center gap-3">
+					<ThemeToggle />
+					<button
+						on:click={() => goto('/')}
+						class="px-4 py-2 text-base text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl dark:text-slate-200 dark:hover:bg-slate-800"
+					>
+						Back to Dashboard
+					</button>
+				</div>
 			</div>
 		</div>
 	</header>
@@ -252,18 +256,18 @@ import {
 	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 		<!-- Error Display -->
 	{#if error}
-		<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-			<p class="text-red-800 text-base">{error}</p>
+		<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+			<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
 		</div>
 	{/if}
 
-		<!-- User Management Section -->
-	<div class="bg-white rounded-xl shadow">
-		<div class="p-6 border-b border-gray-200">
+	<!-- User Management Section -->
+	<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 			<div class="flex justify-between items-center">
 				<div>
-					<h2 class="text-xl font-semibold text-gray-900">User Management</h2>
-					<p class="text-base text-gray-600 mt-1">View and manage user accounts</p>
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">User Management</h2>
+					<p class="text-base text-gray-600 dark:text-slate-300 mt-1">View and manage user accounts</p>
 				</div>
 				<button
 					on:click={() => goto('/register')}
@@ -278,25 +282,25 @@ import {
 				{#if loading}
 					<div class="text-center py-8">
 						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-						<p class="mt-2 text-gray-600">Loading users...</p>
+						<p class="mt-2 text-gray-600 dark:text-slate-300">Loading users...</p>
 					</div>
-			{:else if users.length === 0}
-				<div class="text-center py-8">
-					<p class="text-gray-600 text-base">No users found</p>
-				</div>
-			{:else}
+				{:else if users.length === 0}
+					<div class="text-center py-8">
+						<p class="text-gray-600 dark:text-slate-300 text-base">No users found</p>
+					</div>
+				{:else}
 				<div class="space-y-4 sm:hidden">
 					{#each users as u (u.id)}
-						<div class="border border-gray-200 rounded-xl p-4">
+						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
 							<div class="flex items-center gap-3">
-								<div class="flex-shrink-0 h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
+								<div class="flex-shrink-0 h-12 w-12 bg-gray-200 dark:bg-slate-800 rounded-full flex items-center justify-center">
 									<span class="text-gray-600 font-semibold text-lg">
 										{u.username.charAt(0).toUpperCase()}
 									</span>
 								</div>
 								<div class="flex-1">
-									<div class="text-base font-semibold text-gray-900">{u.username}</div>
-									<div class="text-sm text-gray-500">{u.email}</div>
+									<div class="text-base font-semibold text-gray-900 dark:text-slate-100">{u.username}</div>
+									<div class="text-sm text-gray-500 dark:text-slate-400">{u.email}</div>
 								</div>
 								<span class={`px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
 									{u.role}
@@ -310,12 +314,12 @@ import {
 								>
 									{u.is_active ? 'Active' : 'Inactive'}
 								</button>
-								<span class="text-xs text-gray-500">Created {formatDate(u.created_at)}</span>
+								<span class="text-xs text-gray-500 dark:text-slate-400">Created {formatDate(u.created_at)}</span>
 							</div>
 							<div class="mt-3">
 								{#if deleteConfirmUserId === u.id}
 									<div class="flex items-center gap-3">
-										<span class="text-sm text-gray-600">Confirm delete?</span>
+										<span class="text-sm text-gray-600 dark:text-slate-300">Confirm delete?</span>
 										<button
 											on:click={() => handleDeleteUser(u.id)}
 											class="text-red-600 font-semibold"
@@ -343,8 +347,8 @@ import {
 					{/each}
 				</div>
 				<div class="hidden sm:block overflow-x-auto">
-					<table class="min-w-full divide-y divide-gray-200">
-						<thead class="bg-gray-50">
+					<table class="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+						<thead class="bg-gray-50 dark:bg-slate-800">
 							<tr>
 								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 									User
@@ -363,19 +367,19 @@ import {
 								</th>
 							</tr>
 						</thead>
-						<tbody class="bg-white divide-y divide-gray-200">
+						<tbody class="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
 							{#each users as u (u.id)}
-								<tr class="hover:bg-gray-50">
+								<tr class="hover:bg-gray-50 dark:hover:bg-slate-800">
 									<td class="px-6 py-4 whitespace-nowrap">
 										<div class="flex items-center">
-											<div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-												<span class="text-gray-600 font-medium">
+											<div class="flex-shrink-0 h-10 w-10 bg-gray-200 dark:bg-slate-800 rounded-full flex items-center justify-center">
+												<span class="text-gray-600 dark:text-slate-300 font-medium">
 													{u.username.charAt(0).toUpperCase()}
 												</span>
 											</div>
 											<div class="ml-4">
-												<div class="text-sm font-medium text-gray-900">{u.username}</div>
-												<div class="text-sm text-gray-500">{u.email}</div>
+												<div class="text-sm font-medium text-gray-900 dark:text-slate-100">{u.username}</div>
+												<div class="text-sm text-gray-500 dark:text-slate-400">{u.email}</div>
 											</div>
 										</div>
 									</td>
@@ -393,7 +397,7 @@ import {
 											{u.is_active ? 'Active' : 'Inactive'}
 										</button>
 									</td>
-									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
 										{formatDate(u.created_at)}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -433,21 +437,21 @@ import {
 	</div>
 
 	<!-- Quick Medications -->
-	<div class="mt-8 bg-white rounded-xl shadow">
-		<div class="p-6 border-b border-gray-200">
-			<h2 class="text-xl font-semibold text-gray-900">Quick Medications</h2>
-			<p class="text-base text-gray-600 mt-1">Manage one-tap medication templates</p>
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Quick Medications</h2>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage one-tap medication templates</p>
 		</div>
 		<div class="p-6 space-y-6">
 			{#if quickMedsError}
-				<div class="p-4 bg-red-50 border border-red-200 rounded-xl">
-					<p class="text-red-800 text-base">{quickMedsError}</p>
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{quickMedsError}</p>
 				</div>
 			{/if}
 
 			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateQuickMed}>
 				<div class="sm:col-span-2">
-					<label class="block text-sm font-medium text-gray-700 mb-2">Medication Name</label>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication Name</label>
 					<input
 						type="text"
 						bind:value={newMedName}
@@ -457,7 +461,7 @@ import {
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">Dosage</label>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dosage</label>
 					<input
 						type="text"
 						bind:value={newMedDosage}
@@ -467,7 +471,7 @@ import {
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">Route</label>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
 					<select
 						bind:value={newMedRoute}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -492,20 +496,20 @@ import {
 			{#if quickMedsLoading}
 				<div class="text-center py-6">
 					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-					<p class="mt-2 text-gray-600 text-base">Loading quick medications...</p>
+					<p class="mt-2 text-gray-600 dark:text-slate-300 text-base">Loading quick medications...</p>
 				</div>
 			{:else if quickMeds.length === 0}
-				<p class="text-gray-600 text-base">No quick medications yet.</p>
+				<p class="text-gray-600 dark:text-slate-300 text-base">No quick medications yet.</p>
 			{:else}
 				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{#each quickMeds as med (med.id)}
-						<div class="border border-gray-200 rounded-xl p-4">
+						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
 							<div class="flex items-start justify-between gap-3">
 								<div>
-									<div class="text-base font-semibold text-gray-900">{med.name}</div>
-									<div class="text-sm text-gray-600">{med.dosage} · {med.route}</div>
+									<div class="text-base font-semibold text-gray-900 dark:text-slate-100">{med.name}</div>
+									<div class="text-sm text-gray-600 dark:text-slate-300">{med.dosage} · {med.route}</div>
 									{#if med.created_by_name}
-										<div class="text-xs text-gray-500 mt-1">Added by {med.created_by_name}</div>
+										<div class="text-xs text-gray-500 dark:text-slate-400 mt-1">Added by {med.created_by_name}</div>
 									{/if}
 								</div>
 								<span class={`px-2 py-1 text-xs font-semibold rounded-full ${med.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
@@ -534,21 +538,21 @@ import {
 	</div>
 
 	<!-- Quick Feeds -->
-	<div class="mt-8 bg-white rounded-xl shadow">
-		<div class="p-6 border-b border-gray-200">
-			<h2 class="text-xl font-semibold text-gray-900">Quick Feeds</h2>
-			<p class="text-base text-gray-600 mt-1">Manage one-tap feeding templates</p>
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Quick Feeds</h2>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage one-tap feeding templates</p>
 		</div>
 		<div class="p-6 space-y-6">
 			{#if quickFeedsError}
-				<div class="p-4 bg-red-50 border border-red-200 rounded-xl">
-					<p class="text-red-800 text-base">{quickFeedsError}</p>
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{quickFeedsError}</p>
 				</div>
 			{/if}
 
 			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateQuickFeed}>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">Amount (ml)</label>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
 					<input
 						type="number"
 						min="0"
@@ -558,7 +562,7 @@ import {
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">Duration (min)</label>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Duration (min)</label>
 					<input
 						type="number"
 						min="0"
@@ -568,7 +572,7 @@ import {
 					/>
 				</div>
 				<div class="sm:col-span-2">
-					<label class="block text-sm font-medium text-gray-700 mb-2">Formula Type</label>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
 					<input
 						type="text"
 						bind:value={newFeedFormula}
@@ -590,26 +594,26 @@ import {
 			{#if quickFeedsLoading}
 				<div class="text-center py-6">
 					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-					<p class="mt-2 text-gray-600 text-base">Loading quick feeds...</p>
+					<p class="mt-2 text-gray-600 dark:text-slate-300 text-base">Loading quick feeds...</p>
 				</div>
 			{:else if quickFeeds.length === 0}
-				<p class="text-gray-600 text-base">No quick feeds yet.</p>
+				<p class="text-gray-600 dark:text-slate-300 text-base">No quick feeds yet.</p>
 			{:else}
 				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{#each quickFeeds as feed (feed.id)}
-						<div class="border border-gray-200 rounded-xl p-4">
+						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
 							<div class="flex items-start justify-between gap-3">
 								<div>
-									<div class="text-base font-semibold text-gray-900">
+									<div class="text-base font-semibold text-gray-900 dark:text-slate-100">
 										{#if feed.amount_ml}{feed.amount_ml}ml{/if}
 										{#if feed.amount_ml && feed.duration_min} · {/if}
 										{#if feed.duration_min}{feed.duration_min} min{/if}
 									</div>
 									{#if feed.formula_type}
-										<div class="text-sm text-gray-600">{feed.formula_type}</div>
+										<div class="text-sm text-gray-600 dark:text-slate-300">{feed.formula_type}</div>
 									{/if}
 									{#if feed.created_by_name}
-										<div class="text-xs text-gray-500 mt-1">Added by {feed.created_by_name}</div>
+										<div class="text-xs text-gray-500 dark:text-slate-400 mt-1">Added by {feed.created_by_name}</div>
 									{/if}
 								</div>
 								<span class={`px-2 py-1 text-xs font-semibold rounded-full ${feed.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
@@ -638,32 +642,32 @@ import {
 	</div>
 
 	<!-- System Information -->
-	<div class="mt-8 bg-white rounded-xl shadow p-6">
-			<h2 class="text-xl font-semibold text-gray-900 mb-4">System Information</h2>
-			<dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<dt class="text-sm font-medium text-gray-500">Total Users</dt>
-					<dd class="mt-1 text-2xl font-semibold text-gray-900">{users.length}</dd>
-				</div>
-				<div>
-					<dt class="text-sm font-medium text-gray-500">Active Users</dt>
-					<dd class="mt-1 text-2xl font-semibold text-gray-900">
-						{users.filter(u => u.is_active).length}
-					</dd>
-				</div>
-				<div>
-					<dt class="text-sm font-medium text-gray-500">Administrators</dt>
-					<dd class="mt-1 text-2xl font-semibold text-gray-900">
-						{users.filter(u => u.role === 'admin').length}
-					</dd>
-				</div>
-				<div>
-					<dt class="text-sm font-medium text-gray-500">Caregivers</dt>
-					<dd class="mt-1 text-2xl font-semibold text-gray-900">
-						{users.filter(u => u.role === 'caregiver').length}
-					</dd>
-				</div>
-			</dl>
-		</div>
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow p-6">
+		<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-4">System Information</h2>
+		<dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+			<div>
+				<dt class="text-sm font-medium text-gray-500 dark:text-slate-400">Total Users</dt>
+				<dd class="mt-1 text-2xl font-semibold text-gray-900 dark:text-slate-100">{users.length}</dd>
+			</div>
+			<div>
+				<dt class="text-sm font-medium text-gray-500 dark:text-slate-400">Active Users</dt>
+				<dd class="mt-1 text-2xl font-semibold text-gray-900 dark:text-slate-100">
+					{users.filter(u => u.is_active).length}
+				</dd>
+			</div>
+			<div>
+				<dt class="text-sm font-medium text-gray-500 dark:text-slate-400">Administrators</dt>
+				<dd class="mt-1 text-2xl font-semibold text-gray-900 dark:text-slate-100">
+					{users.filter(u => u.role === 'admin').length}
+				</dd>
+			</div>
+			<div>
+				<dt class="text-sm font-medium text-gray-500 dark:text-slate-400">Caregivers</dt>
+				<dd class="mt-1 text-2xl font-semibold text-gray-900 dark:text-slate-100">
+					{users.filter(u => u.role === 'caregiver').length}
+				</dd>
+			</div>
+		</dl>
+	</div>
 	</main>
 </div>
