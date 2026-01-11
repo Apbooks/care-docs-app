@@ -55,7 +55,7 @@
 </svelte:head>
 
 {#if user}
-	<div class="min-h-screen bg-gray-50 pb-20">
+	<div class="min-h-screen bg-gray-50 dark:bg-slate-950 pb-20">
 		<!-- Header -->
 		<header class="bg-white dark:bg-slate-900 shadow sticky top-0 z-30">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
