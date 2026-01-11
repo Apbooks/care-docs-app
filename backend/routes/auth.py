@@ -172,7 +172,14 @@ async def register_user(
     db.commit()
     db.refresh(new_user)
 
-    return new_user
+    return UserResponse(
+        id=str(new_user.id),
+        username=new_user.username,
+        email=new_user.email,
+        role=new_user.role,
+        is_active=new_user.is_active,
+        created_at=new_user.created_at.isoformat()
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
