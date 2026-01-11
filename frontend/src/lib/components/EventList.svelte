@@ -14,8 +14,10 @@
 	let editError = '';
 	let deleteTargetId = null;
 
-	onMount(async () => {
-		await loadEvents();
+	onMount(() => {
+		loadEvents();
+		const interval = setInterval(loadEvents, 30000);
+		return () => clearInterval(interval);
 	});
 
 	async function loadEvents() {

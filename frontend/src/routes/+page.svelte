@@ -33,6 +33,15 @@
 		}
 
 		loadActiveFeed();
+
+		const handleActiveFeedChanged = () => loadActiveFeed();
+		window.addEventListener('active-feed-changed', handleActiveFeedChanged);
+		window.addEventListener('storage', handleActiveFeedChanged);
+
+		return () => {
+			window.removeEventListener('active-feed-changed', handleActiveFeedChanged);
+			window.removeEventListener('storage', handleActiveFeedChanged);
+		};
 	});
 
 	function loadActiveFeed() {

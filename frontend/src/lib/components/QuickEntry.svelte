@@ -177,6 +177,9 @@
 				localStorage.removeItem(ACTIVE_FEED_KEY);
 			}
 		}
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(new Event('active-feed-changed'));
+		}
 	}
 
 	async function startContinuousFeed() {
