@@ -36,13 +36,14 @@ export async function apiRequest(endpoint, options = {}) {
 			return { success: true };
 		}
 
-		const data = await response.json();
+		const text = await response.text();
+		const data = text ? JSON.parse(text) : null;
 
 		if (!response.ok) {
-			throw new Error(data.detail || `HTTP ${response.status}`);
+			throw new Error((data && data.detail) || `HTTP ${response.status}`);
 		}
 
-		return data;
+		return data ?? { success: true };
 	} catch (error) {
 		console.error('API request failed:', error);
 		throw error;
