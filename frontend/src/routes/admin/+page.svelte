@@ -4,16 +4,18 @@
 	import { authStore, isAdmin } from '$lib/stores/auth';
 	import {
 		apiRequest,
-	getQuickMeds,
-	createQuickMed,
+		getQuickMeds,
+		createQuickMed,
 	updateQuickMed,
 	deleteQuickMed,
 	getQuickFeeds,
-	createQuickFeed,
+		createQuickFeed,
 		updateQuickFeed,
 		deleteQuickFeed
 	} from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import { getTimezone, updateTimezone } from '$lib/services/api';
+	import { timezone as timezoneStore, setTimezone as setTimezoneStore } from '$lib/stores/settings';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -21,6 +23,20 @@
 	let loading = true;
 	let error = '';
 	let deleteConfirmUserId = null;
+	let timezoneValue = 'local';
+	let timezoneLoading = true;
+	let timezoneError = '';
+
+	const timezones = [
+		'local',
+		'America/Chicago',
+		'America/New_York',
+		'America/Denver',
+		'America/Los_Angeles',
+		'America/Phoenix',
+		'America/Anchorage',
+		'Pacific/Honolulu'
+	];
 	let quickMeds = [];
 	let quickFeeds = [];
 	let quickMedsLoading = true;
@@ -69,7 +85,7 @@
 			return;
 		}
 
-		await Promise.all([loadUsers(), loadQuickMeds(), loadQuickFeeds()]);
+		await Promise.all([loadUsers(), loadQuickMeds(), loadQuickFeeds(), loadTimezone()]);
 	});
 
 	async function loadUsers() {
@@ -82,6 +98,32 @@
 			error = err.message || 'Failed to load users';
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadTimezone() {
+		timezoneLoading = true;
+		timezoneError = '';
+
+		try {
+			const response = await getTimezone();
+			timezoneValue = response?.timezone || 'local';
+			setTimezoneStore(timezoneValue);
+		} catch (err) {
+			timezoneError = err.message || 'Failed to load timezone';
+		} finally {
+			timezoneLoading = false;
+		}
+	}
+
+	async function handleTimezoneSave() {
+		timezoneError = '';
+
+		try {
+			const response = await updateTimezone(timezoneValue);
+			setTimezoneStore(response?.timezone || timezoneValue);
+		} catch (err) {
+			timezoneError = err.message || 'Failed to update timezone';
 		}
 	}
 
@@ -1016,6 +1058,38 @@
 				</dd>
 			</div>
 		</dl>
+	</div>
+
+	<!-- Timezone Settings -->
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow p-6">
+		<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-2">Timezone</h2>
+		<p class="text-sm text-gray-600 dark:text-slate-300 mb-4">
+			Set the timezone used for timestamps throughout the app.
+		</p>
+		{#if timezoneError}
+			<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+				<p class="text-red-800 dark:text-red-200 text-sm">{timezoneError}</p>
+			</div>
+		{/if}
+		<div class="flex flex-wrap items-center gap-3">
+			<select
+				bind:value={timezoneValue}
+				disabled={timezoneLoading}
+				class="px-4 py-3 border border-gray-300 rounded-xl text-base disabled:bg-gray-100 dark:disabled:bg-slate-800"
+			>
+				{#each timezones as tz}
+					<option value={tz}>{tz}</option>
+				{/each}
+			</select>
+			<button
+				type="button"
+				on:click={handleTimezoneSave}
+				disabled={timezoneLoading}
+				class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-400"
+			>
+				Save Timezone
+			</button>
+		</div>
 	</div>
 	</main>
 </div>

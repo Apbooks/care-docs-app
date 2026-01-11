@@ -6,6 +6,7 @@
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import { timezone } from '$lib/stores/settings';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -49,6 +50,16 @@
 				localStorage.removeItem(ACTIVE_FEED_KEY);
 			}
 		}
+	}
+
+	function formatBannerTime(value) {
+		const date = new Date(value);
+		const options = { timeZone: $timezone };
+		return date.toLocaleTimeString('en-US', {
+			hour: 'numeric',
+			minute: '2-digit',
+			...($timezone === 'local' ? {} : options)
+		});
 	}
 
 	async function stopContinuousFeed() {
@@ -189,7 +200,7 @@
 						<div>
 							<h3 class="font-semibold text-emerald-900 dark:text-emerald-100">Continuous Feed Running</h3>
 							<p class="text-base text-emerald-800 dark:text-emerald-200 mt-1">
-								Started {new Date(activeContinuousFeed.started_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+								Started {formatBannerTime(activeContinuousFeed.started_at)}
 								· Rate {activeContinuousFeed.rate_ml_hr || '-'} ml/hr
 								· Interval {activeContinuousFeed.interval_hr || '-'} hr
 							</p>

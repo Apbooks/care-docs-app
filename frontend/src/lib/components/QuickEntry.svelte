@@ -1,6 +1,7 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
 	import { createEvent, getQuickMeds, getQuickFeeds } from '$lib/services/api';
+	import { timezone } from '$lib/stores/settings';
 
 	export let show = false;
 
@@ -155,6 +156,16 @@
 		activityLevel = 'moderate';
 		concerns = '';
 		resetQuickNote();
+	}
+
+	function formatRunningTime(value) {
+		const date = new Date(value);
+		const options = { timeZone: $timezone };
+		return date.toLocaleTimeString('en-US', {
+			hour: 'numeric',
+			minute: '2-digit',
+			...($timezone === 'local' ? {} : options)
+		});
 	}
 
 	function setActiveFeed(feed) {
@@ -665,7 +676,7 @@
 							{#if activeContinuousFeed}
 								<div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800">
 									<p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-										Feed running since {new Date(activeContinuousFeed.started_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+										Feed running since {formatRunningTime(activeContinuousFeed.started_at)}
 									</p>
 									<p class="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
 										Rate {activeContinuousFeed.rate_ml_hr || '-'} ml/hr · Interval {activeContinuousFeed.interval_hr || '-'} hr

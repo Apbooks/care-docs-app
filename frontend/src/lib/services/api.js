@@ -231,3 +231,18 @@ export async function deleteQuickFeed(feedId) {
 		method: 'DELETE'
 	});
 }
+
+// ============================================================================
+// SETTINGS
+// ============================================================================
+
+export async function getTimezone() {
+	return apiRequest('/settings/timezone');
+}
+
+export async function updateTimezone(timezone) {
+	return apiRequest('/settings/timezone', {
+		method: 'PUT',
+		body: JSON.stringify({ timezone })
+	});
+}

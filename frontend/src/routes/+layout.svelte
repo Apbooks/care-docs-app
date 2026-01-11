@@ -2,9 +2,11 @@
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { initTheme } from '$lib/stores/theme';
+	import { initSettings } from '$lib/stores/settings';
 
 	onMount(() => {
 		initTheme();
+		initSettings();
 	});
 </script>
 

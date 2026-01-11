@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { getEvents, updateEvent, deleteEvent } from '$lib/services/api';
+	import { timezone } from '$lib/stores/settings';
 
 	export let limit = 10;
 	export let type = null;
@@ -57,14 +58,17 @@
 
 	function formatTime(timestamp) {
 		const date = new Date(timestamp);
+		const options = { timeZone: $timezone };
 		const time = date.toLocaleTimeString('en-US', {
 			hour: 'numeric',
-			minute: '2-digit'
+			minute: '2-digit',
+			...($timezone === 'local' ? {} : options)
 		});
 		const day = date.toLocaleDateString('en-US', {
 			year: '2-digit',
 			month: 'numeric',
-			day: 'numeric'
+			day: 'numeric',
+			...($timezone === 'local' ? {} : options)
 		});
 		return `${time} ${day}`;
 	}
