@@ -148,7 +148,12 @@
   - TROUBLESHOOTING.md - Common issues and solutions
   - scripts/pi-setup.sh - Automated setup script
 - [x] Deployed to Raspberry Pi 4B at 192.168.1.101
-- [x] Created admin user on production system
+- [x] Created web-based setup system for initial admin creation:
+  - New /api/setup/initialize endpoint (POST)
+  - New /api/setup/status endpoint (GET)
+  - setup.html - Browser-based admin creation UI
+  - Replaces complex Docker exec workflow
+  - Auto-disables after first admin is created (security)
 
 #### Known Issues Fixed
 - ✓ Backend field name mismatch causing 500 errors
@@ -161,10 +166,11 @@
 
 #### Current Status
 - Backend: Running on Raspberry Pi at http://192.168.1.101:8000
-- Frontend: Rebuilding with correct API URL configuration
+- Frontend: Needs rebuild with PUBLIC_API_URL configuration
 - Database: PostgreSQL 15 running with optimized settings for Pi
-- Admin user created: bmiller
-- Authentication system fully functional
+- Setup endpoint: Available at http://192.168.1.101:8000/setup.html
+- Admin creation: Use web-based setup instead of Docker exec
+- Next step: Create admin via setup.html, then rebuild frontend
 
 ---
 
@@ -330,7 +336,9 @@ _To be measured after deployment_
 ## Known Issues
 
 ### In Progress
-- Frontend container rebuilding with PUBLIC_API_URL=http://192.168.1.101:8000 to fix API connection
+- Frontend container needs rebuild with PUBLIC_API_URL=http://192.168.1.101:8000 to fix API connection
+  - Current workaround: Use setup.html to create admin, skip frontend for now
+  - Frontend rebuild can be done later once admin account exists
 
 ### To Address
 - Missing PWA icons (/icon-192.png, /icon-512.png)
@@ -387,13 +395,32 @@ _To be measured after deployment_
 
 ---
 
-## Quick Docker Setup Guide
+## Quick Setup Guide
 
-### Prerequisites
-- Install Docker Desktop from [docker.com](https://www.docker.com/products/docker-desktop/)
-- Or on macOS: `brew install --cask docker`
+### Raspberry Pi Production Deployment
 
-### Running the Development Environment
+```bash
+# 1. Clone and navigate to project
+cd ~/Docker/care-docs-app
+git pull origin main
+
+# 2. Configure environment
+cd .
+nano .env  # Set JWT_SECRET_KEY, DB_PASSWORD, PUBLIC_API_URL, CORS_ORIGINS
+
+# 3. Start services
+docker compose -f docker-compose.prod.yml up -d --build
+
+# 4. Create admin user via web browser
+# Open: http://192.168.1.101:8000/setup.html
+# Fill in admin credentials and submit
+
+# 5. Access the application
+# Frontend: http://192.168.1.101:3000
+# Backend API: http://192.168.1.101:8000/docs
+```
+
+### Development Environment (Local)
 
 ```bash
 cd /Users/jackhenryinvestments/Documents/Code/care-docs-app
@@ -401,7 +428,10 @@ cd /Users/jackhenryinvestments/Documents/Code/care-docs-app
 # Start all services
 docker compose up --build
 
-# Create first admin user (in another terminal)
+# Create first admin user via browser
+# Open: http://localhost:8000/setup.html
+
+# OR use CLI method:
 docker compose exec backend python create_admin.py
 
 # Access the app
