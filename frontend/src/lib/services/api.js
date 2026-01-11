@@ -176,3 +176,57 @@ export async function deleteEvent(eventId) {
 export async function getEventStats() {
 	return apiRequest('/events/stats/summary');
 }
+
+// ============================================================================
+// QUICK TEMPLATES
+// ============================================================================
+
+export async function getQuickMeds(includeInactive = false) {
+	const query = includeInactive ? '?include_inactive=true' : '';
+	return apiRequest(`/quick-meds${query}`);
+}
+
+export async function createQuickMed(data) {
+	return apiRequest('/quick-meds', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function updateQuickMed(medId, data) {
+	return apiRequest(`/quick-meds/${medId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function deleteQuickMed(medId) {
+	return apiRequest(`/quick-meds/${medId}`, {
+		method: 'DELETE'
+	});
+}
+
+export async function getQuickFeeds(includeInactive = false) {
+	const query = includeInactive ? '?include_inactive=true' : '';
+	return apiRequest(`/quick-feeds${query}`);
+}
+
+export async function createQuickFeed(data) {
+	return apiRequest('/quick-feeds', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function updateQuickFeed(feedId, data) {
+	return apiRequest(`/quick-feeds/${feedId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function deleteQuickFeed(feedId) {
+	return apiRequest(`/quick-feeds/${feedId}`, {
+		method: 'DELETE'
+	});
+}

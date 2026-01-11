@@ -40,15 +40,15 @@
 		return icons[eventType] || '📝';
 	}
 
-	function getEventColor(eventType) {
-		const colors = {
-			medication: 'blue',
-			feeding: 'green',
-			diaper: 'yellow',
-			demeanor: 'purple',
-			observation: 'gray'
+	function getEventBadgeClass(eventType) {
+		const classes = {
+			medication: 'bg-blue-100 text-blue-800',
+			feeding: 'bg-green-100 text-green-800',
+			diaper: 'bg-yellow-100 text-yellow-800',
+			demeanor: 'bg-purple-100 text-purple-800',
+			observation: 'bg-gray-100 text-gray-800'
 		};
-		return colors[eventType] || 'gray';
+		return classes[eventType] || 'bg-gray-100 text-gray-800';
 	}
 
 	function formatTime(timestamp) {
@@ -96,27 +96,27 @@
 	}
 </script>
 
-<div class="space-y-3">
+<div class="space-y-4">
 	{#if loading}
-		<div class="text-center py-8">
-			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-			<p class="mt-2 text-gray-600">Loading events...</p>
+		<div class="text-center py-10">
+			<div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+			<p class="mt-3 text-gray-600 text-base">Loading events...</p>
 		</div>
 	{:else if error}
 		<div class="p-4 bg-red-50 border border-red-200 rounded-lg">
-			<p class="text-red-800 text-sm">{error}</p>
+			<p class="text-red-800 text-base">{error}</p>
 		</div>
 	{:else if events.length === 0}
-		<div class="text-center py-8">
-			<p class="text-gray-600">No events recorded yet</p>
+		<div class="text-center py-10">
+			<p class="text-gray-600 text-base">No events recorded yet</p>
 			<p class="text-sm text-gray-500 mt-1">Tap the + button to create your first entry</p>
 		</div>
 	{:else}
 		{#each events as event (event.id)}
-			<div class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow">
+			<div class="bg-white rounded-xl shadow p-5 hover:shadow-md transition-shadow">
 				<div class="flex items-start gap-3">
 					<!-- Event Icon -->
-					<div class="text-2xl flex-shrink-0">
+					<div class="text-3xl flex-shrink-0">
 						{getEventIcon(event.type)}
 					</div>
 
@@ -124,10 +124,10 @@
 					<div class="flex-1 min-w-0">
 						<div class="flex items-start justify-between gap-2">
 							<div class="flex-1">
-								<h3 class="font-medium text-gray-900 capitalize">
+								<h3 class="font-semibold text-gray-900 capitalize text-base">
 									{event.type.replace('_', ' ')}
 								</h3>
-								<p class="text-sm text-gray-600 mt-1">
+								<p class="text-base text-gray-600 mt-1">
 									{formatMetadata(event)}
 								</p>
 								{#if event.notes && event.type !== 'observation'}
@@ -138,13 +138,13 @@
 							</div>
 
 							<!-- Time Badge -->
-							<span class="px-2 py-1 bg-{getEventColor(event.type)}-100 text-{getEventColor(event.type)}-800 text-xs font-medium rounded whitespace-nowrap">
+							<span class={`px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap ${getEventBadgeClass(event.type)}`}>
 								{formatTime(event.timestamp)}
 							</span>
 						</div>
 
 						<!-- User Info -->
-						<div class="mt-2 flex items-center gap-2 text-xs text-gray-500">
+						<div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
 							<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
 								<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
 							</svg>

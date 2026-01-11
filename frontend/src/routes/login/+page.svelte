@@ -47,19 +47,19 @@
 		</div>
 
 		<!-- Login Card -->
-		<div class="bg-white rounded-lg shadow-xl p-8">
+		<div class="bg-white rounded-xl shadow-xl p-8">
 			<h2 class="text-2xl font-semibold text-gray-900 mb-6">Sign In</h2>
 
 			{#if error}
-				<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-					<p class="text-red-800 text-sm">{error}</p>
+				<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+					<p class="text-red-800 text-base">{error}</p>
 				</div>
 			{/if}
 
 			<form on:submit={handleLogin} class="space-y-6">
 				<!-- Username -->
 				<div>
-					<label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="username" class="block text-base font-medium text-gray-700 mb-2">
 						Username
 					</label>
 					<input
@@ -68,14 +68,14 @@
 						bind:value={username}
 						required
 						disabled={loading}
-						class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
 						placeholder="Enter your username"
 					/>
 				</div>
 
 				<!-- Password -->
 				<div>
-					<label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="password" class="block text-base font-medium text-gray-700 mb-2">
 						Password
 					</label>
 					<input
@@ -84,7 +84,7 @@
 						bind:value={password}
 						required
 						disabled={loading}
-						class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
 						placeholder="Enter your password"
 					/>
 				</div>
@@ -93,7 +93,7 @@
 				<button
 					type="submit"
 					disabled={loading}
-					class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
+					class="w-full bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold text-base hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
 				>
 					{#if loading}
 						<span class="flex items-center justify-center">

@@ -2,7 +2,17 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-	import { apiRequest } from '$lib/services/api';
+import {
+	apiRequest,
+	getQuickMeds,
+	createQuickMed,
+	updateQuickMed,
+	deleteQuickMed,
+	getQuickFeeds,
+	createQuickFeed,
+	updateQuickFeed,
+	deleteQuickFeed
+} from '$lib/services/api';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -10,6 +20,20 @@
 	let loading = true;
 	let error = '';
 	let deleteConfirmUserId = null;
+	let quickMeds = [];
+	let quickFeeds = [];
+	let quickMedsLoading = true;
+	let quickFeedsLoading = true;
+	let quickMedsError = '';
+	let quickFeedsError = '';
+
+	let newMedName = '';
+	let newMedDosage = '';
+	let newMedRoute = 'oral';
+
+	let newFeedAmount = '';
+	let newFeedDuration = '';
+	let newFeedFormula = '';
 
 	authStore.subscribe(value => {
 		user = value;
@@ -26,7 +50,7 @@
 			return;
 		}
 
-		await loadUsers();
+		await Promise.all([loadUsers(), loadQuickMeds(), loadQuickFeeds()]);
 	});
 
 	async function loadUsers() {
@@ -39,6 +63,112 @@
 			error = err.message || 'Failed to load users';
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadQuickMeds() {
+		quickMedsLoading = true;
+		quickMedsError = '';
+
+		try {
+			quickMeds = await getQuickMeds(true);
+		} catch (err) {
+			quickMedsError = err.message || 'Failed to load quick medications';
+		} finally {
+			quickMedsLoading = false;
+		}
+	}
+
+	async function loadQuickFeeds() {
+		quickFeedsLoading = true;
+		quickFeedsError = '';
+
+		try {
+			quickFeeds = await getQuickFeeds(true);
+		} catch (err) {
+			quickFeedsError = err.message || 'Failed to load quick feeds';
+		} finally {
+			quickFeedsLoading = false;
+		}
+	}
+
+	async function handleCreateQuickMed() {
+		quickMedsError = '';
+
+		try {
+			const created = await createQuickMed({
+				name: newMedName,
+				dosage: newMedDosage,
+				route: newMedRoute
+			});
+			quickMeds = [created, ...quickMeds];
+			newMedName = '';
+			newMedDosage = '';
+			newMedRoute = 'oral';
+		} catch (err) {
+			quickMedsError = err.message || 'Failed to create quick medication';
+		}
+	}
+
+	async function handleToggleQuickMed(med) {
+		quickMedsError = '';
+
+		try {
+			const updated = await updateQuickMed(med.id, { is_active: !med.is_active });
+			quickMeds = quickMeds.map(item => item.id === med.id ? updated : item);
+		} catch (err) {
+			quickMedsError = err.message || 'Failed to update quick medication';
+		}
+	}
+
+	async function handleDeleteQuickMed(medId) {
+		quickMedsError = '';
+
+		try {
+			await deleteQuickMed(medId);
+			quickMeds = quickMeds.filter(item => item.id !== medId);
+		} catch (err) {
+			quickMedsError = err.message || 'Failed to delete quick medication';
+		}
+	}
+
+	async function handleCreateQuickFeed() {
+		quickFeedsError = '';
+
+		try {
+			const created = await createQuickFeed({
+				amount_ml: newFeedAmount ? parseInt(newFeedAmount) : null,
+				duration_min: newFeedDuration ? parseInt(newFeedDuration) : null,
+				formula_type: newFeedFormula || null
+			});
+			quickFeeds = [created, ...quickFeeds];
+			newFeedAmount = '';
+			newFeedDuration = '';
+			newFeedFormula = '';
+		} catch (err) {
+			quickFeedsError = err.message || 'Failed to create quick feed';
+		}
+	}
+
+	async function handleToggleQuickFeed(feed) {
+		quickFeedsError = '';
+
+		try {
+			const updated = await updateQuickFeed(feed.id, { is_active: !feed.is_active });
+			quickFeeds = quickFeeds.map(item => item.id === feed.id ? updated : item);
+		} catch (err) {
+			quickFeedsError = err.message || 'Failed to update quick feed';
+		}
+	}
+
+	async function handleDeleteQuickFeed(feedId) {
+		quickFeedsError = '';
+
+		try {
+			await deleteQuickFeed(feedId);
+			quickFeeds = quickFeeds.filter(item => item.id !== feedId);
+		} catch (err) {
+			quickFeedsError = err.message || 'Failed to delete quick feed';
 		}
 	}
 
@@ -105,12 +235,12 @@
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 			<div class="flex justify-between items-center">
 				<div>
-					<h1 class="text-2xl font-bold text-gray-900">Admin Panel</h1>
-					<p class="text-sm text-gray-600 mt-1">Manage users and system settings</p>
+					<h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Admin Panel</h1>
+					<p class="text-base text-gray-600 mt-1">Manage users and system settings</p>
 				</div>
 				<button
 					on:click={() => goto('/')}
-					class="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+					class="px-4 py-2 text-base text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl"
 				>
 					Back to Dashboard
 				</button>
@@ -121,28 +251,28 @@
 	<!-- Main Content -->
 	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 		<!-- Error Display -->
-		{#if error}
-			<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-				<p class="text-red-800 text-sm">{error}</p>
-			</div>
-		{/if}
+	{#if error}
+		<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+			<p class="text-red-800 text-base">{error}</p>
+		</div>
+	{/if}
 
 		<!-- User Management Section -->
-		<div class="bg-white rounded-lg shadow">
-			<div class="p-6 border-b border-gray-200">
-				<div class="flex justify-between items-center">
-					<div>
-						<h2 class="text-xl font-semibold text-gray-900">User Management</h2>
-						<p class="text-sm text-gray-600 mt-1">View and manage user accounts</p>
-					</div>
-					<button
-						on:click={() => goto('/register')}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-					>
-						Add New User
-					</button>
+	<div class="bg-white rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200">
+			<div class="flex justify-between items-center">
+				<div>
+					<h2 class="text-xl font-semibold text-gray-900">User Management</h2>
+					<p class="text-base text-gray-600 mt-1">View and manage user accounts</p>
 				</div>
+				<button
+					on:click={() => goto('/register')}
+					class="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-base"
+				>
+					Add New User
+				</button>
 			</div>
+		</div>
 
 			<div class="p-6">
 				{#if loading}
@@ -150,103 +280,365 @@
 						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
 						<p class="mt-2 text-gray-600">Loading users...</p>
 					</div>
-				{:else if users.length === 0}
-					<div class="text-center py-8">
-						<p class="text-gray-600">No users found</p>
-					</div>
-				{:else}
-					<div class="overflow-x-auto">
-						<table class="min-w-full divide-y divide-gray-200">
-							<thead class="bg-gray-50">
-								<tr>
-									<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-										User
-									</th>
-									<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Role
-									</th>
-									<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Status
-									</th>
-									<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Created
-									</th>
-									<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-										Actions
-									</th>
-								</tr>
-							</thead>
-							<tbody class="bg-white divide-y divide-gray-200">
-								{#each users as u (u.id)}
-									<tr class="hover:bg-gray-50">
-										<td class="px-6 py-4 whitespace-nowrap">
-											<div class="flex items-center">
-												<div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-													<span class="text-gray-600 font-medium">
-														{u.username.charAt(0).toUpperCase()}
-													</span>
-												</div>
-												<div class="ml-4">
-													<div class="text-sm font-medium text-gray-900">{u.username}</div>
-													<div class="text-sm text-gray-500">{u.email}</div>
-												</div>
+			{:else if users.length === 0}
+				<div class="text-center py-8">
+					<p class="text-gray-600 text-base">No users found</p>
+				</div>
+			{:else}
+				<div class="space-y-4 sm:hidden">
+					{#each users as u (u.id)}
+						<div class="border border-gray-200 rounded-xl p-4">
+							<div class="flex items-center gap-3">
+								<div class="flex-shrink-0 h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
+									<span class="text-gray-600 font-semibold text-lg">
+										{u.username.charAt(0).toUpperCase()}
+									</span>
+								</div>
+								<div class="flex-1">
+									<div class="text-base font-semibold text-gray-900">{u.username}</div>
+									<div class="text-sm text-gray-500">{u.email}</div>
+								</div>
+								<span class={`px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
+									{u.role}
+								</span>
+							</div>
+							<div class="mt-3 flex flex-wrap items-center gap-3">
+								<button
+									on:click={() => handleToggleActive(u.id, u.is_active)}
+									class={`px-3 py-2 text-xs font-semibold rounded-full ${u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+									disabled={u.id === user?.id && u.is_active}
+								>
+									{u.is_active ? 'Active' : 'Inactive'}
+								</button>
+								<span class="text-xs text-gray-500">Created {formatDate(u.created_at)}</span>
+							</div>
+							<div class="mt-3">
+								{#if deleteConfirmUserId === u.id}
+									<div class="flex items-center gap-3">
+										<span class="text-sm text-gray-600">Confirm delete?</span>
+										<button
+											on:click={() => handleDeleteUser(u.id)}
+											class="text-red-600 font-semibold"
+										>
+											Yes
+										</button>
+										<button
+											on:click={() => deleteConfirmUserId = null}
+											class="text-gray-600 font-semibold"
+										>
+											No
+										</button>
+									</div>
+								{:else}
+									<button
+										on:click={() => deleteConfirmUserId = u.id}
+										disabled={u.id === user?.id}
+										class="text-red-600 font-semibold disabled:text-gray-400 disabled:cursor-not-allowed"
+									>
+										Delete User
+									</button>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+				<div class="hidden sm:block overflow-x-auto">
+					<table class="min-w-full divide-y divide-gray-200">
+						<thead class="bg-gray-50">
+							<tr>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									User
+								</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Role
+								</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Status
+								</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Created
+								</th>
+								<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Actions
+								</th>
+							</tr>
+						</thead>
+						<tbody class="bg-white divide-y divide-gray-200">
+							{#each users as u (u.id)}
+								<tr class="hover:bg-gray-50">
+									<td class="px-6 py-4 whitespace-nowrap">
+										<div class="flex items-center">
+											<div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
+												<span class="text-gray-600 font-medium">
+													{u.username.charAt(0).toUpperCase()}
+												</span>
 											</div>
-										</td>
-										<td class="px-6 py-4 whitespace-nowrap">
-											<span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {getRoleBadgeColor(u.role)}">
-												{u.role}
-											</span>
-										</td>
-										<td class="px-6 py-4 whitespace-nowrap">
-											<button
-												on:click={() => handleToggleActive(u.id, u.is_active)}
-												class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer {u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}"
-												disabled={u.id === user?.id && u.is_active}
-											>
-												{u.is_active ? 'Active' : 'Inactive'}
-											</button>
-										</td>
-										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-											{formatDate(u.created_at)}
-										</td>
-										<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-											{#if deleteConfirmUserId === u.id}
-												<div class="flex items-center justify-end gap-2">
-													<span class="text-gray-600 text-xs">Confirm delete?</span>
-													<button
-														on:click={() => handleDeleteUser(u.id)}
-														class="text-red-600 hover:text-red-900"
-													>
-														Yes
-													</button>
-													<button
-														on:click={() => deleteConfirmUserId = null}
-														class="text-gray-600 hover:text-gray-900"
-													>
-														No
-													</button>
-												</div>
-											{:else}
+											<div class="ml-4">
+												<div class="text-sm font-medium text-gray-900">{u.username}</div>
+												<div class="text-sm text-gray-500">{u.email}</div>
+											</div>
+										</div>
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap">
+										<span class={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
+											{u.role}
+										</span>
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap">
+										<button
+											on:click={() => handleToggleActive(u.id, u.is_active)}
+											class={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer ${u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+											disabled={u.id === user?.id && u.is_active}
+										>
+											{u.is_active ? 'Active' : 'Inactive'}
+										</button>
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+										{formatDate(u.created_at)}
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+										{#if deleteConfirmUserId === u.id}
+											<div class="flex items-center justify-end gap-2">
+												<span class="text-gray-600 text-xs">Confirm delete?</span>
 												<button
-													on:click={() => deleteConfirmUserId = u.id}
-													disabled={u.id === user?.id}
-													class="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+													on:click={() => handleDeleteUser(u.id)}
+													class="text-red-600 hover:text-red-900"
 												>
-													Delete
+													Yes
 												</button>
-											{/if}
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				{/if}
-			</div>
+												<button
+													on:click={() => deleteConfirmUserId = null}
+													class="text-gray-600 hover:text-gray-900"
+												>
+													No
+												</button>
+											</div>
+										{:else}
+											<button
+												on:click={() => deleteConfirmUserId = u.id}
+												disabled={u.id === user?.id}
+												class="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+											>
+												Delete
+											</button>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
 		</div>
+	</div>
 
-		<!-- System Information -->
-		<div class="mt-8 bg-white rounded-lg shadow p-6">
+	<!-- Quick Medications -->
+	<div class="mt-8 bg-white rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200">
+			<h2 class="text-xl font-semibold text-gray-900">Quick Medications</h2>
+			<p class="text-base text-gray-600 mt-1">Manage one-tap medication templates</p>
+		</div>
+		<div class="p-6 space-y-6">
+			{#if quickMedsError}
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl">
+					<p class="text-red-800 text-base">{quickMedsError}</p>
+				</div>
+			{/if}
+
+			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateQuickMed}>
+				<div class="sm:col-span-2">
+					<label class="block text-sm font-medium text-gray-700 mb-2">Medication Name</label>
+					<input
+						type="text"
+						bind:value={newMedName}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="e.g., Tylenol"
+						required
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">Dosage</label>
+					<input
+						type="text"
+						bind:value={newMedDosage}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="5ml"
+						required
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">Route</label>
+					<select
+						bind:value={newMedRoute}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+					>
+						<option value="oral">Oral</option>
+						<option value="tube">Tube Fed</option>
+						<option value="topical">Topical</option>
+						<option value="injection">Injection</option>
+					</select>
+				</div>
+				<div class="sm:col-span-4">
+					<button
+						type="submit"
+						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
+						disabled={!newMedName || !newMedDosage}
+					>
+						Add Quick Medication
+					</button>
+				</div>
+			</form>
+
+			{#if quickMedsLoading}
+				<div class="text-center py-6">
+					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+					<p class="mt-2 text-gray-600 text-base">Loading quick medications...</p>
+				</div>
+			{:else if quickMeds.length === 0}
+				<p class="text-gray-600 text-base">No quick medications yet.</p>
+			{:else}
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each quickMeds as med (med.id)}
+						<div class="border border-gray-200 rounded-xl p-4">
+							<div class="flex items-start justify-between gap-3">
+								<div>
+									<div class="text-base font-semibold text-gray-900">{med.name}</div>
+									<div class="text-sm text-gray-600">{med.dosage} · {med.route}</div>
+									{#if med.created_by_name}
+										<div class="text-xs text-gray-500 mt-1">Added by {med.created_by_name}</div>
+									{/if}
+								</div>
+								<span class={`px-2 py-1 text-xs font-semibold rounded-full ${med.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
+									{med.is_active ? 'Active' : 'Inactive'}
+								</span>
+							</div>
+							<div class="mt-4 flex items-center gap-3">
+								<button
+									on:click={() => handleToggleQuickMed(med)}
+									class="px-3 py-2 text-xs font-semibold rounded-full border border-blue-200 text-blue-700 hover:bg-blue-50"
+								>
+									{med.is_active ? 'Deactivate' : 'Activate'}
+								</button>
+								<button
+									on:click={() => handleDeleteQuickMed(med.id)}
+									class="text-red-600 text-xs font-semibold"
+								>
+									Delete
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Quick Feeds -->
+	<div class="mt-8 bg-white rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200">
+			<h2 class="text-xl font-semibold text-gray-900">Quick Feeds</h2>
+			<p class="text-base text-gray-600 mt-1">Manage one-tap feeding templates</p>
+		</div>
+		<div class="p-6 space-y-6">
+			{#if quickFeedsError}
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl">
+					<p class="text-red-800 text-base">{quickFeedsError}</p>
+				</div>
+			{/if}
+
+			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateQuickFeed}>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">Amount (ml)</label>
+					<input
+						type="number"
+						min="0"
+						bind:value={newFeedAmount}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="240"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">Duration (min)</label>
+					<input
+						type="number"
+						min="0"
+						bind:value={newFeedDuration}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="20"
+					/>
+				</div>
+				<div class="sm:col-span-2">
+					<label class="block text-sm font-medium text-gray-700 mb-2">Formula Type</label>
+					<input
+						type="text"
+						bind:value={newFeedFormula}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="Standard formula"
+					/>
+				</div>
+				<div class="sm:col-span-4">
+					<button
+						type="submit"
+						class="px-4 py-3 bg-green-600 text-white rounded-xl text-base hover:bg-green-700 disabled:bg-green-300"
+						disabled={!newFeedAmount && !newFeedDuration && !newFeedFormula}
+					>
+						Add Quick Feed
+					</button>
+				</div>
+			</form>
+
+			{#if quickFeedsLoading}
+				<div class="text-center py-6">
+					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+					<p class="mt-2 text-gray-600 text-base">Loading quick feeds...</p>
+				</div>
+			{:else if quickFeeds.length === 0}
+				<p class="text-gray-600 text-base">No quick feeds yet.</p>
+			{:else}
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each quickFeeds as feed (feed.id)}
+						<div class="border border-gray-200 rounded-xl p-4">
+							<div class="flex items-start justify-between gap-3">
+								<div>
+									<div class="text-base font-semibold text-gray-900">
+										{#if feed.amount_ml}{feed.amount_ml}ml{/if}
+										{#if feed.amount_ml && feed.duration_min} · {/if}
+										{#if feed.duration_min}{feed.duration_min} min{/if}
+									</div>
+									{#if feed.formula_type}
+										<div class="text-sm text-gray-600">{feed.formula_type}</div>
+									{/if}
+									{#if feed.created_by_name}
+										<div class="text-xs text-gray-500 mt-1">Added by {feed.created_by_name}</div>
+									{/if}
+								</div>
+								<span class={`px-2 py-1 text-xs font-semibold rounded-full ${feed.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
+									{feed.is_active ? 'Active' : 'Inactive'}
+								</span>
+							</div>
+							<div class="mt-4 flex items-center gap-3">
+								<button
+									on:click={() => handleToggleQuickFeed(feed)}
+									class="px-3 py-2 text-xs font-semibold rounded-full border border-green-200 text-green-700 hover:bg-green-50"
+								>
+									{feed.is_active ? 'Deactivate' : 'Activate'}
+								</button>
+								<button
+									on:click={() => handleDeleteQuickFeed(feed.id)}
+									class="text-red-600 text-xs font-semibold"
+								>
+									Delete
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	<!-- System Information -->
+	<div class="mt-8 bg-white rounded-xl shadow p-6">
 			<h2 class="text-xl font-semibold text-gray-900 mb-4">System Information</h2>
 			<dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<div>

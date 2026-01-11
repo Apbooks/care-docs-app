@@ -1,0 +1,327 @@
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
+
+from database import get_db
+from models.quick_medication import QuickMedication
+from models.quick_feed import QuickFeed
+from models.user import User
+from routes.auth import get_current_user, get_current_active_admin
+
+router = APIRouter()
+
+
+# ============================================================================
+# QUICK MEDICATIONS
+# ============================================================================
+
+class QuickMedicationCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    dosage: str = Field(..., min_length=1, max_length=100)
+    route: str = Field(default="oral", max_length=50)
+    is_active: bool = True
+
+
+class QuickMedicationUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=100)
+    dosage: Optional[str] = Field(default=None, max_length=100)
+    route: Optional[str] = Field(default=None, max_length=50)
+    is_active: Optional[bool] = None
+
+
+class QuickMedicationResponse(BaseModel):
+    id: str
+    name: str
+    dosage: str
+    route: str
+    is_active: bool
+    created_by_user_id: str
+    created_by_name: Optional[str]
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/quick-meds", response_model=List[QuickMedicationResponse])
+async def list_quick_medications(
+    include_inactive: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if include_inactive and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required to view inactive templates"
+        )
+
+    query = db.query(QuickMedication)
+    if not include_inactive:
+        query = query.filter(QuickMedication.is_active.is_(True))
+
+    meds = query.order_by(QuickMedication.created_at.desc()).all()
+
+    return [
+        QuickMedicationResponse(
+            id=str(med.id),
+            name=med.name,
+            dosage=med.dosage,
+            route=med.route,
+            is_active=med.is_active,
+            created_by_user_id=str(med.created_by_user_id),
+            created_by_name=med.created_by.username if med.created_by else None,
+            created_at=med.created_at.isoformat(),
+            updated_at=med.updated_at.isoformat()
+        )
+        for med in meds
+    ]
+
+
+@router.post("/quick-meds", response_model=QuickMedicationResponse, status_code=status.HTTP_201_CREATED)
+async def create_quick_medication(
+    data: QuickMedicationCreate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    new_med = QuickMedication(
+        name=data.name.strip(),
+        dosage=data.dosage.strip(),
+        route=data.route.strip().lower(),
+        is_active=data.is_active,
+        created_by_user_id=current_admin.id
+    )
+
+    db.add(new_med)
+    db.commit()
+    db.refresh(new_med)
+
+    return QuickMedicationResponse(
+        id=str(new_med.id),
+        name=new_med.name,
+        dosage=new_med.dosage,
+        route=new_med.route,
+        is_active=new_med.is_active,
+        created_by_user_id=str(new_med.created_by_user_id),
+        created_by_name=current_admin.username,
+        created_at=new_med.created_at.isoformat(),
+        updated_at=new_med.updated_at.isoformat()
+    )
+
+
+@router.patch("/quick-meds/{med_id}", response_model=QuickMedicationResponse)
+async def update_quick_medication(
+    med_id: str,
+    updates: QuickMedicationUpdate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    med = db.query(QuickMedication).filter(QuickMedication.id == med_id).first()
+    if not med:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quick medication not found"
+        )
+
+    if updates.name is not None:
+        med.name = updates.name.strip()
+    if updates.dosage is not None:
+        med.dosage = updates.dosage.strip()
+    if updates.route is not None:
+        med.route = updates.route.strip().lower()
+    if updates.is_active is not None:
+        med.is_active = updates.is_active
+
+    med.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(med)
+
+    return QuickMedicationResponse(
+        id=str(med.id),
+        name=med.name,
+        dosage=med.dosage,
+        route=med.route,
+        is_active=med.is_active,
+        created_by_user_id=str(med.created_by_user_id),
+        created_by_name=med.created_by.username if med.created_by else None,
+        created_at=med.created_at.isoformat(),
+        updated_at=med.updated_at.isoformat()
+    )
+
+
+@router.delete("/quick-meds/{med_id}")
+async def delete_quick_medication(
+    med_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    med = db.query(QuickMedication).filter(QuickMedication.id == med_id).first()
+    if not med:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quick medication not found"
+        )
+
+    db.delete(med)
+    db.commit()
+
+    return {"message": "Quick medication deleted successfully"}
+
+
+# ============================================================================
+# QUICK FEEDS
+# ============================================================================
+
+class QuickFeedCreate(BaseModel):
+    amount_ml: Optional[int] = Field(default=None, ge=0)
+    duration_min: Optional[int] = Field(default=None, ge=0)
+    formula_type: Optional[str] = Field(default=None, max_length=100)
+    is_active: bool = True
+
+
+class QuickFeedUpdate(BaseModel):
+    amount_ml: Optional[int] = Field(default=None, ge=0)
+    duration_min: Optional[int] = Field(default=None, ge=0)
+    formula_type: Optional[str] = Field(default=None, max_length=100)
+    is_active: Optional[bool] = None
+
+
+class QuickFeedResponse(BaseModel):
+    id: str
+    amount_ml: Optional[int]
+    duration_min: Optional[int]
+    formula_type: Optional[str]
+    is_active: bool
+    created_by_user_id: str
+    created_by_name: Optional[str]
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/quick-feeds", response_model=List[QuickFeedResponse])
+async def list_quick_feeds(
+    include_inactive: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if include_inactive and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required to view inactive templates"
+        )
+
+    query = db.query(QuickFeed)
+    if not include_inactive:
+        query = query.filter(QuickFeed.is_active.is_(True))
+
+    feeds = query.order_by(QuickFeed.created_at.desc()).all()
+
+    return [
+        QuickFeedResponse(
+            id=str(feed.id),
+            amount_ml=feed.amount_ml,
+            duration_min=feed.duration_min,
+            formula_type=feed.formula_type,
+            is_active=feed.is_active,
+            created_by_user_id=str(feed.created_by_user_id),
+            created_by_name=feed.created_by.username if feed.created_by else None,
+            created_at=feed.created_at.isoformat(),
+            updated_at=feed.updated_at.isoformat()
+        )
+        for feed in feeds
+    ]
+
+
+@router.post("/quick-feeds", response_model=QuickFeedResponse, status_code=status.HTTP_201_CREATED)
+async def create_quick_feed(
+    data: QuickFeedCreate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    new_feed = QuickFeed(
+        amount_ml=data.amount_ml,
+        duration_min=data.duration_min,
+        formula_type=data.formula_type.strip() if data.formula_type else None,
+        is_active=data.is_active,
+        created_by_user_id=current_admin.id
+    )
+
+    db.add(new_feed)
+    db.commit()
+    db.refresh(new_feed)
+
+    return QuickFeedResponse(
+        id=str(new_feed.id),
+        amount_ml=new_feed.amount_ml,
+        duration_min=new_feed.duration_min,
+        formula_type=new_feed.formula_type,
+        is_active=new_feed.is_active,
+        created_by_user_id=str(new_feed.created_by_user_id),
+        created_by_name=current_admin.username,
+        created_at=new_feed.created_at.isoformat(),
+        updated_at=new_feed.updated_at.isoformat()
+    )
+
+
+@router.patch("/quick-feeds/{feed_id}", response_model=QuickFeedResponse)
+async def update_quick_feed(
+    feed_id: str,
+    updates: QuickFeedUpdate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    feed = db.query(QuickFeed).filter(QuickFeed.id == feed_id).first()
+    if not feed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quick feed not found"
+        )
+
+    if updates.amount_ml is not None:
+        feed.amount_ml = updates.amount_ml
+    if updates.duration_min is not None:
+        feed.duration_min = updates.duration_min
+    if updates.formula_type is not None:
+        feed.formula_type = updates.formula_type.strip() if updates.formula_type else None
+    if updates.is_active is not None:
+        feed.is_active = updates.is_active
+
+    feed.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(feed)
+
+    return QuickFeedResponse(
+        id=str(feed.id),
+        amount_ml=feed.amount_ml,
+        duration_min=feed.duration_min,
+        formula_type=feed.formula_type,
+        is_active=feed.is_active,
+        created_by_user_id=str(feed.created_by_user_id),
+        created_by_name=feed.created_by.username if feed.created_by else None,
+        created_at=feed.created_at.isoformat(),
+        updated_at=feed.updated_at.isoformat()
+    )
+
+
+@router.delete("/quick-feeds/{feed_id}")
+async def delete_quick_feed(
+    feed_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    feed = db.query(QuickFeed).filter(QuickFeed.id == feed_id).first()
+    if not feed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Quick feed not found"
+        )
+
+    db.delete(feed)
+    db.commit()
+
+    return {"message": "Quick feed deleted successfully"}

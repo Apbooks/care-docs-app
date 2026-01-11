@@ -96,23 +96,23 @@
 		</div>
 
 		<!-- Registration Card -->
-		<div class="bg-white rounded-lg shadow-xl p-8">
+		<div class="bg-white rounded-xl shadow-xl p-8">
 			{#if error}
-				<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-					<p class="text-red-800 text-sm">{error}</p>
+				<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+					<p class="text-red-800 text-base">{error}</p>
 				</div>
 			{/if}
 
 			{#if success}
-				<div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-					<p class="text-green-800 text-sm">{success}</p>
+				<div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+					<p class="text-green-800 text-base">{success}</p>
 				</div>
 			{/if}
 
 			<form on:submit={handleRegister} class="space-y-6">
 				<!-- Username -->
 				<div>
-					<label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="username" class="block text-base font-medium text-gray-700 mb-2">
 						Username <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -121,14 +121,14 @@
 						bind:value={username}
 						required
 						disabled={loading}
-						class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
 						placeholder="johndoe"
 					/>
 				</div>
 
 				<!-- Email -->
 				<div>
-					<label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="email" class="block text-base font-medium text-gray-700 mb-2">
 						Email <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -137,21 +137,21 @@
 						bind:value={email}
 						required
 						disabled={loading}
-						class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
 						placeholder="john@example.com"
 					/>
 				</div>
 
 				<!-- Role -->
 				<div>
-					<label for="role" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="role" class="block text-base font-medium text-gray-700 mb-2">
 						Role <span class="text-red-500">*</span>
 					</label>
 					<select
 						id="role"
 						bind:value={role}
 						disabled={loading}
-						class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
 					>
 						<option value="caregiver">Caregiver</option>
 						<option value="admin">Administrator</option>
@@ -167,7 +167,7 @@
 
 				<!-- Password -->
 				<div>
-					<label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="password" class="block text-base font-medium text-gray-700 mb-2">
 						Password <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -177,14 +177,14 @@
 						required
 						minlength="6"
 						disabled={loading}
-						class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
 						placeholder="Minimum 6 characters"
 					/>
 				</div>
 
 				<!-- Confirm Password -->
 				<div>
-					<label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="confirmPassword" class="block text-base font-medium text-gray-700 mb-2">
 						Confirm Password <span class="text-red-500">*</span>
 					</label>
 					<input
@@ -194,7 +194,7 @@
 						required
 						minlength="6"
 						disabled={loading}
-						class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
 						placeholder="Re-enter password"
 					/>
 				</div>
@@ -204,7 +204,7 @@
 					<button
 						type="submit"
 						disabled={loading}
-						class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
+						class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold text-base hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
 					>
 						{#if loading}
 							Creating User...
@@ -217,7 +217,7 @@
 						type="button"
 						on:click={() => goto('/')}
 						disabled={loading}
-						class="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+						class="px-6 py-3 border border-gray-300 rounded-xl font-semibold text-base text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
 					>
 						Cancel
 					</button>
