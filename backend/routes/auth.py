@@ -349,3 +349,105 @@ async def refresh_access_token(
             created_at=user.created_at.isoformat()
         )
     }
+
+# ============================================================================
+# USER MANAGEMENT ENDPOINTS (Admin Only)
+# ============================================================================
+
+class UserUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    role: Optional[str] = None
+
+
+@router.get("/users", response_model=List[UserResponse])
+async def list_users(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    """
+    List all users (admin only)
+    """
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    
+    return [
+        UserResponse(
+            id=str(user.id),
+            username=user.username,
+            email=user.email,
+            role=user.role,
+            is_active=user.is_active,
+            created_at=user.created_at.isoformat()
+        )
+        for user in users
+    ]
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    """
+    Update user (admin only)
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Update fields if provided
+    if user_update.is_active is not None:
+        user.is_active = user_update.is_active
+
+    if user_update.role is not None:
+        if user_update.role not in ["admin", "caregiver"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid role"
+            )
+        user.role = user_update.role
+
+    db.commit()
+    db.refresh(user)
+
+    return UserResponse(
+        id=str(user.id),
+        username=user.username,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at.isoformat()
+    )
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    """
+    Delete user (admin only)
+    """
+    # Prevent deleting yourself
+    if str(current_admin.id) == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account"
+        )
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    db.delete(user)
+    db.commit()
+
+    return {"message": "User deleted successfully"}

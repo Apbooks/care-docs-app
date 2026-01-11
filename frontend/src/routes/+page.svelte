@@ -63,13 +63,16 @@
 						<h1 class="text-2xl font-bold text-gray-900">Care Documentation</h1>
 						<p class="text-sm text-gray-600 mt-1">Welcome back, {user.username}!</p>
 					</div>
-					<div class="flex items-center gap-4">
+					<div class="flex items-center gap-3">
 						{#if userIsAdmin}
 							<button
-								on:click={() => goto('/register')}
-								class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+								on:click={() => goto('/admin')}
+								class="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-1"
 							>
-								Add User
+								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+								</svg>
+								Admin Panel
 							</button>
 						{/if}
 						<button
