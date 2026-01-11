@@ -31,10 +31,18 @@
 	let newMedName = '';
 	let newMedDosage = '';
 	let newMedRoute = 'oral';
+	let editMedId = null;
+	let editMedName = '';
+	let editMedDosage = '';
+	let editMedRoute = 'oral';
 
 	let newFeedAmount = '';
 	let newFeedDuration = '';
 	let newFeedFormula = '';
+	let editFeedId = null;
+	let editFeedAmount = '';
+	let editFeedDuration = '';
+	let editFeedFormula = '';
 
 	authStore.subscribe(value => {
 		user = value;
@@ -133,6 +141,36 @@
 		}
 	}
 
+	function startEditQuickMed(med) {
+		editMedId = med.id;
+		editMedName = med.name;
+		editMedDosage = med.dosage;
+		editMedRoute = med.route;
+	}
+
+	function cancelEditQuickMed() {
+		editMedId = null;
+		editMedName = '';
+		editMedDosage = '';
+		editMedRoute = 'oral';
+	}
+
+	async function handleSaveQuickMed() {
+		quickMedsError = '';
+
+		try {
+			const updated = await updateQuickMed(editMedId, {
+				name: editMedName,
+				dosage: editMedDosage,
+				route: editMedRoute
+			});
+			quickMeds = quickMeds.map(item => item.id === updated.id ? updated : item);
+			cancelEditQuickMed();
+		} catch (err) {
+			quickMedsError = err.message || 'Failed to update quick medication';
+		}
+	}
+
 	async function handleCreateQuickFeed() {
 		quickFeedsError = '';
 
@@ -170,6 +208,36 @@
 			quickFeeds = quickFeeds.filter(item => item.id !== feedId);
 		} catch (err) {
 			quickFeedsError = err.message || 'Failed to delete quick feed';
+		}
+	}
+
+	function startEditQuickFeed(feed) {
+		editFeedId = feed.id;
+		editFeedAmount = feed.amount_ml ?? '';
+		editFeedDuration = feed.duration_min ?? '';
+		editFeedFormula = feed.formula_type ?? '';
+	}
+
+	function cancelEditQuickFeed() {
+		editFeedId = null;
+		editFeedAmount = '';
+		editFeedDuration = '';
+		editFeedFormula = '';
+	}
+
+	async function handleSaveQuickFeed() {
+		quickFeedsError = '';
+
+		try {
+			const updated = await updateQuickFeed(editFeedId, {
+				amount_ml: editFeedAmount === '' ? null : parseInt(editFeedAmount),
+				duration_min: editFeedDuration === '' ? null : parseInt(editFeedDuration),
+				formula_type: editFeedFormula || null
+			});
+			quickFeeds = quickFeeds.map(item => item.id === updated.id ? updated : item);
+			cancelEditQuickFeed();
+		} catch (err) {
+			quickFeedsError = err.message || 'Failed to update quick feed';
 		}
 	}
 
@@ -504,32 +572,87 @@
 				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{#each quickMeds as med (med.id)}
 						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
-							<div class="flex items-start justify-between gap-3">
-								<div>
-									<div class="text-base font-semibold text-gray-900 dark:text-slate-100">{med.name}</div>
-									<div class="text-sm text-gray-600 dark:text-slate-300">{med.dosage} · {med.route}</div>
-									{#if med.created_by_name}
-										<div class="text-xs text-gray-500 dark:text-slate-400 mt-1">Added by {med.created_by_name}</div>
-									{/if}
+							{#if editMedId === med.id}
+								<div class="space-y-3">
+									<div>
+										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Name</label>
+										<input
+											type="text"
+											bind:value={editMedName}
+											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+										/>
+									</div>
+									<div class="grid gap-3 sm:grid-cols-2">
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Dosage</label>
+											<input
+												type="text"
+												bind:value={editMedDosage}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											/>
+										</div>
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Route</label>
+											<select
+												bind:value={editMedRoute}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											>
+												<option value="oral">Oral</option>
+												<option value="tube">Tube Fed</option>
+												<option value="topical">Topical</option>
+												<option value="injection">Injection</option>
+											</select>
+										</div>
+									</div>
+									<div class="flex items-center gap-3">
+										<button
+											on:click={handleSaveQuickMed}
+											class="px-3 py-2 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700"
+										>
+											Save
+										</button>
+										<button
+											on:click={cancelEditQuickMed}
+											class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+										>
+											Cancel
+										</button>
+									</div>
 								</div>
-								<span class={`px-2 py-1 text-xs font-semibold rounded-full ${med.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
-									{med.is_active ? 'Active' : 'Inactive'}
-								</span>
-							</div>
-							<div class="mt-4 flex items-center gap-3">
-								<button
-									on:click={() => handleToggleQuickMed(med)}
-									class="px-3 py-2 text-xs font-semibold rounded-full border border-blue-200 text-blue-700 hover:bg-blue-50"
-								>
-									{med.is_active ? 'Deactivate' : 'Activate'}
-								</button>
-								<button
-									on:click={() => handleDeleteQuickMed(med.id)}
-									class="text-red-600 text-xs font-semibold"
-								>
-									Delete
-								</button>
-							</div>
+							{:else}
+								<div class="flex items-start justify-between gap-3">
+									<div>
+										<div class="text-base font-semibold text-gray-900 dark:text-slate-100">{med.name}</div>
+										<div class="text-sm text-gray-600 dark:text-slate-300">{med.dosage} · {med.route}</div>
+										{#if med.created_by_name}
+											<div class="text-xs text-gray-500 dark:text-slate-400 mt-1">Added by {med.created_by_name}</div>
+										{/if}
+									</div>
+									<span class={`px-2 py-1 text-xs font-semibold rounded-full ${med.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
+										{med.is_active ? 'Active' : 'Inactive'}
+									</span>
+								</div>
+								<div class="mt-4 flex items-center gap-3">
+									<button
+										on:click={() => startEditQuickMed(med)}
+										class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+									>
+										Edit
+									</button>
+									<button
+										on:click={() => handleToggleQuickMed(med)}
+										class="px-3 py-2 text-xs font-semibold rounded-full border border-blue-200 text-blue-700 hover:bg-blue-50"
+									>
+										{med.is_active ? 'Deactivate' : 'Activate'}
+									</button>
+									<button
+										on:click={() => handleDeleteQuickMed(med.id)}
+										class="text-red-600 text-xs font-semibold"
+									>
+										Delete
+									</button>
+								</div>
+							{/if}
 						</div>
 					{/each}
 				</div>
@@ -602,38 +725,91 @@
 				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{#each quickFeeds as feed (feed.id)}
 						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
-							<div class="flex items-start justify-between gap-3">
-								<div>
-									<div class="text-base font-semibold text-gray-900 dark:text-slate-100">
-										{#if feed.amount_ml}{feed.amount_ml}ml{/if}
-										{#if feed.amount_ml && feed.duration_min} · {/if}
-										{#if feed.duration_min}{feed.duration_min} min{/if}
+							{#if editFeedId === feed.id}
+								<div class="space-y-3">
+									<div class="grid gap-3 sm:grid-cols-2">
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Amount (ml)</label>
+											<input
+												type="number"
+												min="0"
+												bind:value={editFeedAmount}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											/>
+										</div>
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Duration (min)</label>
+											<input
+												type="number"
+												min="0"
+												bind:value={editFeedDuration}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											/>
+										</div>
 									</div>
-									{#if feed.formula_type}
-										<div class="text-sm text-gray-600 dark:text-slate-300">{feed.formula_type}</div>
-									{/if}
-									{#if feed.created_by_name}
-										<div class="text-xs text-gray-500 dark:text-slate-400 mt-1">Added by {feed.created_by_name}</div>
-									{/if}
+									<div>
+										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Formula</label>
+										<input
+											type="text"
+											bind:value={editFeedFormula}
+											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+										/>
+									</div>
+									<div class="flex items-center gap-3">
+										<button
+											on:click={handleSaveQuickFeed}
+											class="px-3 py-2 text-xs font-semibold rounded-full bg-green-600 text-white hover:bg-green-700"
+										>
+											Save
+										</button>
+										<button
+											on:click={cancelEditQuickFeed}
+											class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+										>
+											Cancel
+										</button>
+									</div>
 								</div>
-								<span class={`px-2 py-1 text-xs font-semibold rounded-full ${feed.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
-									{feed.is_active ? 'Active' : 'Inactive'}
-								</span>
-							</div>
-							<div class="mt-4 flex items-center gap-3">
-								<button
-									on:click={() => handleToggleQuickFeed(feed)}
-									class="px-3 py-2 text-xs font-semibold rounded-full border border-green-200 text-green-700 hover:bg-green-50"
-								>
-									{feed.is_active ? 'Deactivate' : 'Activate'}
-								</button>
-								<button
-									on:click={() => handleDeleteQuickFeed(feed.id)}
-									class="text-red-600 text-xs font-semibold"
-								>
-									Delete
-								</button>
-							</div>
+							{:else}
+								<div class="flex items-start justify-between gap-3">
+									<div>
+										<div class="text-base font-semibold text-gray-900 dark:text-slate-100">
+											{#if feed.amount_ml}{feed.amount_ml}ml{/if}
+											{#if feed.amount_ml && feed.duration_min} · {/if}
+											{#if feed.duration_min}{feed.duration_min} min{/if}
+										</div>
+										{#if feed.formula_type}
+											<div class="text-sm text-gray-600 dark:text-slate-300">{feed.formula_type}</div>
+										{/if}
+										{#if feed.created_by_name}
+											<div class="text-xs text-gray-500 dark:text-slate-400 mt-1">Added by {feed.created_by_name}</div>
+										{/if}
+									</div>
+									<span class={`px-2 py-1 text-xs font-semibold rounded-full ${feed.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
+										{feed.is_active ? 'Active' : 'Inactive'}
+									</span>
+								</div>
+								<div class="mt-4 flex items-center gap-3">
+									<button
+										on:click={() => startEditQuickFeed(feed)}
+										class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+									>
+										Edit
+									</button>
+									<button
+										on:click={() => handleToggleQuickFeed(feed)}
+										class="px-3 py-2 text-xs font-semibold rounded-full border border-green-200 text-green-700 hover:bg-green-50"
+									>
+										{feed.is_active ? 'Deactivate' : 'Activate'}
+									</button>
+									<button
+										on:click={() => handleDeleteQuickFeed(feed.id)}
+										class="text-red-600 text-xs font-semibold"
+									>
+										Delete
+									</button>
+								</div>
+							{/if}
 						</div>
 					{/each}
 				</div>

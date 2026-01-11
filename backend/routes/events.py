@@ -23,6 +23,8 @@ class EventCreate(BaseModel):
 
 
 class EventUpdate(BaseModel):
+    type: Optional[str] = None
+    timestamp: Optional[datetime] = None
     notes: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
@@ -197,6 +199,18 @@ async def update_event(
         )
 
     # Update fields if provided
+    if event_update.type is not None:
+        valid_types = ["medication", "feeding", "diaper", "demeanor", "observation"]
+        if event_update.type not in valid_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid event type. Must be one of: {', '.join(valid_types)}"
+            )
+        event.type = event_update.type
+
+    if event_update.timestamp is not None:
+        event.timestamp = event_update.timestamp
+
     if event_update.notes is not None:
         event.notes = event_update.notes
 

@@ -1,6 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
-	import { getEvents } from '$lib/services/api';
+	import { getEvents, updateEvent, deleteEvent } from '$lib/services/api';
 
 	export let limit = 10;
 	export let type = null;
@@ -8,6 +8,10 @@
 	let events = [];
 	let loading = true;
 	let error = '';
+	let editEvent = null;
+	let editLoading = false;
+	let editError = '';
+	let deleteTargetId = null;
 
 	onMount(async () => {
 		await loadEvents();
@@ -88,6 +92,67 @@
 		}
 	}
 
+	function toDateTimeLocal(value) {
+		if (!value) return '';
+		const date = new Date(value);
+		const offsetMs = date.getTimezoneOffset() * 60000;
+		const local = new Date(date.getTime() - offsetMs);
+		return local.toISOString().slice(0, 16);
+	}
+
+	function startEdit(event) {
+		editError = '';
+		editEvent = {
+			id: event.id,
+			type: event.type,
+			timestamp: toDateTimeLocal(event.timestamp),
+			notes: event.notes || '',
+			metadata: JSON.parse(JSON.stringify(event.metadata || {}))
+		};
+	}
+
+	function closeEdit() {
+		editEvent = null;
+		editError = '';
+	}
+
+	async function saveEdit() {
+		if (!editEvent) return;
+		editError = '';
+		editLoading = true;
+
+		try {
+			const payload = {
+				type: editEvent.type,
+				timestamp: editEvent.timestamp ? new Date(editEvent.timestamp).toISOString() : null,
+				notes: editEvent.notes || null,
+				metadata: editEvent.metadata || {}
+			};
+
+			const updated = await updateEvent(editEvent.id, payload);
+			events = events.map(item => item.id === updated.id ? updated : item);
+			closeEdit();
+		} catch (err) {
+			editError = err.message || 'Failed to update event';
+		} finally {
+			editLoading = false;
+		}
+	}
+
+	async function confirmDelete(eventId) {
+		deleteTargetId = eventId;
+	}
+
+	async function handleDelete(eventId) {
+		try {
+			await deleteEvent(eventId);
+			events = events.filter(item => item.id !== eventId);
+			deleteTargetId = null;
+		} catch (err) {
+			error = err.message || 'Failed to delete event';
+		}
+	}
+
 	// Export refresh function so parent can call it
 	export function refresh() {
 		loadEvents();
@@ -148,9 +213,220 @@
 							</svg>
 							<span>{event.user_name}</span>
 						</div>
+
+						<!-- Actions -->
+						<div class="mt-4 flex items-center gap-3">
+							<button
+								on:click={() => startEdit(event)}
+								class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+							>
+								Edit
+							</button>
+							{#if deleteTargetId === event.id}
+								<button
+									on:click={() => handleDelete(event.id)}
+									class="px-3 py-2 text-xs font-semibold rounded-full bg-red-600 text-white hover:bg-red-700"
+								>
+									Confirm Delete
+								</button>
+								<button
+									on:click={() => deleteTargetId = null}
+									class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+								>
+									Cancel
+								</button>
+							{:else}
+								<button
+									on:click={() => confirmDelete(event.id)}
+									class="px-3 py-2 text-xs font-semibold rounded-full border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950"
+								>
+									Delete
+								</button>
+							{/if}
+						</div>
 					</div>
 				</div>
 			</div>
 		{/each}
 	{/if}
 </div>
+
+{#if editEvent}
+	<div class="fixed inset-0 bg-black/60 z-50" on:click={closeEdit}></div>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<div class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl" on:click|stopPropagation>
+			<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+				<h3 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Edit Event</h3>
+				<p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Update time, type, and details.</p>
+			</div>
+			<div class="p-6 space-y-4">
+				{#if editError}
+					<div class="p-3 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+						<p class="text-red-800 dark:text-red-200 text-sm">{editError}</p>
+					</div>
+				{/if}
+
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Event Type</label>
+					<select
+						bind:value={editEvent.type}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+					>
+						<option value="medication">Medication</option>
+						<option value="feeding">Feeding</option>
+						<option value="diaper">Diaper</option>
+						<option value="demeanor">Demeanor</option>
+						<option value="observation">Observation</option>
+					</select>
+				</div>
+
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Time</label>
+					<input
+						type="datetime-local"
+						bind:value={editEvent.timestamp}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+					/>
+				</div>
+
+				{#if editEvent.type === 'medication'}
+					<div class="grid gap-3 sm:grid-cols-2">
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.med_name}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dosage</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.dosage}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.route}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+					</div>
+				{:else if editEvent.type === 'feeding'}
+					<div class="grid gap-3 sm:grid-cols-2">
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
+							<input
+								type="number"
+								min="0"
+								bind:value={editEvent.metadata.amount_ml}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Duration (min)</label>
+							<input
+								type="number"
+								min="0"
+								bind:value={editEvent.metadata.duration_min}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div class="sm:col-span-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.formula_type}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+					</div>
+				{:else if editEvent.type === 'diaper'}
+					<div class="grid gap-3 sm:grid-cols-2">
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Condition</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.condition}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div class="flex items-center gap-3">
+							<input
+								type="checkbox"
+								bind:checked={editEvent.metadata.rash}
+								class="w-6 h-6 text-yellow-600 border-gray-300 rounded"
+							/>
+							<label class="text-sm font-medium text-gray-700 dark:text-slate-300">Rash present</label>
+						</div>
+						<div class="sm:col-span-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Skin Notes</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.skin_notes}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+					</div>
+				{:else if editEvent.type === 'demeanor'}
+					<div class="grid gap-3 sm:grid-cols-2">
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Mood</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.mood}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Activity Level</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.activity_level}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div class="sm:col-span-2">
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Concerns</label>
+							<input
+								type="text"
+								bind:value={editEvent.metadata.concerns}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+					</div>
+				{/if}
+
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
+					<textarea
+						rows="3"
+						bind:value={editEvent.notes}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+					></textarea>
+				</div>
+			</div>
+			<div class="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-slate-800">
+				<button
+					type="button"
+					on:click={closeEdit}
+					class="px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					on:click={saveEdit}
+					disabled={editLoading}
+					class="px-4 py-2 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400"
+				>
+					{editLoading ? 'Saving...' : 'Save Changes'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

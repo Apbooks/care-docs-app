@@ -213,11 +213,13 @@
 #### Completed
 - [x] Added quick medication and quick feed templates (database tables + API)
 - [x] Built admin management UI for quick meds/feeds with activate/deactivate
+- [x] Added inline editing for quick meds/feeds (does not affect historical events)
 - [x] Implemented quick action buttons in Quick Entry modal (single-tap logging)
 - [x] Added optional quick medication note toggle for fast context entry
 - [x] Updated Quick Entry modal to a touch-friendly bottom sheet layout
 - [x] Increased touch target sizes across dashboard, admin panel, login, and register
 - [x] Added dark mode with system default + manual toggle
+- [x] Added event edit/delete controls in recent activity (timestamp + metadata)
 
 ---
 
