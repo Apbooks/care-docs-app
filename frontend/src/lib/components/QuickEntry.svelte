@@ -473,15 +473,15 @@
 
 				{#if step === 'select'}
 					<!-- Event Type Selection -->
-					<p class="text-gray-600 dark:text-slate-300 dark:text-slate-300 text-base mb-4">Select the type of event to log:</p>
+					<p class="text-gray-600 dark:text-slate-300 text-base mb-4">Select the type of event to log:</p>
 					<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 						{#each eventTypes as type}
 							<button
 								on:click={() => selectType(type.id)}
-								class={`p-4 min-h-[88px] border-2 rounded-xl transition-all text-center ${type.cardClass}`}
+								class={`p-4 min-h-[88px] border-2 rounded-xl transition-all text-center text-gray-900 dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700 ${type.cardClass}`}
 							>
 								<div class="text-4xl mb-2">{type.icon}</div>
-								<div class="font-semibold text-gray-900 dark:text-slate-100 text-base">{type.label}</div>
+								<div class="font-semibold text-base">{type.label}</div>
 							</button>
 						{/each}
 					</div>
