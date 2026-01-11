@@ -81,21 +81,8 @@
 				return `${metadata.med_name} - ${metadata.dosage} (${metadata.route})`;
 			case 'feeding':
 				if (metadata.mode === 'continuous') {
-					const parts = [];
 					const status = metadata.status || (metadata.duration_min ? 'stopped' : 'started');
-					parts.push(status === 'started' ? 'Started' : 'Stopped');
-					if (metadata.amount_ml) parts.push(`Amount ${metadata.amount_ml}ml`);
-					if (metadata.rate_ml_hr) parts.push(`${metadata.rate_ml_hr} ml/hr`);
-					if (metadata.dose_ml) {
-						parts.push(`Dose ${metadata.dose_ml}ml`);
-					} else if (metadata.dose_ml === 0) {
-						parts.push('Dose 0ml');
-					} else {
-						parts.push('Dose infinite');
-					}
-					if (metadata.interval_hr) parts.push(`${metadata.interval_hr} hr interval`);
-					if (metadata.formula_type) parts.push(metadata.formula_type);
-					return `Continuous · ${parts.join(', ')}`;
+					return `Continuous feed ${status}`;
 				}
 				if (metadata.mode === 'oral') {
 					return metadata.oral_notes || event.notes || 'Oral feeding';
@@ -103,9 +90,8 @@
 				{
 					let parts = [];
 					if (metadata.amount_ml) parts.push(`${metadata.amount_ml}ml`);
-					if (metadata.duration_min) parts.push(`${metadata.duration_min} min`);
 					if (metadata.formula_type) parts.push(metadata.formula_type);
-					return parts.join(', ') || 'Bolus feeding';
+					return parts.join(' · ') || 'Bolus feeding';
 				}
 			case 'diaper':
 				let desc = `${metadata.condition}`;
@@ -209,7 +195,7 @@
 		</div>
 	{:else}
 		{#each events as event (event.id)}
-			<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-5 hover:shadow-md transition-shadow">
+			<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-4 sm:p-5 hover:shadow-md transition-shadow">
 				<div class="flex items-start gap-3">
 					<!-- Event Icon -->
 					<div class="text-3xl flex-shrink-0">
@@ -223,11 +209,11 @@
 								<h3 class="font-semibold text-gray-900 dark:text-slate-100 capitalize text-base">
 									{event.type.replace('_', ' ')}
 								</h3>
-								<p class="text-base text-gray-600 dark:text-slate-300 mt-1">
+								<p class="text-sm sm:text-base text-gray-600 dark:text-slate-300 mt-1 truncate">
 									{formatMetadata(event)}
 								</p>
 								{#if event.notes && event.type !== 'observation'}
-									<p class="text-sm text-gray-500 dark:text-slate-400 mt-1 italic">
+									<p class="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-1 italic truncate">
 										{event.notes}
 									</p>
 								{/if}
@@ -248,12 +234,12 @@
 						</div>
 
 						<!-- Actions -->
-						<div class="mt-4 flex items-center gap-3">
+						<div class="mt-3 flex flex-wrap items-center gap-2">
 							<button
 								on:click={() => startEdit(event)}
 								class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
 							>
-								Edit
+								Details
 							</button>
 							{#if deleteTargetId === event.id}
 								<button

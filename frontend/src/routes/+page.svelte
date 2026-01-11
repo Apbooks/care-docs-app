@@ -148,12 +148,12 @@
 		<!-- Header -->
 		<header class="bg-white dark:bg-slate-900 shadow sticky top-0 z-30">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-				<div class="flex justify-between items-center">
+				<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<div>
 						<h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">Care Documentation</h1>
 						<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Welcome back, {user.username}!</p>
 					</div>
-					<div class="flex items-center gap-3">
+					<div class="flex flex-wrap items-center gap-2 sm:gap-3">
 						<ThemeToggle />
 						{#if userIsAdmin}
 							<button
@@ -179,21 +179,6 @@
 
 		<!-- Main Content -->
 		<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-			<!-- Success Message -->
-			<div class="bg-green-50 border border-green-200 rounded-xl p-5 mb-6 dark:bg-emerald-950 dark:border-emerald-800">
-				<div class="flex items-start gap-3">
-					<svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-					</svg>
-					<div>
-						<h3 class="font-semibold text-green-900 dark:text-emerald-100">Phase 3 Complete!</h3>
-						<p class="text-base text-green-800 dark:text-emerald-200 mt-1">
-							Quick entry system is now active. Use the + button to log medications, feeding, diaper changes, and more.
-						</p>
-					</div>
-				</div>
-			</div>
-
 			{#if activeContinuousFeed}
 				<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6 dark:bg-emerald-950 dark:border-emerald-800">
 					<div class="flex flex-wrap items-center justify-between gap-4">
