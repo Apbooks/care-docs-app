@@ -10,16 +10,27 @@ from database import init_db
 from routes import auth, events
 # from routes import photos, reminders, sync, reports
 
+# Import settings
+from config import get_settings
+
+settings = get_settings()
+
 app = FastAPI(
     title="Care Documentation API",
     description="API for tracking care activities, medications, and feeding schedules",
     version="0.1.0"
 )
 
-# CORS configuration
+# CORS configuration - read from environment settings
+# Parse CORS_ORIGINS which can be a list or comma-separated string
+if isinstance(settings.CORS_ORIGINS, str):
+    cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
+else:
+    cors_origins = settings.CORS_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # Development origins
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
