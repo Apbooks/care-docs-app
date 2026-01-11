@@ -208,6 +208,7 @@ async def login(
         httponly=True,
         secure=is_production,
         samesite="lax",
+        path="/",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
 
@@ -217,6 +218,7 @@ async def login(
         httponly=True,
         secure=is_production,
         samesite="lax",
+        path="/",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
 
@@ -240,8 +242,8 @@ async def logout(response: Response):
     """
     Logout user by clearing authentication cookies
     """
-    response.delete_cookie(key="access_token")
-    response.delete_cookie(key="refresh_token")
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
 
     return {"message": "Successfully logged out"}
 
@@ -304,6 +306,7 @@ async def refresh_access_token(
         httponly=True,
         secure=is_production,
         samesite="lax",
+        path="/",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
 
@@ -313,6 +316,7 @@ async def refresh_access_token(
         httponly=True,
         secure=is_production,
         samesite="lax",
+        path="/",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
 
