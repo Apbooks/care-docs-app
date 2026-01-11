@@ -1,4 +1,38 @@
-# Troubleshooting - Container Name Issue
+# Troubleshooting Guide
+
+## Problem: "error parsing value for field CORS_ORIGINS"
+
+**Full Error:**
+```
+pydantic_settings.sources.SettingsError: error parsing value for field "CORS_ORIGINS" from source "EnvSettingsSource"
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+```
+
+**Cause:** The `.env` file has an issue with CORS_ORIGINS format.
+
+**Solution:**
+
+Make sure your `backend/.env` file has CORS_ORIGINS as a comma-separated string (not JSON array):
+
+```env
+# CORRECT ✓
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# WRONG ✗ (Don't use JSON array syntax)
+CORS_ORIGINS=["http://localhost:3000", "http://localhost:5173"]
+```
+
+**Quick Fix:**
+```bash
+cd ~/Docker/care-docs-app
+git pull origin main
+# Edit backend/.env and ensure CORS_ORIGINS is comma-separated
+nano backend/.env
+# Restart containers
+docker compose -f docker-compose.prod.yml restart
+```
+
+---
 
 ## Problem: "No such container: care-docs-backend"
 
