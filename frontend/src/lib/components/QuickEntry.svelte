@@ -216,9 +216,20 @@
 			const durationMinValue = Math.max(0, Math.round(durationMs / 60000));
 			const durationHr = durationMs / 3600000;
 			const rate = activeContinuousFeed.rate_ml_hr || 0;
-			const rawAmount = rate * durationHr;
 			const dose = activeContinuousFeed.dose_ml;
-			const amount = dose ? Math.min(rawAmount, dose) : rawAmount;
+			const intervalHr = activeContinuousFeed.interval_hr;
+			let amount = rate * durationHr;
+
+			if (intervalHr && dose && rate) {
+				const activeTimeHr = dose / rate;
+				const cycles = Math.floor(durationHr / intervalHr);
+				const remainderHr = Math.max(0, durationHr - cycles * intervalHr);
+				const remainderActiveHr = Math.min(remainderHr, activeTimeHr);
+				const remainderAmount = Math.min(dose, rate * remainderActiveHr);
+				amount = cycles * dose + remainderAmount;
+			} else if (dose) {
+				amount = Math.min(amount, dose);
+			}
 
 			const newEvent = await createEvent({
 				type: 'feeding',
