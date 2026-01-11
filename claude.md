@@ -392,6 +392,90 @@ _To be measured after deployment_
 
 ---
 
+## Phase 4: Quick Actions & Touch-Friendly UI (In Progress - 2026-01-11)
+
+### Quick Actions System Requirements
+**Goal:** Make event entry faster with predefined templates for common medications and feeds
+
+#### Quick Medications Feature
+- [ ] Admin panel section to manage quick medication templates
+- [ ] Database table: `quick_medications` (id, name, dosage, route, is_active, created_by_user_id, created_at)
+- [ ] API endpoints:
+  - GET /api/quick-meds - List all active quick medications
+  - POST /api/quick-meds - Create new quick medication (admin only)
+  - PATCH /api/quick-meds/{id} - Update quick medication (admin only)
+  - DELETE /api/quick-meds/{id} - Delete quick medication (admin only)
+- [ ] Touch-friendly button grid in QuickEntry modal (above manual form)
+- [ ] Single tap logs medication with predefined values
+- [ ] Optional "Add Note" toggle:
+  - Default: OFF (log without notes)
+  - When ON: Show textarea for context (fever, pain, before bed, etc.)
+  - Checkbox should be large and touch-friendly
+- [ ] Manual entry form remains available for non-standard doses
+
+#### Quick Feeds Feature
+- [ ] Admin panel section to manage quick feed templates
+- [ ] Database table: `quick_feeds` (id, amount_ml, duration_min, formula_type, is_active, created_by_user_id, created_at)
+- [ ] API endpoints:
+  - GET /api/quick-feeds - List all active quick feeds
+  - POST /api/quick-feeds - Create new quick feed (admin only)
+  - PATCH /api/quick-feeds/{id} - Update quick feed (admin only)
+  - DELETE /api/quick-feeds/{id} - Delete quick feed (admin only)
+- [ ] Touch-friendly button grid in QuickEntry modal
+- [ ] Single tap logs feed with predefined values
+- [ ] Manual entry form for custom amounts/types
+
+### Touch-Friendly UI Overhaul
+**Goal:** Optimize entire app for phone/tablet touch interaction
+
+#### Design Principles
+- Minimum 48px touch targets (larger than Apple HIG 44px for easier use)
+- Generous spacing between interactive elements (16px minimum)
+- Bottom-aligned primary actions (easier thumb reach on phones)
+- Larger text sizes:
+  - Body text: 16px minimum (no more 14px)
+  - Buttons: 18px minimum
+  - Headers: Scale up by 20%
+- Higher contrast for outdoor visibility
+- Sticky headers for context while scrolling
+- Large, obvious cancel/back buttons
+
+#### Components to Update
+- [ ] **QuickEntry Modal**
+  - Bottom-sheet style on mobile (slide up from bottom)
+  - Larger event type buttons (min 80px height)
+  - Grid layout: 2 columns on mobile, 3 on tablet
+  - Bigger form inputs (min 48px height)
+  - Bottom-aligned submit button
+
+- [ ] **Event Type Selector**
+  - Card grid instead of buttons
+  - Larger icons (48px instead of 24px)
+  - More visual feedback on tap
+
+- [ ] **Dashboard**
+  - Larger + button (72px instead of 64px)
+  - Bottom-right positioning with more padding
+  - Touch-friendly event cards (no tiny buttons)
+
+- [ ] **Admin Panel**
+  - Card-based layout on mobile (instead of table)
+  - Larger action buttons
+  - Confirm dialogs with bigger touch targets
+
+- [ ] **Forms**
+  - Larger inputs (min 48px height)
+  - Bigger checkboxes/radio buttons (24px)
+  - More padding in text areas
+  - Native mobile date/time pickers
+
+- [ ] **Navigation**
+  - Consider bottom nav bar for mobile
+  - Larger header buttons
+  - More spacing in dropdown menus
+
+---
+
 ## Future Enhancements
 
 ### Post-MVP Features
@@ -403,6 +487,8 @@ _To be measured after deployment_
 - Multi-language support
 - Dark mode
 - Barcode scanning for medications
+- Swipe gestures for common actions
+- Haptic feedback (PWA vibration API)
 
 ---
 
