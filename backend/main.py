@@ -7,7 +7,7 @@ import os
 from database import init_db
 
 # Import routes
-from routes import auth, events
+from routes import auth, events, setup
 # from routes import photos, reminders, sync, reports
 
 # Import settings
@@ -57,6 +57,7 @@ async def root():
     }
 
 # Register routes
+app.include_router(setup.router, prefix="/api/setup", tags=["setup"])
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(events.router, prefix="/api/events", tags=["events"])
 # app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
