@@ -47,6 +47,17 @@ async def startup_event():
 async def health_check():
     return {"status": "healthy", "message": "Care Documentation API is running"}
 
+# Serve setup.html
+@app.get("/setup.html")
+async def serve_setup():
+    """Serve the setup HTML page"""
+    from fastapi.responses import FileResponse
+    import os
+    setup_file = os.path.join(os.path.dirname(__file__), "setup.html")
+    if os.path.exists(setup_file):
+        return FileResponse(setup_file, media_type="text/html")
+    return {"error": "Setup page not found"}
+
 # Root endpoint
 @app.get("/")
 async def root():
