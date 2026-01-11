@@ -244,7 +244,7 @@
 {#if editEvent}
 	<div class="fixed inset-0 bg-black/60 z-50" on:click={closeEdit}></div>
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex flex-col" on:click|stopPropagation>
+		<div class="w-full max-w-lg max-h-[90vh] bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex flex-col" on:click|stopPropagation>
 			<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 				<h3 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Event Details</h3>
 				<p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Update time, type, and details.</p>
