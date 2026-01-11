@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-	import { logout as logoutApi, getCurrentUser } from '$lib/services/api';
+	import { logout as logoutApi, getCurrentUser, createEvent } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -11,6 +11,10 @@
 	let userIsAdmin = false;
 	let showQuickEntry = false;
 	let eventListComponent;
+	let activeContinuousFeed = null;
+	let feedActionError = '';
+	let feedActionLoading = false;
+	const ACTIVE_FEED_KEY = 'active_continuous_feed';
 
 	authStore.subscribe(value => {
 		user = value;
@@ -26,7 +30,81 @@
 			goto('/login');
 			return;
 		}
+
+		loadActiveFeed();
 	});
+
+	function loadActiveFeed() {
+		if (typeof localStorage === 'undefined') return;
+		const stored = localStorage.getItem(ACTIVE_FEED_KEY);
+		activeContinuousFeed = stored ? JSON.parse(stored) : null;
+	}
+
+	function setActiveFeed(feed) {
+		activeContinuousFeed = feed;
+		if (typeof localStorage !== 'undefined') {
+			if (feed) {
+				localStorage.setItem(ACTIVE_FEED_KEY, JSON.stringify(feed));
+			} else {
+				localStorage.removeItem(ACTIVE_FEED_KEY);
+			}
+		}
+	}
+
+	async function stopContinuousFeed() {
+		if (!activeContinuousFeed || feedActionLoading) return;
+		feedActionError = '';
+		feedActionLoading = true;
+
+		try {
+			const stopTime = new Date();
+			const startTime = new Date(activeContinuousFeed.started_at);
+			const durationMs = stopTime - startTime;
+			const durationMinValue = Math.max(0, Math.round(durationMs / 60000));
+			const durationHr = durationMs / 3600000;
+			const rate = activeContinuousFeed.rate_ml_hr || 0;
+			const dose = activeContinuousFeed.dose_ml;
+			const intervalHr = activeContinuousFeed.interval_hr;
+			let amount = rate * durationHr;
+
+			if (intervalHr && dose && rate) {
+				const activeTimeHr = dose / rate;
+				const cycles = Math.floor(durationHr / intervalHr);
+				const remainderHr = Math.max(0, durationHr - cycles * intervalHr);
+				const remainderActiveHr = Math.min(remainderHr, activeTimeHr);
+				const remainderAmount = Math.min(dose, rate * remainderActiveHr);
+				amount = cycles * dose + remainderAmount;
+			} else if (dose) {
+				amount = Math.min(amount, dose);
+			}
+
+			await createEvent({
+				type: 'feeding',
+				timestamp: stopTime.toISOString(),
+				notes: null,
+				metadata: {
+					mode: 'continuous',
+					status: 'stopped',
+					rate_ml_hr: activeContinuousFeed.rate_ml_hr,
+					dose_ml: activeContinuousFeed.dose_ml,
+					interval_hr: activeContinuousFeed.interval_hr,
+					formula_type: activeContinuousFeed.formula_type || null,
+					pump_model: activeContinuousFeed.pump_model || null,
+					duration_min: durationMinValue,
+					amount_ml: Math.round(amount)
+				}
+			});
+
+			setActiveFeed(null);
+			if (eventListComponent) {
+				eventListComponent.refresh();
+			}
+		} catch (error) {
+			feedActionError = error.message || 'Failed to stop feed';
+		} finally {
+			feedActionLoading = false;
+		}
+	}
 
 	async function handleLogout() {
 		try {
@@ -104,6 +182,31 @@
 					</div>
 				</div>
 			</div>
+
+			{#if activeContinuousFeed}
+				<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6 dark:bg-emerald-950 dark:border-emerald-800">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<div>
+							<h3 class="font-semibold text-emerald-900 dark:text-emerald-100">Continuous Feed Running</h3>
+							<p class="text-base text-emerald-800 dark:text-emerald-200 mt-1">
+								Started {new Date(activeContinuousFeed.started_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+								· Rate {activeContinuousFeed.rate_ml_hr || '-'} ml/hr
+								· Interval {activeContinuousFeed.interval_hr || '-'} hr
+							</p>
+						</div>
+						<button
+							on:click={stopContinuousFeed}
+							disabled={feedActionLoading}
+							class="px-4 py-2 rounded-xl bg-red-600 text-white text-base font-semibold hover:bg-red-700 disabled:bg-red-400"
+						>
+							{feedActionLoading ? 'Stopping...' : 'Stop Feed'}
+						</button>
+					</div>
+					{#if feedActionError}
+						<p class="mt-3 text-sm text-red-700 dark:text-red-200">{feedActionError}</p>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Recent Events -->
 			<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-6">

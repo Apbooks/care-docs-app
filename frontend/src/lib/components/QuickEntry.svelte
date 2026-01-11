@@ -605,7 +605,7 @@
 								{#each quickFeeds as feed}
 									<button
 										on:click={() => logQuickFeed(feed)}
-										class="p-3 min-h-[72px] rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 text-left"
+										class="p-3 min-h-[72px] rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 text-left text-gray-900 dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700"
 										disabled={loading}
 									>
 										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm capitalize">
