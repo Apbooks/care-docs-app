@@ -11,10 +11,14 @@ const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
 export async function apiRequest(endpoint, options = {}) {
 	const url = `${API_BASE}${endpoint}`;
 
+	// Get access token from localStorage if available
+	const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+
 	const config = {
 		...options,
 		headers: {
 			'Content-Type': 'application/json',
+			...(token ? { 'Authorization': `Bearer ${token}` } : {}),
 			...options.headers
 		},
 		credentials: 'include' // Important for cookies

@@ -16,8 +16,13 @@
 		try {
 			const response = await login(username, password);
 
-			// Store user data in auth store
+			// Store user data AND token in localStorage
 			authStore.setUser(response.user);
+
+			// Store access token in localStorage for cross-origin requests
+			if (response.access_token) {
+				localStorage.setItem('access_token', response.access_token);
+			}
 
 			// Redirect to dashboard
 			goto('/');

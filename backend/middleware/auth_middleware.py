@@ -18,7 +18,7 @@ async def get_token_from_cookie(request: Request) -> Optional[str]:
 
 async def verify_auth_cookie(request: Request) -> dict:
     """
-    Middleware to verify authentication from cookie
+    Middleware to verify authentication from cookie or Authorization header
 
     Args:
         request: FastAPI request object
@@ -29,7 +29,15 @@ async def verify_auth_cookie(request: Request) -> dict:
     Raises:
         HTTPException: If token is invalid or missing
     """
-    token = await get_token_from_cookie(request)
+    # Try to get token from Authorization header first
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+
+    # Fall back to cookie if no Authorization header
+    if not token:
+        token = await get_token_from_cookie(request)
 
     if not token:
         raise HTTPException(
