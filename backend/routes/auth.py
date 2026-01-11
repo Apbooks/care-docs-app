@@ -20,10 +20,19 @@ from config import get_settings
 settings = get_settings()
 router = APIRouter()
 
-# Custom dependency to extract token from cookie
+# Custom dependency to extract token from Authorization header or cookie
 async def get_token_from_request(request: Request) -> str:
-    """Extract JWT token from HTTP-only cookie"""
-    token = request.cookies.get("access_token")
+    """Extract JWT token from Authorization header or HTTP-only cookie"""
+    # Try Authorization header first
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+
+    # Fall back to cookie if no Authorization header
+    if not token:
+        token = request.cookies.get("access_token")
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
