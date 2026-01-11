@@ -63,8 +63,12 @@ class Settings(BaseSettings):
         return self.CORS_ORIGINS
 
     class Config:
+        # Make .env file optional - use environment variables in Docker
         env_file = ".env"
+        env_file_encoding = 'utf-8'
         case_sensitive = True
+        # Don't fail if .env doesn't exist
+        extra = 'ignore'
 
 @lru_cache()
 def get_settings():
