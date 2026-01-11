@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from functools import lru_cache
+from typing import Union, List
 import sys
 
 class Settings(BaseSettings):
@@ -19,8 +20,8 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     ENVIRONMENT: str = "development"  # Options: development, production
 
-    # CORS
-    CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173"]
+    # CORS - Can be a comma-separated string or list
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
     # File Upload
     MAX_PHOTO_SIZE_MB: int = 10
@@ -54,6 +55,12 @@ class Settings(BaseSettings):
             print("="*70 + "\n", file=sys.stderr)
             sys.exit(1)
         return v
+
+    def get_cors_origins(self) -> List[str]:
+        """Parse CORS_ORIGINS string into a list"""
+        if isinstance(self.CORS_ORIGINS, str):
+            return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+        return self.CORS_ORIGINS
 
     class Config:
         env_file = ".env"
