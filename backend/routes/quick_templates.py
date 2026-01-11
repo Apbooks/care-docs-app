@@ -11,6 +11,7 @@ from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
 
 router = APIRouter()
+VALID_FEED_MODES = ["continuous", "bolus", "oral"]
 
 
 # ============================================================================
@@ -175,24 +176,39 @@ async def delete_quick_medication(
 # ============================================================================
 
 class QuickFeedCreate(BaseModel):
+    mode: str = Field(default="bolus", max_length=20)
     amount_ml: Optional[int] = Field(default=None, ge=0)
     duration_min: Optional[int] = Field(default=None, ge=0)
     formula_type: Optional[str] = Field(default=None, max_length=100)
+    rate_ml_hr: Optional[float] = Field(default=None, ge=0)
+    dose_ml: Optional[float] = Field(default=None, ge=0)
+    interval_hr: Optional[float] = Field(default=None, ge=0)
+    oral_notes: Optional[str] = Field(default=None, max_length=200)
     is_active: bool = True
 
 
 class QuickFeedUpdate(BaseModel):
+    mode: Optional[str] = Field(default=None, max_length=20)
     amount_ml: Optional[int] = Field(default=None, ge=0)
     duration_min: Optional[int] = Field(default=None, ge=0)
     formula_type: Optional[str] = Field(default=None, max_length=100)
+    rate_ml_hr: Optional[float] = Field(default=None, ge=0)
+    dose_ml: Optional[float] = Field(default=None, ge=0)
+    interval_hr: Optional[float] = Field(default=None, ge=0)
+    oral_notes: Optional[str] = Field(default=None, max_length=200)
     is_active: Optional[bool] = None
 
 
 class QuickFeedResponse(BaseModel):
     id: str
+    mode: str
     amount_ml: Optional[int]
     duration_min: Optional[int]
     formula_type: Optional[str]
+    rate_ml_hr: Optional[float]
+    dose_ml: Optional[float]
+    interval_hr: Optional[float]
+    oral_notes: Optional[str]
     is_active: bool
     created_by_user_id: str
     created_by_name: Optional[str]
@@ -224,9 +240,14 @@ async def list_quick_feeds(
     return [
         QuickFeedResponse(
             id=str(feed.id),
+            mode=feed.mode,
             amount_ml=feed.amount_ml,
             duration_min=feed.duration_min,
             formula_type=feed.formula_type,
+            rate_ml_hr=feed.rate_ml_hr,
+            dose_ml=feed.dose_ml,
+            interval_hr=feed.interval_hr,
+            oral_notes=feed.oral_notes,
             is_active=feed.is_active,
             created_by_user_id=str(feed.created_by_user_id),
             created_by_name=feed.created_by.username if feed.created_by else None,
@@ -243,10 +264,20 @@ async def create_quick_feed(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_active_admin)
 ):
+    if data.mode.strip().lower() not in VALID_FEED_MODES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid feed mode. Must be one of: {', '.join(VALID_FEED_MODES)}"
+        )
     new_feed = QuickFeed(
+        mode=data.mode.strip().lower(),
         amount_ml=data.amount_ml,
         duration_min=data.duration_min,
         formula_type=data.formula_type.strip() if data.formula_type else None,
+        rate_ml_hr=data.rate_ml_hr,
+        dose_ml=data.dose_ml,
+        interval_hr=data.interval_hr,
+        oral_notes=data.oral_notes.strip() if data.oral_notes else None,
         is_active=data.is_active,
         created_by_user_id=current_admin.id
     )
@@ -257,9 +288,14 @@ async def create_quick_feed(
 
     return QuickFeedResponse(
         id=str(new_feed.id),
+        mode=new_feed.mode,
         amount_ml=new_feed.amount_ml,
         duration_min=new_feed.duration_min,
         formula_type=new_feed.formula_type,
+        rate_ml_hr=new_feed.rate_ml_hr,
+        dose_ml=new_feed.dose_ml,
+        interval_hr=new_feed.interval_hr,
+        oral_notes=new_feed.oral_notes,
         is_active=new_feed.is_active,
         created_by_user_id=str(new_feed.created_by_user_id),
         created_by_name=current_admin.username,
@@ -288,6 +324,22 @@ async def update_quick_feed(
         feed.duration_min = updates.duration_min
     if updates.formula_type is not None:
         feed.formula_type = updates.formula_type.strip() if updates.formula_type else None
+    if updates.mode is not None:
+        mode_value = updates.mode.strip().lower()
+        if mode_value not in VALID_FEED_MODES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid feed mode. Must be one of: {', '.join(VALID_FEED_MODES)}"
+            )
+        feed.mode = mode_value
+    if updates.rate_ml_hr is not None:
+        feed.rate_ml_hr = updates.rate_ml_hr
+    if updates.dose_ml is not None:
+        feed.dose_ml = updates.dose_ml
+    if updates.interval_hr is not None:
+        feed.interval_hr = updates.interval_hr
+    if updates.oral_notes is not None:
+        feed.oral_notes = updates.oral_notes.strip() if updates.oral_notes else None
     if updates.is_active is not None:
         feed.is_active = updates.is_active
 
@@ -297,9 +349,14 @@ async def update_quick_feed(
 
     return QuickFeedResponse(
         id=str(feed.id),
+        mode=feed.mode,
         amount_ml=feed.amount_ml,
         duration_min=feed.duration_min,
         formula_type=feed.formula_type,
+        rate_ml_hr=feed.rate_ml_hr,
+        dose_ml=feed.dose_ml,
+        interval_hr=feed.interval_hr,
+        oral_notes=feed.oral_notes,
         is_active=feed.is_active,
         created_by_user_id=str(feed.created_by_user_id),
         created_by_name=feed.created_by.username if feed.created_by else None,

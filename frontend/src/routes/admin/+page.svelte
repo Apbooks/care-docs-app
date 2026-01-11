@@ -39,10 +39,20 @@
 	let newFeedAmount = '';
 	let newFeedDuration = '';
 	let newFeedFormula = '';
+	let newFeedMode = 'bolus';
+	let newFeedRate = '';
+	let newFeedDose = '';
+	let newFeedInterval = '';
+	let newFeedOralNotes = '';
 	let editFeedId = null;
 	let editFeedAmount = '';
 	let editFeedDuration = '';
 	let editFeedFormula = '';
+	let editFeedMode = 'bolus';
+	let editFeedRate = '';
+	let editFeedDose = '';
+	let editFeedInterval = '';
+	let editFeedOralNotes = '';
 
 	authStore.subscribe(value => {
 		user = value;
@@ -176,14 +186,24 @@
 
 		try {
 			const created = await createQuickFeed({
+				mode: newFeedMode,
 				amount_ml: newFeedAmount ? parseInt(newFeedAmount) : null,
 				duration_min: newFeedDuration ? parseInt(newFeedDuration) : null,
-				formula_type: newFeedFormula || null
+				formula_type: newFeedFormula || null,
+				rate_ml_hr: newFeedRate ? parseFloat(newFeedRate) : null,
+				dose_ml: newFeedDose ? parseFloat(newFeedDose) : null,
+				interval_hr: newFeedInterval ? parseFloat(newFeedInterval) : null,
+				oral_notes: newFeedOralNotes || null
 			});
 			quickFeeds = [created, ...quickFeeds];
 			newFeedAmount = '';
 			newFeedDuration = '';
 			newFeedFormula = '';
+			newFeedMode = 'bolus';
+			newFeedRate = '';
+			newFeedDose = '';
+			newFeedInterval = '';
+			newFeedOralNotes = '';
 		} catch (err) {
 			quickFeedsError = err.message || 'Failed to create quick feed';
 		}
@@ -216,6 +236,11 @@
 		editFeedAmount = feed.amount_ml ?? '';
 		editFeedDuration = feed.duration_min ?? '';
 		editFeedFormula = feed.formula_type ?? '';
+		editFeedMode = feed.mode || 'bolus';
+		editFeedRate = feed.rate_ml_hr ?? '';
+		editFeedDose = feed.dose_ml ?? '';
+		editFeedInterval = feed.interval_hr ?? '';
+		editFeedOralNotes = feed.oral_notes ?? '';
 	}
 
 	function cancelEditQuickFeed() {
@@ -223,6 +248,11 @@
 		editFeedAmount = '';
 		editFeedDuration = '';
 		editFeedFormula = '';
+		editFeedMode = 'bolus';
+		editFeedRate = '';
+		editFeedDose = '';
+		editFeedInterval = '';
+		editFeedOralNotes = '';
 	}
 
 	async function handleSaveQuickFeed() {
@@ -230,9 +260,14 @@
 
 		try {
 			const updated = await updateQuickFeed(editFeedId, {
+				mode: editFeedMode,
 				amount_ml: editFeedAmount === '' ? null : parseInt(editFeedAmount),
 				duration_min: editFeedDuration === '' ? null : parseInt(editFeedDuration),
-				formula_type: editFeedFormula || null
+				formula_type: editFeedFormula || null,
+				rate_ml_hr: editFeedRate === '' ? null : parseFloat(editFeedRate),
+				dose_ml: editFeedDose === '' ? null : parseFloat(editFeedDose),
+				interval_hr: editFeedInterval === '' ? null : parseFloat(editFeedInterval),
+				oral_notes: editFeedOralNotes || null
 			});
 			quickFeeds = quickFeeds.map(item => item.id === updated.id ? updated : item);
 			cancelEditQuickFeed();
@@ -674,40 +709,110 @@
 			{/if}
 
 			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateQuickFeed}>
-				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
-					<input
-						type="number"
-						min="0"
-						bind:value={newFeedAmount}
-						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-						placeholder="240"
-					/>
+				<div class="sm:col-span-4">
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feeding Type</label>
+					<div class="grid grid-cols-3 gap-2">
+						<button
+							type="button"
+							on:click={() => newFeedMode = 'continuous'}
+							class={`px-3 py-2 rounded-xl border text-sm font-semibold ${newFeedMode === 'continuous' ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 text-gray-700 dark:text-slate-200'}`}
+						>
+							Continuous
+						</button>
+						<button
+							type="button"
+							on:click={() => newFeedMode = 'bolus'}
+							class={`px-3 py-2 rounded-xl border text-sm font-semibold ${newFeedMode === 'bolus' ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 text-gray-700 dark:text-slate-200'}`}
+						>
+							Bolus
+						</button>
+						<button
+							type="button"
+							on:click={() => newFeedMode = 'oral'}
+							class={`px-3 py-2 rounded-xl border text-sm font-semibold ${newFeedMode === 'oral' ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 text-gray-700 dark:text-slate-200'}`}
+						>
+							Oral
+						</button>
+					</div>
 				</div>
-				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Duration (min)</label>
-					<input
-						type="number"
-						min="0"
-						bind:value={newFeedDuration}
-						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-						placeholder="20"
-					/>
-				</div>
-				<div class="sm:col-span-2">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
-					<input
-						type="text"
-						bind:value={newFeedFormula}
-						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-						placeholder="Standard formula"
-					/>
-				</div>
+
+				{#if newFeedMode === 'continuous'}
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Rate (ml/hr)</label>
+						<input
+							type="number"
+							min="0"
+							bind:value={newFeedRate}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="500"
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose (ml)</label>
+						<input
+							type="number"
+							min="0"
+							bind:value={newFeedDose}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="95"
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hr)</label>
+						<input
+							type="number"
+							min="0"
+							step="0.1"
+							bind:value={newFeedInterval}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="0.5"
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+						<input
+							type="text"
+							bind:value={newFeedFormula}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="Pediasure"
+						/>
+					</div>
+				{:else if newFeedMode === 'oral'}
+					<div class="sm:col-span-4">
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Oral Notes</label>
+						<textarea
+							rows="2"
+							bind:value={newFeedOralNotes}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="Applesauce, puree, water..."
+						></textarea>
+					</div>
+				{:else}
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
+						<input
+							type="number"
+							min="0"
+							bind:value={newFeedAmount}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="95"
+						/>
+					</div>
+					<div class="sm:col-span-3">
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+						<input
+							type="text"
+							bind:value={newFeedFormula}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="Pediasure"
+						/>
+					</div>
+				{/if}
+
 				<div class="sm:col-span-4">
 					<button
 						type="submit"
 						class="px-4 py-3 bg-green-600 text-white rounded-xl text-base hover:bg-green-700 disabled:bg-green-300"
-						disabled={!newFeedAmount && !newFeedDuration && !newFeedFormula}
 					>
 						Add Quick Feed
 					</button>
@@ -727,34 +832,87 @@
 						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
 							{#if editFeedId === feed.id}
 								<div class="space-y-3">
-									<div class="grid gap-3 sm:grid-cols-2">
-										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Amount (ml)</label>
-											<input
-												type="number"
-												min="0"
-												bind:value={editFeedAmount}
-												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-											/>
-										</div>
-										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Duration (min)</label>
-											<input
-												type="number"
-												min="0"
-												bind:value={editFeedDuration}
-												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-											/>
-										</div>
-									</div>
 									<div>
-										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Formula</label>
-										<input
-											type="text"
-											bind:value={editFeedFormula}
+										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Feeding Type</label>
+										<select
+											bind:value={editFeedMode}
 											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-										/>
+										>
+											<option value="continuous">Continuous</option>
+											<option value="bolus">Bolus</option>
+											<option value="oral">Oral</option>
+										</select>
 									</div>
+
+									{#if editFeedMode === 'continuous'}
+										<div class="grid gap-3 sm:grid-cols-2">
+											<div>
+												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Rate (ml/hr)</label>
+												<input
+													type="number"
+													min="0"
+													bind:value={editFeedRate}
+													class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+												/>
+											</div>
+											<div>
+												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Dose (ml)</label>
+												<input
+													type="number"
+													min="0"
+													bind:value={editFeedDose}
+													class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+												/>
+											</div>
+											<div>
+												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Interval (hr)</label>
+												<input
+													type="number"
+													min="0"
+													step="0.1"
+													bind:value={editFeedInterval}
+													class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+												/>
+											</div>
+											<div>
+												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Formula</label>
+												<input
+													type="text"
+													bind:value={editFeedFormula}
+													class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+												/>
+											</div>
+										</div>
+									{:else if editFeedMode === 'oral'}
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Oral Notes</label>
+											<textarea
+												rows="2"
+												bind:value={editFeedOralNotes}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											></textarea>
+										</div>
+									{:else}
+										<div class="grid gap-3 sm:grid-cols-2">
+											<div>
+												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Amount (ml)</label>
+												<input
+													type="number"
+													min="0"
+													bind:value={editFeedAmount}
+													class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+												/>
+											</div>
+											<div>
+												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Formula</label>
+												<input
+													type="text"
+													bind:value={editFeedFormula}
+													class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+												/>
+											</div>
+										</div>
+									{/if}
 									<div class="flex items-center gap-3">
 										<button
 											on:click={handleSaveQuickFeed}
@@ -773,13 +931,27 @@
 							{:else}
 								<div class="flex items-start justify-between gap-3">
 									<div>
-										<div class="text-base font-semibold text-gray-900 dark:text-slate-100">
-											{#if feed.amount_ml}{feed.amount_ml}ml{/if}
-											{#if feed.amount_ml && feed.duration_min} · {/if}
-											{#if feed.duration_min}{feed.duration_min} min{/if}
+										<div class="text-base font-semibold text-gray-900 dark:text-slate-100 capitalize">
+											{feed.mode || 'bolus'}
 										</div>
-										{#if feed.formula_type}
-											<div class="text-sm text-gray-600 dark:text-slate-300">{feed.formula_type}</div>
+										{#if (feed.mode || 'bolus') === 'continuous'}
+											<div class="text-sm text-gray-600 dark:text-slate-300">
+												Rate {feed.rate_ml_hr || '-'} ml/hr · Interval {feed.interval_hr || '-'} hr
+											</div>
+											<div class="text-sm text-gray-600 dark:text-slate-300">
+												{#if feed.dose_ml}
+													Dose {feed.dose_ml} ml
+												{:else}
+													Dose infinite
+												{/if}
+											</div>
+										{:else if (feed.mode || 'bolus') === 'oral'}
+											<div class="text-sm text-gray-600 dark:text-slate-300">{feed.oral_notes || 'Oral notes'}</div>
+										{:else}
+											<div class="text-sm text-gray-600 dark:text-slate-300">
+												{feed.amount_ml || '-'} ml
+												{#if feed.formula_type} · {feed.formula_type}{/if}
+											</div>
 										{/if}
 										{#if feed.created_by_name}
 											<div class="text-xs text-gray-500 dark:text-slate-400 mt-1">Added by {feed.created_by_name}</div>

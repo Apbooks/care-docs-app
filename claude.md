@@ -220,6 +220,7 @@
 - [x] Increased touch target sizes across dashboard, admin panel, login, and register
 - [x] Added dark mode with system default + manual toggle
 - [x] Added event edit/delete controls in recent activity (timestamp + metadata)
+- [x] Added feeding modes (continuous/bolus/oral) with start/stop tracking and metadata
 
 ---
 

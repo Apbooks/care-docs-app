@@ -28,9 +28,16 @@
 	let route = 'oral';
 
 	// Feeding specific
+	let feedingMode = 'bolus';
 	let amountMl = '';
 	let durationMin = '';
 	let formulaType = '';
+	let feedRate = '';
+	let feedDose = '';
+	let feedInterval = '';
+	let oralNotes = '';
+	let activeContinuousFeed = null;
+	const ACTIVE_FEED_KEY = 'active_continuous_feed';
 
 	// Diaper specific
 	let condition = 'wet';
@@ -77,6 +84,15 @@
 
 	$: if (show && !quickLoaded) {
 		loadQuickTemplates();
+	}
+	$: if (show) {
+		loadActiveFeed();
+	}
+
+	function loadActiveFeed() {
+		if (typeof localStorage === 'undefined') return;
+		const stored = localStorage.getItem(ACTIVE_FEED_KEY);
+		activeContinuousFeed = stored ? JSON.parse(stored) : null;
 	}
 
 	async function loadQuickTemplates() {
@@ -127,6 +143,11 @@
 		amountMl = '';
 		durationMin = '';
 		formulaType = '';
+		feedingMode = 'bolus';
+		feedRate = '';
+		feedDose = '';
+		feedInterval = '';
+		oralNotes = '';
 		condition = 'wet';
 		rash = false;
 		skinNotes = '';
@@ -134,6 +155,95 @@
 		activityLevel = 'moderate';
 		concerns = '';
 		resetQuickNote();
+	}
+
+	function setActiveFeed(feed) {
+		activeContinuousFeed = feed;
+		if (typeof localStorage !== 'undefined') {
+			if (feed) {
+				localStorage.setItem(ACTIVE_FEED_KEY, JSON.stringify(feed));
+			} else {
+				localStorage.removeItem(ACTIVE_FEED_KEY);
+			}
+		}
+	}
+
+	async function startContinuousFeed() {
+		if (loading) return;
+		error = '';
+		loading = true;
+
+		try {
+			const startTime = new Date().toISOString();
+			const feedData = {
+				started_at: startTime,
+				rate_ml_hr: feedRate ? parseFloat(feedRate) : null,
+				dose_ml: feedDose ? parseFloat(feedDose) : null,
+				interval_hr: feedInterval ? parseFloat(feedInterval) : null,
+				formula_type: formulaType || null,
+				pump_model: 'Moog Infinity'
+			};
+
+			const newEvent = await createEvent({
+				type: 'feeding',
+				timestamp: startTime,
+				notes: notes || null,
+				metadata: {
+					mode: 'continuous',
+					status: 'started',
+					...feedData
+				}
+			});
+
+			setActiveFeed(feedData);
+			dispatch('eventCreated', newEvent);
+		} catch (err) {
+			error = err.message || 'Failed to start feed';
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function stopContinuousFeed() {
+		if (!activeContinuousFeed || loading) return;
+		error = '';
+		loading = true;
+
+		try {
+			const stopTime = new Date();
+			const startTime = new Date(activeContinuousFeed.started_at);
+			const durationMs = stopTime - startTime;
+			const durationMinValue = Math.max(0, Math.round(durationMs / 60000));
+			const durationHr = durationMs / 3600000;
+			const rate = activeContinuousFeed.rate_ml_hr || 0;
+			const rawAmount = rate * durationHr;
+			const dose = activeContinuousFeed.dose_ml;
+			const amount = dose ? Math.min(rawAmount, dose) : rawAmount;
+
+			const newEvent = await createEvent({
+				type: 'feeding',
+				timestamp: stopTime.toISOString(),
+				notes: notes || null,
+				metadata: {
+					mode: 'continuous',
+					status: 'stopped',
+					rate_ml_hr: activeContinuousFeed.rate_ml_hr,
+					dose_ml: activeContinuousFeed.dose_ml,
+					interval_hr: activeContinuousFeed.interval_hr,
+					formula_type: activeContinuousFeed.formula_type || null,
+					pump_model: activeContinuousFeed.pump_model || null,
+					duration_min: durationMinValue,
+					amount_ml: Math.round(amount)
+				}
+			});
+
+			setActiveFeed(null);
+			dispatch('eventCreated', newEvent);
+		} catch (err) {
+			error = err.message || 'Failed to stop feed';
+		} finally {
+			loading = false;
+		}
 	}
 
 	async function logQuickMedication(template) {
@@ -170,15 +280,47 @@
 		loading = true;
 
 		try {
+			if (template.mode === 'continuous') {
+				if (activeContinuousFeed) {
+					throw new Error('A continuous feed is already running.');
+				}
+
+				const startTime = new Date().toISOString();
+				const feedData = {
+					started_at: startTime,
+					rate_ml_hr: template.rate_ml_hr,
+					dose_ml: template.dose_ml,
+					interval_hr: template.interval_hr,
+					formula_type: template.formula_type || null,
+					pump_model: 'Moog Infinity'
+				};
+
+				const newEvent = await createEvent({
+					type: 'feeding',
+					timestamp: startTime,
+					notes: null,
+					metadata: {
+						mode: 'continuous',
+						status: 'started',
+						...feedData
+					}
+				});
+
+				setActiveFeed(feedData);
+				dispatch('eventCreated', newEvent);
+				close();
+				return;
+			}
+
+			const metadata = template.mode === 'oral'
+				? { mode: 'oral', oral_notes: template.oral_notes || null }
+				: { mode: 'bolus', amount_ml: template.amount_ml, formula_type: template.formula_type || null };
+
 			const newEvent = await createEvent({
 				type: 'feeding',
 				timestamp: new Date().toISOString(),
 				notes: null,
-				metadata: {
-					amount_ml: template.amount_ml,
-					duration_min: template.duration_min,
-					formula_type: template.formula_type
-				}
+				metadata
 			});
 
 			dispatch('eventCreated', newEvent);
@@ -207,11 +349,27 @@
 					};
 					break;
 				case 'feeding':
-					metadata = {
-						amount_ml: amountMl ? parseInt(amountMl) : null,
-						duration_min: durationMin ? parseInt(durationMin) : null,
-						formula_type: formulaType
-					};
+					if (feedingMode === 'bolus') {
+						metadata = {
+							mode: 'bolus',
+							amount_ml: amountMl ? parseInt(amountMl) : null,
+							formula_type: formulaType || null
+						};
+					} else if (feedingMode === 'oral') {
+						metadata = {
+							mode: 'oral',
+							oral_notes: oralNotes || null
+						};
+					} else {
+						metadata = {
+							mode: 'continuous',
+							status: 'stopped',
+							rate_ml_hr: feedRate ? parseFloat(feedRate) : null,
+							dose_ml: feedDose ? parseFloat(feedDose) : null,
+							interval_hr: feedInterval ? parseFloat(feedInterval) : null,
+							formula_type: formulaType || null
+						};
+					}
 					break;
 				case 'diaper':
 					metadata = {
@@ -439,13 +597,21 @@
 										class="p-3 min-h-[72px] rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 text-left"
 										disabled={loading}
 									>
-										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm">
-											{#if feed.amount_ml}{feed.amount_ml}ml{/if}
-											{#if feed.amount_ml && feed.duration_min} · {/if}
-											{#if feed.duration_min}{feed.duration_min} min{/if}
+										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm capitalize">
+											{feed.mode || 'bolus'}
 										</div>
+										{#if (feed.mode || 'bolus') === 'continuous'}
+											<div class="text-xs text-gray-700 dark:text-slate-300 mt-1">{feed.rate_ml_hr || '-'} ml/hr · {feed.interval_hr || '-'} hr</div>
+											{#if feed.dose_ml}
+												<div class="text-xs text-gray-600 dark:text-slate-400 mt-1">Dose {feed.dose_ml} ml</div>
+											{/if}
+										{:else if (feed.mode || 'bolus') === 'oral'}
+											<div class="text-xs text-gray-700 dark:text-slate-300 mt-1 truncate">{feed.oral_notes || 'Oral notes'}</div>
+										{:else}
+											<div class="text-xs text-gray-700 dark:text-slate-300 mt-1">{feed.amount_ml || '-'} ml</div>
+										{/if}
 										{#if feed.formula_type}
-											<div class="text-xs text-gray-600 dark:text-slate-300 mt-1">{feed.formula_type}</div>
+											<div class="text-xs text-gray-600 dark:text-slate-400 mt-1">{feed.formula_type}</div>
 										{/if}
 									</button>
 								{/each}
@@ -457,53 +623,156 @@
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
 							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-								Amount (ml)
+								Feeding Type
 							</label>
-							<input
-								type="number"
-								bind:value={amountMl}
-								min="0"
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
-								placeholder="e.g., 240"
-							/>
+							<div class="grid grid-cols-3 gap-2">
+								<button
+									type="button"
+									on:click={() => feedingMode = 'continuous'}
+									class={`px-3 py-2 rounded-xl border text-sm font-semibold ${feedingMode === 'continuous' ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 text-gray-700 dark:text-slate-200'}`}
+								>
+									Continuous
+								</button>
+								<button
+									type="button"
+									on:click={() => feedingMode = 'bolus'}
+									class={`px-3 py-2 rounded-xl border text-sm font-semibold ${feedingMode === 'bolus' ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 text-gray-700 dark:text-slate-200'}`}
+								>
+									Bolus
+								</button>
+								<button
+									type="button"
+									on:click={() => feedingMode = 'oral'}
+									class={`px-3 py-2 rounded-xl border text-sm font-semibold ${feedingMode === 'oral' ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 text-gray-700 dark:text-slate-200'}`}
+								>
+									Oral
+								</button>
+							</div>
 						</div>
 
-						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-								Duration (minutes)
-							</label>
-							<input
-								type="number"
-								bind:value={durationMin}
-								min="0"
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
-								placeholder="e.g., 20"
-							/>
-						</div>
+						{#if feedingMode === 'continuous'}
+							{#if activeContinuousFeed}
+								<div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800">
+									<p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+										Feed running since {new Date(activeContinuousFeed.started_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+									</p>
+									<p class="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
+										Rate {activeContinuousFeed.rate_ml_hr || '-'} ml/hr · Interval {activeContinuousFeed.interval_hr || '-'} hr
+									</p>
+								</div>
+							{/if}
 
-						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-								Formula/Food Type
-							</label>
-							<input
-								type="text"
-								bind:value={formulaType}
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
-								placeholder="e.g., Standard formula, Pediasure"
-							/>
-						</div>
+							<div class="grid gap-3 sm:grid-cols-2">
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+										Feed Rate (ml/hr)
+									</label>
+									<input
+										type="number"
+										min="0"
+										bind:value={feedRate}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+										placeholder="500"
+									/>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+										Dose (ml) - leave blank for infinite
+									</label>
+									<input
+										type="number"
+										min="0"
+										bind:value={feedDose}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+										placeholder="95"
+									/>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+										Feed Interval (hr)
+									</label>
+									<input
+										type="number"
+										min="0"
+										step="0.1"
+										bind:value={feedInterval}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+										placeholder="0.5"
+									/>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+										Formula Type
+									</label>
+									<input
+										type="text"
+										bind:value={formulaType}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+										placeholder="Pediasure"
+									/>
+								</div>
+							</div>
 
-						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-								Notes (Optional)
-							</label>
-							<textarea
-								bind:value={notes}
-								rows="3"
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
-								placeholder="Any additional notes..."
-							></textarea>
-						</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									Notes (Optional)
+								</label>
+								<textarea
+									bind:value={notes}
+									rows="2"
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+									placeholder="Any additional notes..."
+								></textarea>
+							</div>
+						{:else if feedingMode === 'bolus'}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									Amount (ml)
+								</label>
+								<input
+									type="number"
+									bind:value={amountMl}
+									min="0"
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+									placeholder="95"
+								/>
+							</div>
+
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									Formula Type
+								</label>
+								<input
+									type="text"
+									bind:value={formulaType}
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+									placeholder="Pediasure"
+								/>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									Notes (Optional)
+								</label>
+								<textarea
+									bind:value={notes}
+									rows="2"
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+									placeholder="Any additional notes..."
+								></textarea>
+							</div>
+						{:else}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									Oral Feeding Notes
+								</label>
+								<textarea
+									bind:value={oralNotes}
+									rows="3"
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+									placeholder="e.g., applesauce, water, puree..."
+								></textarea>
+							</div>
+						{/if}
 
 						<div class="flex gap-3 pt-4">
 							<button
@@ -513,13 +782,35 @@
 							>
 								Back
 							</button>
-							<button
-								type="submit"
-								disabled={loading}
-								class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl text-base hover:bg-green-700 disabled:bg-green-400"
-							>
-								{loading ? 'Saving...' : 'Save Entry'}
-							</button>
+							{#if feedingMode === 'continuous'}
+								{#if activeContinuousFeed}
+									<button
+										type="button"
+										on:click={stopContinuousFeed}
+										disabled={loading}
+										class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl text-base hover:bg-red-700 disabled:bg-red-400"
+									>
+										{loading ? 'Stopping...' : 'Stop Feed'}
+									</button>
+								{:else}
+									<button
+										type="button"
+										on:click={startContinuousFeed}
+										disabled={loading}
+										class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl text-base hover:bg-green-700 disabled:bg-green-400"
+									>
+										{loading ? 'Starting...' : 'Start Feed'}
+									</button>
+								{/if}
+							{:else}
+								<button
+									type="submit"
+									disabled={loading}
+									class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl text-base hover:bg-green-700 disabled:bg-green-400"
+								>
+									{loading ? 'Saving...' : 'Save Entry'}
+								</button>
+							{/if}
 						</div>
 					</form>
 

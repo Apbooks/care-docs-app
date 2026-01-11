@@ -76,11 +76,33 @@
 			case 'medication':
 				return `${metadata.med_name} - ${metadata.dosage} (${metadata.route})`;
 			case 'feeding':
-				let parts = [];
-				if (metadata.amount_ml) parts.push(`${metadata.amount_ml}ml`);
-				if (metadata.duration_min) parts.push(`${metadata.duration_min} min`);
-				if (metadata.formula_type) parts.push(metadata.formula_type);
-				return parts.join(', ') || 'Feeding session';
+				if (metadata.mode === 'continuous') {
+					const parts = [];
+					const status = metadata.status || (metadata.duration_min ? 'stopped' : 'started');
+					parts.push(status === 'started' ? 'Started' : 'Stopped');
+					if (metadata.amount_ml) parts.push(`Amount ${metadata.amount_ml}ml`);
+					if (metadata.rate_ml_hr) parts.push(`${metadata.rate_ml_hr} ml/hr`);
+					if (metadata.dose_ml) {
+						parts.push(`Dose ${metadata.dose_ml}ml`);
+					} else if (metadata.dose_ml === 0) {
+						parts.push('Dose 0ml');
+					} else {
+						parts.push('Dose infinite');
+					}
+					if (metadata.interval_hr) parts.push(`${metadata.interval_hr} hr interval`);
+					if (metadata.formula_type) parts.push(metadata.formula_type);
+					return `Continuous · ${parts.join(', ')}`;
+				}
+				if (metadata.mode === 'oral') {
+					return metadata.oral_notes || event.notes || 'Oral feeding';
+				}
+				{
+					let parts = [];
+					if (metadata.amount_ml) parts.push(`${metadata.amount_ml}ml`);
+					if (metadata.duration_min) parts.push(`${metadata.duration_min} min`);
+					if (metadata.formula_type) parts.push(metadata.formula_type);
+					return parts.join(', ') || 'Bolus feeding';
+				}
 			case 'diaper':
 				let desc = `${metadata.condition}`;
 				if (metadata.rash) desc += ', rash present';
@@ -102,12 +124,19 @@
 
 	function startEdit(event) {
 		editError = '';
+		const metadata = JSON.parse(JSON.stringify(event.metadata || {}));
+		if (event.type === 'feeding' && !metadata.mode) {
+			metadata.mode = 'bolus';
+		}
+		if (event.type === 'feeding' && metadata.mode === 'continuous' && !metadata.status) {
+			metadata.status = metadata.duration_min || metadata.amount_ml ? 'stopped' : 'started';
+		}
 		editEvent = {
 			id: event.id,
 			type: event.type,
 			timestamp: toDateTimeLocal(event.timestamp),
 			notes: event.notes || '',
-			metadata: JSON.parse(JSON.stringify(event.metadata || {}))
+			metadata
 		};
 	}
 
@@ -317,33 +346,116 @@
 						</div>
 					</div>
 				{:else if editEvent.type === 'feeding'}
-					<div class="grid gap-3 sm:grid-cols-2">
+					<div class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
-							<input
-								type="number"
-								min="0"
-								bind:value={editEvent.metadata.amount_ml}
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feeding Type</label>
+							<select
+								bind:value={editEvent.metadata.mode}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-							/>
+							>
+								<option value="continuous">Continuous</option>
+								<option value="bolus">Bolus</option>
+								<option value="oral">Oral</option>
+							</select>
 						</div>
-						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Duration (min)</label>
-							<input
-								type="number"
-								min="0"
-								bind:value={editEvent.metadata.duration_min}
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-							/>
-						</div>
-						<div class="sm:col-span-2">
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
-							<input
-								type="text"
-								bind:value={editEvent.metadata.formula_type}
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-							/>
-						</div>
+
+						{#if editEvent.metadata.mode === 'continuous'}
+							<div class="grid gap-3 sm:grid-cols-2">
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Status</label>
+									<select
+										bind:value={editEvent.metadata.status}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+									>
+										<option value="started">Started</option>
+										<option value="stopped">Stopped</option>
+									</select>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Rate (ml/hr)</label>
+									<input
+										type="number"
+										min="0"
+										bind:value={editEvent.metadata.rate_ml_hr}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+									/>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose (ml)</label>
+									<input
+										type="number"
+										min="0"
+										bind:value={editEvent.metadata.dose_ml}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+									/>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hr)</label>
+									<input
+										type="number"
+										min="0"
+										step="0.1"
+										bind:value={editEvent.metadata.interval_hr}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+									/>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
+									<input
+										type="number"
+										min="0"
+										bind:value={editEvent.metadata.amount_ml}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+									/>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Duration (min)</label>
+									<input
+										type="number"
+										min="0"
+										bind:value={editEvent.metadata.duration_min}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+									/>
+								</div>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+								<input
+									type="text"
+									bind:value={editEvent.metadata.formula_type}
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+								/>
+							</div>
+						{:else if editEvent.metadata.mode === 'oral'}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Oral Notes</label>
+								<textarea
+									rows="3"
+									bind:value={editEvent.metadata.oral_notes}
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+								></textarea>
+							</div>
+						{:else}
+							<div class="grid gap-3 sm:grid-cols-2">
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
+									<input
+										type="number"
+										min="0"
+										bind:value={editEvent.metadata.amount_ml}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+									/>
+								</div>
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+									<input
+										type="text"
+										bind:value={editEvent.metadata.formula_type}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+									/>
+								</div>
+							</div>
+						{/if}
 					</div>
 				{:else if editEvent.type === 'diaper'}
 					<div class="grid gap-3 sm:grid-cols-2">
