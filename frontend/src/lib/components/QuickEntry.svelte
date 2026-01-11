@@ -443,7 +443,7 @@
 
 	<!-- Modal -->
 	<div class="fixed inset-0 flex items-end sm:items-center justify-center z-50">
-		<div class="bg-white dark:bg-slate-900 w-full sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl shadow-xl">
+		<div class="bg-white dark:bg-slate-900 w-full sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col">
 			<!-- Header -->
 			<div class="flex justify-between items-center p-5 sm:p-6 border-b border-gray-200 dark:border-slate-800 dark:border-slate-800">
 				<h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100 dark:text-slate-100">
@@ -465,7 +465,7 @@
 			</div>
 
 			<!-- Content -->
-			<div class="p-5 sm:p-6">
+			<div class="p-5 sm:p-6 overflow-y-auto flex-1">
 				{#if error}
 					<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
 						<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
