@@ -101,9 +101,27 @@
   - Duplicate checking
 - [x] Updated dashboard with user info and logout
 
-#### Next Steps (Phase 3: Core Data Entry Interface)
-- [ ] Create Event model with SQLAlchemy
-- [ ] Build event CRUD endpoints
+### 2026-01-10 - Phase 3: Core Event System Partial ✓
+
+#### Completed
+- [x] Created Event model with SQLAlchemy
+  - UUID primary key
+  - Fields: type, timestamp, notes, event_data (JSONB), user_id
+  - Relationship to User model
+  - Timestamps: created_at, updated_at
+- [x] Built event CRUD endpoints
+  - POST /events/ - Create new event
+  - GET /events/ - List events with filtering
+  - GET /events/{id} - Get single event
+  - PATCH /events/{id} - Update event
+  - DELETE /events/{id} - Delete event
+  - GET /events/stats/summary - Event statistics
+- [x] Created EventList component for displaying events
+- [x] Created EventCard component with color-coded types
+- [x] Implemented frontend event service (API layer)
+- [x] Built dashboard with event statistics and recent events
+
+#### In Progress
 - [ ] Create floating + button component
 - [ ] Build quick entry modal with event type selector
 - [ ] Implement medication entry form
@@ -111,8 +129,42 @@
 - [ ] Implement diaper change form
 - [ ] Implement demeanor log form
 - [ ] Implement general observation form
-- [ ] Add timestamp auto-generation
-- [ ] Tag entries with current user
+
+### 2026-01-10 - Critical Bug Fixes & Production Deployment ✓
+
+#### Completed
+- [x] Fixed Event metadata field name mismatch (event.metadata → event.event_data)
+- [x] Fixed authentication token extraction (OAuth2PasswordBearer → cookie-based auth)
+- [x] Removed insecure default JWT_SECRET_KEY and added validation
+- [x] Fixed cookie security flags to be environment-aware (secure=True in production)
+- [x] Fixed CORS configuration to use environment variables
+- [x] Fixed CORS_ORIGINS parsing error (JSON array → comma-separated string)
+- [x] Made .env file optional in Docker containers (uses environment variables)
+- [x] Added PUBLIC_API_URL configuration for frontend API connection
+- [x] Fixed N+1 query problem in event list (added eager loading)
+- [x] Created comprehensive deployment documentation:
+  - DEPLOYMENT_GUIDE.md - Full Raspberry Pi deployment guide
+  - QUICK_START.md - Quick reference guide
+  - TROUBLESHOOTING.md - Common issues and solutions
+  - scripts/pi-setup.sh - Automated setup script
+- [x] Deployed to Raspberry Pi 4B at 192.168.1.101
+- [x] Created admin user on production system
+
+#### Known Issues Fixed
+- ✓ Backend field name mismatch causing 500 errors
+- ✓ Token authentication cookie extraction failure
+- ✓ Hardcoded insecure JWT secret
+- ✓ Cookie security flags disabled in production
+- ✓ CORS hardcoded to localhost
+- ✓ CORS_ORIGINS JSON parsing error
+- ✓ Frontend unable to connect to backend API
+
+#### Current Status
+- Backend: Running on Raspberry Pi at http://192.168.1.101:8000
+- Frontend: Rebuilding with correct API URL configuration
+- Database: PostgreSQL 15 running with optimized settings for Pi
+- Admin user created: bmiller
+- Authentication system fully functional
 
 ---
 
@@ -263,8 +315,13 @@ _To be measured after deployment_
 - [ ] Hot reload configured
 
 ### Raspberry Pi 4B
-- [ ] Initial deployment
-- [ ] HTTPS configured
+- [x] Initial deployment (2026-01-10)
+- [x] Docker Compose production configuration
+- [x] Backend running on port 8000
+- [x] Frontend running on port 3000
+- [x] PostgreSQL optimized for Pi hardware
+- [x] Admin user created
+- [ ] HTTPS configured (pending domain/SSL certificate)
 - [ ] Automated backups setup
 - [ ] Performance optimization complete
 
@@ -272,7 +329,17 @@ _To be measured after deployment_
 
 ## Known Issues
 
-_None yet_
+### In Progress
+- Frontend container rebuilding with PUBLIC_API_URL=http://192.168.1.101:8000 to fix API connection
+
+### To Address
+- Missing PWA icons (/icon-192.png, /icon-512.png)
+- No testing infrastructure (pytest, Vitest)
+- No rate limiting on authentication endpoints
+- No database migration system (using create_all instead of Alembic)
+- Insufficient logging configuration
+- Dynamic Tailwind classes causing bundle bloat
+- No input validation length limits on text fields
 
 ---
 
@@ -300,8 +367,10 @@ _None yet_
 - [Workbox Docs](https://developer.chrome.com/docs/workbox)
 
 ### Project Links
-- GitHub Repository: _To be created_
-- Production URL: _To be deployed_
+- GitHub Repository: https://github.com/Apbooks/care-docs-app
+- Production URL: http://192.168.1.101:3000 (Raspberry Pi - local network)
+- Backend API: http://192.168.1.101:8000 (Raspberry Pi - local network)
+- API Documentation: http://192.168.1.101:8000/docs
 
 ---
 
@@ -314,7 +383,7 @@ _None yet_
 
 ---
 
-**Last Updated:** 2026-01-10
+**Last Updated:** 2026-01-10 (Bug fixes, production deployment to Raspberry Pi complete)
 
 ---
 
