@@ -1,6 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
-	import { getEvents, updateEvent, deleteEvent } from '$lib/services/api';
+	import { getEvents, getEvent, updateEvent, deleteEvent } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
 
 	export let limit = 10;
@@ -179,6 +179,20 @@
 	// Export refresh function so parent can call it
 	export function refresh() {
 		loadEvents({ silent: true });
+	}
+
+	export async function openById(eventId) {
+		if (!eventId) return;
+		let target = events.find(item => item.id === eventId);
+		if (!target) {
+			try {
+				target = await getEvent(eventId);
+			} catch (err) {
+				error = err.message || 'Failed to load event details';
+				return;
+			}
+		}
+		startEdit(target);
 	}
 </script>
 

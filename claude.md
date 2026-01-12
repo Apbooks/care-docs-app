@@ -294,14 +294,14 @@
 - [ ] Offline photo queue
 
 #### 5. Historical View & Reports
-- [ ] Timeline view
-- [ ] Event filtering
-- [ ] Date range picker
-- [ ] Search functionality
-- [ ] Event detail modal
-- [ ] Edit/delete events
-- [ ] Export to CSV
-- [ ] Data visualization
+- [x] Timeline view (history list)
+- [x] Event filtering
+- [x] Date range picker
+- [x] Search functionality
+- [x] Event detail modal
+- [x] Edit/delete events
+- [x] Export to CSV
+- [x] Data visualization (daily activity bars)
 
 #### 6. Reminders & Notifications
 - [ ] Web Push API setup

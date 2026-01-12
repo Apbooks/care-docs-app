@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
@@ -112,7 +112,10 @@ async def create_event(
 @router.get("/", response_model=List[EventResponse])
 async def get_events(
     type: Optional[str] = Query(None, description="Filter by event type"),
-    limit: int = Query(50, ge=1, le=200, description="Number of events to return"),
+    start: Optional[datetime] = Query(None, description="Start datetime (inclusive)"),
+    end: Optional[datetime] = Query(None, description="End datetime (inclusive)"),
+    q: Optional[str] = Query(None, description="Search term"),
+    limit: int = Query(50, ge=1, le=1000, description="Number of events to return"),
     offset: int = Query(0, ge=0, description="Number of events to skip"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -129,6 +132,21 @@ async def get_events(
     if type:
         query = query.filter(Event.type == type)
 
+    if start:
+        query = query.filter(Event.timestamp >= start)
+    if end:
+        query = query.filter(Event.timestamp <= end)
+
+    if q:
+        search = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Event.notes.ilike(search),
+                Event.event_data["med_name"].astext.ilike(search),
+                Event.event_data["formula_type"].astext.ilike(search),
+                Event.event_data["oral_notes"].astext.ilike(search),
+            )
+        )
     # Order by timestamp descending (most recent first)
     query = query.order_by(desc(Event.timestamp))
 

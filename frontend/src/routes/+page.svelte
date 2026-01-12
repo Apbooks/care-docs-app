@@ -1,6 +1,8 @@
 <script>
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { get } from 'svelte/store';
+	import { page } from '$app/stores';
 	import { authStore, isAdmin } from '$lib/stores/auth';
 	import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
@@ -33,6 +35,14 @@
 		}
 
 		loadActiveFeed();
+		const eventId = get(page).url.searchParams.get('eventId');
+		if (eventId) {
+			tick().then(() => {
+				if (eventListComponent) {
+					eventListComponent.openById(eventId);
+				}
+			});
+		}
 
 		const handleActiveFeedChanged = () => loadActiveFeed();
 		window.addEventListener('active-feed-changed', handleActiveFeedChanged);
@@ -158,6 +168,12 @@
 								Admin Panel
 							</button>
 						{/if}
+						<button
+							on:click={() => goto('/history')}
+							class="px-4 py-2 text-base border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+						>
+							History
+						</button>
 						<button
 							on:click={handleLogout}
 							class="px-4 py-2 text-base text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl dark:text-slate-200 dark:hover:bg-slate-800"
