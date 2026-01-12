@@ -10,6 +10,8 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { timezone } from '$lib/stores/settings';
 	import LogoMark from '$lib/components/LogoMark.svelte';
+	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
+	import { selectedRecipientId } from '$lib/stores/recipients';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -20,6 +22,7 @@
 	let feedActionLoading = false;
 	let stream;
 	let menuOpen = false;
+	let lastRecipientId = null;
 
 	authStore.subscribe(value => {
 		user = value;
@@ -57,12 +60,13 @@
 		stream.onmessage = (event) => {
 			try {
 				const data = JSON.parse(event.data);
-				if (data.type?.startsWith('event.')) {
+				const recipientMatch = !data.recipient_id || data.recipient_id === $selectedRecipientId;
+				if (data.type?.startsWith('event.') && recipientMatch) {
 					if (eventListComponent) {
 						eventListComponent.refresh();
 					}
 				}
-				if (data.type?.startsWith('feed.')) {
+				if (data.type?.startsWith('feed.') && recipientMatch) {
 					loadActiveFeed();
 					if (eventListComponent) {
 						eventListComponent.refresh();
@@ -84,9 +88,21 @@
 		};
 	});
 
+	$: if ($selectedRecipientId !== lastRecipientId) {
+		lastRecipientId = $selectedRecipientId;
+		loadActiveFeed();
+		if (eventListComponent) {
+			eventListComponent.refresh();
+		}
+	}
+
 	async function loadActiveFeed() {
+		if (!$selectedRecipientId) {
+			activeContinuousFeed = null;
+			return;
+		}
 		try {
-			const response = await getActiveContinuousFeed();
+			const response = await getActiveContinuousFeed($selectedRecipientId);
 			activeContinuousFeed = response?.active_feed || null;
 		} catch (error) {
 			activeContinuousFeed = null;
@@ -104,12 +120,12 @@
 	}
 
 	async function stopContinuousFeedAction() {
-		if (!activeContinuousFeed || feedActionLoading) return;
+		if (!activeContinuousFeed || feedActionLoading || !$selectedRecipientId) return;
 		feedActionError = '';
 		feedActionLoading = true;
 
 		try {
-			await stopContinuousFeed();
+			await stopContinuousFeed($selectedRecipientId);
 			activeContinuousFeed = null;
 			if (eventListComponent) {
 				eventListComponent.refresh();
@@ -227,6 +243,16 @@
 
 		<!-- Main Content -->
 		<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+			<div class="mb-6">
+				<RecipientSwitcher />
+			</div>
+			{#if !$selectedRecipientId}
+				<div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl dark:bg-yellow-950 dark:border-yellow-900">
+					<p class="text-yellow-800 dark:text-yellow-200 text-base">
+						Select a care recipient to view and log events.
+					</p>
+				</div>
+			{/if}
 			{#if activeContinuousFeed}
 				<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6 dark:bg-emerald-950 dark:border-emerald-800">
 					<div class="flex flex-wrap items-center justify-between gap-4">
@@ -255,7 +281,7 @@
 			<!-- Recent Events -->
 			<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-6">
 				<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-4">Recent Events</h2>
-				<EventList bind:this={eventListComponent} limit={20} />
+				<EventList bind:this={eventListComponent} limit={20} recipientId={$selectedRecipientId} />
 			</div>
 		</main>
 

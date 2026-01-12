@@ -4,10 +4,12 @@
 	import { initTheme } from '$lib/stores/theme';
 	import { initSettings } from '$lib/stores/settings';
 	import { refreshSession } from '$lib/services/api';
+	import { initRecipients } from '$lib/stores/recipients';
 
 	onMount(() => {
 		initTheme();
 		initSettings();
+		initRecipients();
 		refreshSession();
 
 		const intervalId = setInterval(() => {

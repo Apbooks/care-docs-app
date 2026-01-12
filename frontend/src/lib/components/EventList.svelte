@@ -2,9 +2,11 @@
 	import { onMount } from 'svelte';
 	import { getEvents, getEvent, updateEvent, deleteEvent } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
+	import { recipients } from '$lib/stores/recipients';
 
 	export let limit = 10;
 	export let type = null;
+	export let recipientId = null;
 
 	let events = [];
 	let loading = true;
@@ -14,10 +16,16 @@
 	let editLoading = false;
 	let editError = '';
 	let deleteTargetId = null;
+	let lastRecipientId = null;
 
 	onMount(() => {
 		loadEvents();
 	});
+
+	$: if (recipientId !== lastRecipientId) {
+		lastRecipientId = recipientId;
+		loadEvents();
+	}
 
 	async function loadEvents(options = {}) {
 		const { silent = false } = options;
@@ -29,8 +37,13 @@
 		error = '';
 
 		try {
+			if (recipientId === null || recipientId === undefined || recipientId === '') {
+				events = [];
+				return;
+			}
 			const params = { limit };
 			if (type) params.type = type;
+			if (recipientId) params.recipient_id = recipientId;
 
 			events = await getEvents(params);
 		} catch (err) {
@@ -138,6 +151,7 @@
 			type: event.type,
 			timestamp: toDateTimeLocal(event.timestamp),
 			notes: event.notes || '',
+			recipient_id: event.recipient_id || null,
 			metadata
 		};
 	}
@@ -157,7 +171,8 @@
 				type: editEvent.type,
 				timestamp: editEvent.timestamp ? new Date(editEvent.timestamp).toISOString() : null,
 				notes: editEvent.notes || null,
-				metadata: editEvent.metadata || {}
+				metadata: editEvent.metadata || {},
+				recipient_id: editEvent.recipient_id || null
 			};
 
 			const updated = await updateEvent(editEvent.id, payload);
@@ -304,6 +319,19 @@
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 					/>
 				</div>
+				{#if $recipients.length > 0}
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Recipient</label>
+						<select
+							bind:value={editEvent.recipient_id}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						>
+							{#each $recipients as recipient}
+								<option value={recipient.id}>{recipient.name}</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
 
 				{#if editEvent.type === 'medication'}
 					<div class="grid gap-3 sm:grid-cols-2">

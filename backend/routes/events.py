@@ -9,6 +9,7 @@ from uuid import UUID
 from database import get_db
 from models.user import User
 from models.event import Event
+from models.care_recipient import CareRecipient
 from routes.auth import get_current_user
 from routes.stream import broadcast_event
 
@@ -27,6 +28,7 @@ class EventCreate(BaseModel):
     timestamp: Optional[datetime] = None  # Auto-set to now if not provided
     notes: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    recipient_id: Optional[str] = None
 
 
 class EventUpdate(BaseModel):
@@ -34,6 +36,7 @@ class EventUpdate(BaseModel):
     timestamp: Optional[datetime] = None
     notes: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    recipient_id: Optional[str] = None
 
 
 class EventResponse(BaseModel):
@@ -42,6 +45,8 @@ class EventResponse(BaseModel):
     timestamp: str
     user_id: str
     user_name: str
+    recipient_id: Optional[str]
+    recipient_name: Optional[str]
     notes: Optional[str]
     metadata: Dict[str, Any]
     synced: bool
@@ -51,6 +56,31 @@ class EventResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+def resolve_recipient(db: Session, recipient_id: Optional[str]) -> CareRecipient:
+    if recipient_id:
+        recipient = db.query(CareRecipient).filter(CareRecipient.id == recipient_id).first()
+        if not recipient:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Recipient not found"
+            )
+        if not recipient.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Recipient is inactive"
+            )
+        return recipient
+
+    active_recipients = db.query(CareRecipient).filter(CareRecipient.is_active.is_(True)).all()
+    if len(active_recipients) == 1:
+        return active_recipients[0]
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="recipient_id is required"
+    )
 
 
 @router.post("/", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
@@ -79,10 +109,13 @@ async def create_event(
         )
 
     # Create event
+    recipient = resolve_recipient(db, event_data.recipient_id)
+
     new_event = Event(
         type=event_data.type,
         timestamp=event_data.timestamp or datetime.utcnow(),
         user_id=current_user.id,
+        recipient_id=recipient.id,
         notes=event_data.notes,
         event_data=event_data.metadata or {},
         synced=True,  # Created online, so already synced
@@ -92,7 +125,7 @@ async def create_event(
     db.add(new_event)
     db.commit()
     db.refresh(new_event)
-    await broadcast_event({"type": "event.created", "id": str(new_event.id)})
+    await broadcast_event({"type": "event.created", "id": str(new_event.id), "recipient_id": str(recipient.id)})
 
     return EventResponse(
         id=str(new_event.id),
@@ -100,6 +133,8 @@ async def create_event(
         timestamp=to_utc_iso(new_event.timestamp),
         user_id=str(new_event.user_id),
         user_name=current_user.username,
+        recipient_id=str(recipient.id),
+        recipient_name=recipient.name,
         notes=new_event.notes,
         metadata=new_event.event_data,
         synced=new_event.synced,
@@ -115,6 +150,7 @@ async def get_events(
     start: Optional[datetime] = Query(None, description="Start datetime (inclusive)"),
     end: Optional[datetime] = Query(None, description="End datetime (inclusive)"),
     q: Optional[str] = Query(None, description="Search term"),
+    recipient_id: Optional[str] = Query(None, description="Filter by care recipient"),
     limit: int = Query(50, ge=1, le=1000, description="Number of events to return"),
     offset: int = Query(0, ge=0, description="Number of events to skip"),
     db: Session = Depends(get_db),
@@ -136,6 +172,8 @@ async def get_events(
         query = query.filter(Event.timestamp >= start)
     if end:
         query = query.filter(Event.timestamp <= end)
+    if recipient_id:
+        query = query.filter(Event.recipient_id == recipient_id)
 
     if q:
         search = f"%{q.strip()}%"
@@ -157,12 +195,15 @@ async def get_events(
     response = []
     for event in events:
         user = db.query(User).filter(User.id == event.user_id).first()
+        recipient = db.query(CareRecipient).filter(CareRecipient.id == event.recipient_id).first() if event.recipient_id else None
         response.append(EventResponse(
             id=str(event.id),
             type=event.type,
             timestamp=to_utc_iso(event.timestamp),
             user_id=str(event.user_id),
             user_name=user.username if user else "Unknown",
+            recipient_id=str(recipient.id) if recipient else None,
+            recipient_name=recipient.name if recipient else None,
             notes=event.notes,
             metadata=event.event_data,
             synced=event.synced,
@@ -191,6 +232,7 @@ async def get_event(
         )
 
     user = db.query(User).filter(User.id == event.user_id).first()
+    recipient = db.query(CareRecipient).filter(CareRecipient.id == event.recipient_id).first() if event.recipient_id else None
 
     return EventResponse(
         id=str(event.id),
@@ -198,6 +240,8 @@ async def get_event(
         timestamp=to_utc_iso(event.timestamp),
         user_id=str(event.user_id),
         user_name=user.username if user else "Unknown",
+        recipient_id=str(recipient.id) if recipient else None,
+        recipient_name=recipient.name if recipient else None,
         notes=event.notes,
         metadata=event.event_data,
         synced=event.synced,
@@ -242,14 +286,18 @@ async def update_event(
 
     if event_update.metadata is not None:
         event.event_data = event_update.metadata
+    if event_update.recipient_id is not None:
+        recipient = resolve_recipient(db, event_update.recipient_id)
+        event.recipient_id = recipient.id
 
     event.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(event)
-    await broadcast_event({"type": "event.updated", "id": str(event.id)})
+    await broadcast_event({"type": "event.updated", "id": str(event.id), "recipient_id": str(event.recipient_id) if event.recipient_id else None})
 
     user = db.query(User).filter(User.id == event.user_id).first()
+    recipient = db.query(CareRecipient).filter(CareRecipient.id == event.recipient_id).first() if event.recipient_id else None
 
     return EventResponse(
         id=str(event.id),
@@ -257,6 +305,8 @@ async def update_event(
         timestamp=to_utc_iso(event.timestamp),
         user_id=str(event.user_id),
         user_name=user.username if user else "Unknown",
+        recipient_id=str(recipient.id) if recipient else None,
+        recipient_name=recipient.name if recipient else None,
         notes=event.notes,
         metadata=event.event_data,
         synced=event.synced,
@@ -284,13 +334,14 @@ async def delete_event(
 
     db.delete(event)
     db.commit()
-    await broadcast_event({"type": "event.deleted", "id": str(event.id)})
+    await broadcast_event({"type": "event.deleted", "id": str(event.id), "recipient_id": str(event.recipient_id) if event.recipient_id else None})
 
     return None
 
 
 @router.get("/stats/summary")
 async def get_event_stats(
+    recipient_id: Optional[str] = Query(None, description="Filter by care recipient"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -304,9 +355,15 @@ async def get_event_stats(
     event_types = ["medication", "feeding", "diaper", "demeanor", "observation"]
 
     for event_type in event_types:
-        count = db.query(Event).filter(Event.type == event_type).count()
+        count_query = db.query(Event).filter(Event.type == event_type)
+        if recipient_id:
+            count_query = count_query.filter(Event.recipient_id == recipient_id)
+        count = count_query.count()
         stats[event_type] = count
 
-    stats["total"] = db.query(Event).count()
+    total_query = db.query(Event)
+    if recipient_id:
+        total_query = total_query.filter(Event.recipient_id == recipient_id)
+    stats["total"] = total_query.count()
 
     return stats

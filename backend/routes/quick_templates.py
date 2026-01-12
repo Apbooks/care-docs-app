@@ -7,6 +7,7 @@ from datetime import datetime
 from database import get_db
 from models.quick_medication import QuickMedication
 from models.quick_feed import QuickFeed
+from models.care_recipient import CareRecipient
 from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
 
@@ -23,6 +24,7 @@ class QuickMedicationCreate(BaseModel):
     dosage: str = Field(..., min_length=1, max_length=100)
     route: str = Field(default="oral", max_length=50)
     is_active: bool = True
+    recipient_id: str = Field(..., min_length=1)
 
 
 class QuickMedicationUpdate(BaseModel):
@@ -30,6 +32,7 @@ class QuickMedicationUpdate(BaseModel):
     dosage: Optional[str] = Field(default=None, max_length=100)
     route: Optional[str] = Field(default=None, max_length=50)
     is_active: Optional[bool] = None
+    recipient_id: Optional[str] = None
 
 
 class QuickMedicationResponse(BaseModel):
@@ -38,6 +41,7 @@ class QuickMedicationResponse(BaseModel):
     dosage: str
     route: str
     is_active: bool
+    recipient_id: Optional[str]
     created_by_user_id: str
     created_by_name: Optional[str]
     created_at: str
@@ -50,6 +54,7 @@ class QuickMedicationResponse(BaseModel):
 @router.get("/quick-meds", response_model=List[QuickMedicationResponse])
 async def list_quick_medications(
     include_inactive: bool = Query(False),
+    recipient_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -62,6 +67,8 @@ async def list_quick_medications(
     query = db.query(QuickMedication)
     if not include_inactive:
         query = query.filter(QuickMedication.is_active.is_(True))
+    if recipient_id:
+        query = query.filter(QuickMedication.recipient_id == recipient_id)
 
     meds = query.order_by(QuickMedication.created_at.desc()).all()
 
@@ -72,6 +79,7 @@ async def list_quick_medications(
             dosage=med.dosage,
             route=med.route,
             is_active=med.is_active,
+            recipient_id=str(med.recipient_id) if med.recipient_id else None,
             created_by_user_id=str(med.created_by_user_id),
             created_by_name=med.created_by.username if med.created_by else None,
             created_at=med.created_at.isoformat(),
@@ -87,11 +95,19 @@ async def create_quick_medication(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_active_admin)
 ):
+    recipient = db.query(CareRecipient).filter(CareRecipient.id == data.recipient_id).first()
+    if not recipient or not recipient.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Recipient not found or inactive"
+        )
+
     new_med = QuickMedication(
         name=data.name.strip(),
         dosage=data.dosage.strip(),
         route=data.route.strip().lower(),
         is_active=data.is_active,
+        recipient_id=recipient.id,
         created_by_user_id=current_admin.id
     )
 
@@ -105,6 +121,7 @@ async def create_quick_medication(
         dosage=new_med.dosage,
         route=new_med.route,
         is_active=new_med.is_active,
+        recipient_id=str(new_med.recipient_id) if new_med.recipient_id else None,
         created_by_user_id=str(new_med.created_by_user_id),
         created_by_name=current_admin.username,
         created_at=new_med.created_at.isoformat(),
@@ -134,6 +151,14 @@ async def update_quick_medication(
         med.route = updates.route.strip().lower()
     if updates.is_active is not None:
         med.is_active = updates.is_active
+    if updates.recipient_id is not None:
+        recipient = db.query(CareRecipient).filter(CareRecipient.id == updates.recipient_id).first()
+        if not recipient or not recipient.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Recipient not found or inactive"
+            )
+        med.recipient_id = recipient.id
 
     med.updated_at = datetime.utcnow()
     db.commit()
@@ -145,6 +170,7 @@ async def update_quick_medication(
         dosage=med.dosage,
         route=med.route,
         is_active=med.is_active,
+        recipient_id=str(med.recipient_id) if med.recipient_id else None,
         created_by_user_id=str(med.created_by_user_id),
         created_by_name=med.created_by.username if med.created_by else None,
         created_at=med.created_at.isoformat(),
@@ -185,6 +211,7 @@ class QuickFeedCreate(BaseModel):
     interval_hr: Optional[float] = Field(default=None, ge=0)
     oral_notes: Optional[str] = Field(default=None, max_length=200)
     is_active: bool = True
+    recipient_id: str = Field(..., min_length=1)
 
 
 class QuickFeedUpdate(BaseModel):
@@ -197,6 +224,7 @@ class QuickFeedUpdate(BaseModel):
     interval_hr: Optional[float] = Field(default=None, ge=0)
     oral_notes: Optional[str] = Field(default=None, max_length=200)
     is_active: Optional[bool] = None
+    recipient_id: Optional[str] = None
 
 
 class QuickFeedResponse(BaseModel):
@@ -210,6 +238,7 @@ class QuickFeedResponse(BaseModel):
     interval_hr: Optional[float]
     oral_notes: Optional[str]
     is_active: bool
+    recipient_id: Optional[str]
     created_by_user_id: str
     created_by_name: Optional[str]
     created_at: str
@@ -222,6 +251,7 @@ class QuickFeedResponse(BaseModel):
 @router.get("/quick-feeds", response_model=List[QuickFeedResponse])
 async def list_quick_feeds(
     include_inactive: bool = Query(False),
+    recipient_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -234,6 +264,8 @@ async def list_quick_feeds(
     query = db.query(QuickFeed)
     if not include_inactive:
         query = query.filter(QuickFeed.is_active.is_(True))
+    if recipient_id:
+        query = query.filter(QuickFeed.recipient_id == recipient_id)
 
     feeds = query.order_by(QuickFeed.created_at.desc()).all()
 
@@ -249,6 +281,7 @@ async def list_quick_feeds(
             interval_hr=feed.interval_hr,
             oral_notes=feed.oral_notes,
             is_active=feed.is_active,
+            recipient_id=str(feed.recipient_id) if feed.recipient_id else None,
             created_by_user_id=str(feed.created_by_user_id),
             created_by_name=feed.created_by.username if feed.created_by else None,
             created_at=feed.created_at.isoformat(),
@@ -269,6 +302,12 @@ async def create_quick_feed(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid feed mode. Must be one of: {', '.join(VALID_FEED_MODES)}"
         )
+    recipient = db.query(CareRecipient).filter(CareRecipient.id == data.recipient_id).first()
+    if not recipient or not recipient.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Recipient not found or inactive"
+        )
     new_feed = QuickFeed(
         mode=data.mode.strip().lower(),
         amount_ml=data.amount_ml,
@@ -279,6 +318,7 @@ async def create_quick_feed(
         interval_hr=data.interval_hr,
         oral_notes=data.oral_notes.strip() if data.oral_notes else None,
         is_active=data.is_active,
+        recipient_id=recipient.id,
         created_by_user_id=current_admin.id
     )
 
@@ -297,6 +337,7 @@ async def create_quick_feed(
         interval_hr=new_feed.interval_hr,
         oral_notes=new_feed.oral_notes,
         is_active=new_feed.is_active,
+        recipient_id=str(new_feed.recipient_id) if new_feed.recipient_id else None,
         created_by_user_id=str(new_feed.created_by_user_id),
         created_by_name=current_admin.username,
         created_at=new_feed.created_at.isoformat(),
@@ -342,6 +383,14 @@ async def update_quick_feed(
         feed.oral_notes = updates.oral_notes.strip() if updates.oral_notes else None
     if updates.is_active is not None:
         feed.is_active = updates.is_active
+    if updates.recipient_id is not None:
+        recipient = db.query(CareRecipient).filter(CareRecipient.id == updates.recipient_id).first()
+        if not recipient or not recipient.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Recipient not found or inactive"
+            )
+        feed.recipient_id = recipient.id
 
     feed.updated_at = datetime.utcnow()
     db.commit()
@@ -358,6 +407,7 @@ async def update_quick_feed(
         interval_hr=feed.interval_hr,
         oral_notes=feed.oral_notes,
         is_active=feed.is_active,
+        recipient_id=str(feed.recipient_id) if feed.recipient_id else None,
         created_by_user_id=str(feed.created_by_user_id),
         created_by_name=feed.created_by.username if feed.created_by else None,
         created_at=feed.created_at.isoformat(),

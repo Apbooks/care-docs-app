@@ -20,6 +20,9 @@ class QuickFeed(Base):
     oral_notes = Column(String(200), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("care_recipients.id"), nullable=True, index=True)
+    recipient = relationship("CareRecipient")
+
     created_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_by = relationship("User")
 

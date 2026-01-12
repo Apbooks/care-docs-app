@@ -20,6 +20,10 @@ class Event(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     user = relationship("User")
 
+    # Care recipient this event is for
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("care_recipients.id"), nullable=True, index=True)
+    recipient = relationship("CareRecipient")
+
     # General notes (optional)
     notes = Column(Text, nullable=True)
 

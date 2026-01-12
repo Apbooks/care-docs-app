@@ -1,7 +1,8 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import { createEvent, getQuickMeds, getQuickFeeds, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed } from '$lib/services/api';
+	import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
+	import { selectedRecipientId } from '$lib/stores/recipients';
 
 	export let show = false;
 
@@ -14,6 +15,7 @@
 	let quickLoading = false;
 	let quickError = '';
 	let quickLoaded = false;
+	let quickLoadedFor = null;
 	let quickMeds = [];
 	let quickFeeds = [];
 	let quickNoteEnabled = false;
@@ -83,16 +85,21 @@
 		}
 	];
 
-	$: if (show && !quickLoaded) {
+	$: if (show && $selectedRecipientId && quickLoadedFor !== $selectedRecipientId) {
+		quickLoadedFor = $selectedRecipientId;
 		loadQuickTemplates();
 	}
-	$: if (show) {
+	$: if (show && $selectedRecipientId) {
 		loadActiveFeed();
 	}
 
 	async function loadActiveFeed() {
+		if (!$selectedRecipientId) {
+			activeContinuousFeed = null;
+			return;
+		}
 		try {
-			const response = await getActiveContinuousFeed();
+			const response = await getActiveContinuousFeed($selectedRecipientId);
 			activeContinuousFeed = response?.active_feed || null;
 		} catch (err) {
 			activeContinuousFeed = null;
@@ -104,7 +111,10 @@
 		quickError = '';
 
 		try {
-			const [meds, feeds] = await Promise.all([getQuickMeds(), getQuickFeeds()]);
+			const [meds, feeds] = await Promise.all([
+				getQuickMedsForRecipient($selectedRecipientId),
+				getQuickFeedsForRecipient($selectedRecipientId)
+			]);
 			quickMeds = meds;
 			quickFeeds = feeds;
 			quickLoaded = true;
@@ -180,12 +190,13 @@
 	}
 
 	async function startContinuousFeedAction() {
-		if (loading) return;
+		if (loading || !$selectedRecipientId) return;
 		error = '';
 		loading = true;
 
 		try {
 			const response = await startContinuousFeed({
+				recipient_id: $selectedRecipientId,
 				rate_ml_hr: feedRate ? parseFloat(feedRate) : null,
 				dose_ml: feedDose ? parseFloat(feedDose) : null,
 				interval_hr: feedInterval ? parseFloat(feedInterval) : null,
@@ -206,12 +217,12 @@
 	}
 
 	async function stopContinuousFeedAction(actualTotal) {
-		if (!activeContinuousFeed || loading) return;
+		if (!activeContinuousFeed || loading || !$selectedRecipientId) return;
 		error = '';
 		loading = true;
 
 		try {
-			const response = await stopContinuousFeed(actualTotal);
+			const response = await stopContinuousFeed($selectedRecipientId, actualTotal);
 			setActiveFeed(null);
 			if (response?.event) {
 				dispatch('eventCreated', response.event);
@@ -225,7 +236,7 @@
 	}
 
 	async function logQuickMedication(template) {
-		if (loading) return;
+		if (loading || !$selectedRecipientId) return;
 		error = '';
 		loading = true;
 
@@ -235,6 +246,7 @@
 			const newEvent = await createEvent({
 				type: 'medication',
 				timestamp: new Date().toISOString(),
+				recipient_id: $selectedRecipientId,
 				notes: quickNotes,
 				metadata: {
 					med_name: template.name,
@@ -253,7 +265,7 @@
 	}
 
 	async function logQuickFeed(template) {
-		if (loading) return;
+		if (loading || !$selectedRecipientId) return;
 		error = '';
 		loading = true;
 
@@ -264,6 +276,7 @@
 					}
 
 					const response = await startContinuousFeed({
+						recipient_id: $selectedRecipientId,
 						rate_ml_hr: template.rate_ml_hr,
 						dose_ml: template.dose_ml,
 						interval_hr: template.interval_hr,
@@ -286,6 +299,7 @@
 			const newEvent = await createEvent({
 				type: 'feeding',
 				timestamp: new Date().toISOString(),
+				recipient_id: $selectedRecipientId,
 				notes: null,
 				metadata
 			});
@@ -300,6 +314,10 @@
 	}
 
 	async function submitEvent() {
+		if (!$selectedRecipientId) {
+			error = 'Select a care recipient first.';
+			return;
+		}
 		error = '';
 		loading = true;
 
@@ -361,6 +379,7 @@
 			const newEvent = await createEvent({
 				type: selectedType,
 				timestamp: new Date().toISOString(),
+				recipient_id: $selectedRecipientId,
 				notes: notes || null,
 				metadata: metadata
 			});
@@ -414,6 +433,13 @@
 				{#if error}
 					<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
 						<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
+					</div>
+				{/if}
+				{#if !$selectedRecipientId}
+					<div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-950 dark:border-yellow-900">
+						<p class="text-yellow-800 dark:text-yellow-200 text-base">
+							Select a care recipient before logging an entry.
+						</p>
 					</div>
 				{/if}
 

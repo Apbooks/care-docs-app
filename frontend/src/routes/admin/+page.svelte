@@ -4,18 +4,24 @@
 	import { authStore, isAdmin } from '$lib/stores/auth';
 	import {
 		apiRequest,
-		getQuickMeds,
+		getQuickMedsForRecipient,
 		createQuickMed,
-	updateQuickMed,
-	deleteQuickMed,
-	getQuickFeeds,
+		updateQuickMed,
+		deleteQuickMed,
+		getQuickFeedsForRecipient,
 		createQuickFeed,
 		updateQuickFeed,
-		deleteQuickFeed
+		deleteQuickFeed,
+		getRecipients,
+		createRecipient,
+		updateRecipient,
+		deleteRecipient
 	} from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { getTimezone, updateTimezone } from '$lib/services/api';
 	import { timezone as timezoneStore, setTimezone as setTimezoneStore } from '$lib/stores/settings';
+	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
+	import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipient } from '$lib/stores/recipients';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -43,6 +49,14 @@
 	let quickFeedsLoading = true;
 	let quickMedsError = '';
 	let quickFeedsError = '';
+	let recipientsList = [];
+	let recipientsLoading = true;
+	let recipientsError = '';
+	let newRecipientName = '';
+	let newRecipientActive = true;
+	let editRecipientId = null;
+	let editRecipientName = '';
+	let editRecipientActive = true;
 
 	let newMedName = '';
 	let newMedDosage = '';
@@ -69,6 +83,7 @@
 	let editFeedDose = '';
 	let editFeedInterval = '';
 	let editFeedOralNotes = '';
+	let lastTemplateRecipientId = null;
 
 	authStore.subscribe(value => {
 		user = value;
@@ -85,8 +100,14 @@
 			return;
 		}
 
-		await Promise.all([loadUsers(), loadQuickMeds(), loadQuickFeeds(), loadTimezone()]);
+		await Promise.all([loadUsers(), loadRecipients(), loadQuickMeds(), loadQuickFeeds(), loadTimezone()]);
 	});
+
+	$: if ($selectedRecipientId && $selectedRecipientId !== lastTemplateRecipientId) {
+		lastTemplateRecipientId = $selectedRecipientId;
+		loadQuickMeds();
+		loadQuickFeeds();
+	}
 
 	async function loadUsers() {
 		loading = true;
@@ -127,12 +148,99 @@
 		}
 	}
 
+	function syncRecipientStore() {
+		const activeRecipients = recipientsList.filter((recipient) => recipient.is_active);
+		recipientsStore.set(activeRecipients);
+		if (!$selectedRecipientId && activeRecipients.length > 0) {
+			setSelectedRecipient(activeRecipients[0].id);
+		}
+	}
+
+	async function loadRecipients() {
+		recipientsLoading = true;
+		recipientsError = '';
+
+		try {
+			recipientsList = await getRecipients(true);
+			syncRecipientStore();
+		} catch (err) {
+			recipientsError = err.message || 'Failed to load recipients';
+		} finally {
+			recipientsLoading = false;
+		}
+	}
+
+	async function handleCreateRecipient() {
+		recipientsError = '';
+
+		try {
+			const created = await createRecipient({
+				name: newRecipientName,
+				is_active: newRecipientActive
+			});
+			recipientsList = [...recipientsList, created];
+			newRecipientName = '';
+			newRecipientActive = true;
+			syncRecipientStore();
+		} catch (err) {
+			recipientsError = err.message || 'Failed to create recipient';
+		}
+	}
+
+	function startEditRecipient(recipient) {
+		editRecipientId = recipient.id;
+		editRecipientName = recipient.name;
+		editRecipientActive = recipient.is_active;
+	}
+
+	function cancelEditRecipient() {
+		editRecipientId = null;
+		editRecipientName = '';
+		editRecipientActive = true;
+	}
+
+	async function handleSaveRecipient() {
+		recipientsError = '';
+
+		try {
+			const updated = await updateRecipient(editRecipientId, {
+				name: editRecipientName,
+				is_active: editRecipientActive
+			});
+			recipientsList = recipientsList.map((item) => (item.id === updated.id ? updated : item));
+			syncRecipientStore();
+			cancelEditRecipient();
+		} catch (err) {
+			recipientsError = err.message || 'Failed to update recipient';
+		}
+	}
+
+	async function handleDeleteRecipient(recipientId) {
+		recipientsError = '';
+
+		try {
+			await deleteRecipient(recipientId);
+			recipientsList = recipientsList.filter((item) => item.id !== recipientId);
+			syncRecipientStore();
+			if ($selectedRecipientId === recipientId) {
+				const activeRecipients = recipientsList.filter((recipient) => recipient.is_active);
+				setSelectedRecipient(activeRecipients[0]?.id || null);
+			}
+		} catch (err) {
+			recipientsError = err.message || 'Failed to delete recipient';
+		}
+	}
+
 	async function loadQuickMeds() {
 		quickMedsLoading = true;
 		quickMedsError = '';
 
 		try {
-			quickMeds = await getQuickMeds(true);
+			if (!$selectedRecipientId) {
+				quickMeds = [];
+				return;
+			}
+			quickMeds = await getQuickMedsForRecipient($selectedRecipientId, true);
 		} catch (err) {
 			quickMedsError = err.message || 'Failed to load quick medications';
 		} finally {
@@ -145,7 +253,11 @@
 		quickFeedsError = '';
 
 		try {
-			quickFeeds = await getQuickFeeds(true);
+			if (!$selectedRecipientId) {
+				quickFeeds = [];
+				return;
+			}
+			quickFeeds = await getQuickFeedsForRecipient($selectedRecipientId, true);
 		} catch (err) {
 			quickFeedsError = err.message || 'Failed to load quick feeds';
 		} finally {
@@ -160,7 +272,8 @@
 			const created = await createQuickMed({
 				name: newMedName,
 				dosage: newMedDosage,
-				route: newMedRoute
+				route: newMedRoute,
+				recipient_id: $selectedRecipientId
 			});
 			quickMeds = [created, ...quickMeds];
 			newMedName = '';
@@ -235,7 +348,8 @@
 				rate_ml_hr: newFeedRate ? parseFloat(newFeedRate) : null,
 				dose_ml: newFeedDose ? parseFloat(newFeedDose) : null,
 				interval_hr: newFeedInterval ? parseFloat(newFeedInterval) : null,
-				oral_notes: newFeedOralNotes || null
+				oral_notes: newFeedOralNotes || null,
+				recipient_id: $selectedRecipientId
 			});
 			quickFeeds = [created, ...quickFeeds];
 			newFeedAmount = '';
@@ -581,13 +695,112 @@
 		</div>
 	</div>
 
+	<!-- Care Recipients -->
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Care Recipients</h2>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage profiles for each person you track.</p>
+		</div>
+		<div class="p-6 space-y-6">
+			{#if recipientsError}
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{recipientsError}</p>
+				</div>
+			{/if}
+
+			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateRecipient}>
+				<div class="sm:col-span-3">
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Recipient Name</label>
+					<input
+						type="text"
+						bind:value={newRecipientName}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="e.g., Mason"
+						required
+					/>
+				</div>
+				<div class="flex items-end gap-3">
+					<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+						<input type="checkbox" bind:checked={newRecipientActive} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+						Active
+					</label>
+				</div>
+				<div class="sm:col-span-4">
+					<button
+						type="submit"
+						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
+						disabled={!newRecipientName}
+					>
+						Add Recipient
+					</button>
+				</div>
+			</form>
+
+			{#if recipientsLoading}
+				<div class="text-center py-6">
+					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+					<p class="mt-2 text-gray-600 dark:text-slate-300 text-base">Loading recipients...</p>
+				</div>
+			{:else if recipientsList.length === 0}
+				<p class="text-gray-600 dark:text-slate-300 text-base">No recipients created yet.</p>
+			{:else}
+				<div class="grid gap-3 sm:grid-cols-2">
+					{#each recipientsList as recipient (recipient.id)}
+						<div class="border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+							{#if editRecipientId === recipient.id}
+								<div class="space-y-3">
+									<input
+										type="text"
+										bind:value={editRecipientName}
+										class="w-full px-4 py-2 border border-gray-300 rounded-xl text-base"
+									/>
+									<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+										<input type="checkbox" bind:checked={editRecipientActive} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+										Active
+									</label>
+									<div class="flex items-center gap-2">
+										<button on:click={handleSaveRecipient} class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">Save</button>
+										<button on:click={cancelEditRecipient} class="px-3 py-2 border border-slate-200 rounded-lg text-sm">Cancel</button>
+									</div>
+								</div>
+							{:else}
+								<div class="flex items-center justify-between">
+									<div>
+										<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{recipient.name}</p>
+										<p class="text-xs text-slate-500 dark:text-slate-400">
+											{recipient.is_active ? 'Active' : 'Inactive'}
+										</p>
+									</div>
+									<div class="flex items-center gap-2">
+										<button on:click={() => startEditRecipient(recipient)} class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+											Edit
+										</button>
+										<button on:click={() => handleDeleteRecipient(recipient.id)} class="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm">
+											Delete
+										</button>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+
 	<!-- Quick Medications -->
 	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
 		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Quick Medications</h2>
-			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage one-tap medication templates</p>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage one-tap medication templates (per recipient).</p>
 		</div>
 		<div class="p-6 space-y-6">
+			<RecipientSwitcher label="Templates for" />
+			{#if !$selectedRecipientId}
+				<div class="p-4 bg-yellow-50 border border-yellow-200 rounded-xl dark:bg-yellow-950 dark:border-yellow-900">
+					<p class="text-yellow-800 dark:text-yellow-200 text-base">Select a recipient to manage templates.</p>
+				</div>
+			{/if}
 			{#if quickMedsError}
 				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
 					<p class="text-red-800 dark:text-red-200 text-base">{quickMedsError}</p>
@@ -631,7 +844,7 @@
 					<button
 						type="submit"
 						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
-						disabled={!newMedName || !newMedDosage}
+						disabled={!newMedName || !newMedDosage || !$selectedRecipientId}
 					>
 						Add Quick Medication
 					</button>
@@ -741,9 +954,15 @@
 	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
 		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Quick Feeds</h2>
-			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage one-tap feeding templates</p>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage one-tap feeding templates (per recipient).</p>
 		</div>
 		<div class="p-6 space-y-6">
+			<RecipientSwitcher label="Templates for" />
+			{#if !$selectedRecipientId}
+				<div class="p-4 bg-yellow-50 border border-yellow-200 rounded-xl dark:bg-yellow-950 dark:border-yellow-900">
+					<p class="text-yellow-800 dark:text-yellow-200 text-base">Select a recipient to manage templates.</p>
+				</div>
+			{/if}
 			{#if quickFeedsError}
 				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
 					<p class="text-red-800 dark:text-red-200 text-base">{quickFeedsError}</p>
@@ -855,6 +1074,7 @@
 					<button
 						type="submit"
 						class="px-4 py-3 bg-green-600 text-white rounded-xl text-base hover:bg-green-700 disabled:bg-green-300"
+						disabled={!$selectedRecipientId}
 					>
 						Add Quick Feed
 					</button>

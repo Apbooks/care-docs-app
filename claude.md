@@ -230,6 +230,7 @@
 - [x] Added feeding totals summary to history view
 - [x] Added automatic token refresh to keep sessions alive
 - [x] Increased token lifetimes to reduce logouts
+- [x] Care recipients (per-person profiles) with recipient selector and per-recipient templates
 
 ---
 
@@ -329,6 +330,7 @@
 - [x] events
 - [x] quick_medications
 - [x] quick_feeds
+- [ ] care_recipients
 - [ ] photos
 - [ ] reminders
 - [ ] push_subscriptions
@@ -502,6 +504,18 @@ _To be measured after deployment_
 
 ---
 
+## Phase 5: Care Recipients (In Progress - 2026-01-12)
+
+**Goal:** Support multiple care recipients with per-recipient templates and reports.
+
+#### Planned / In Progress
+- [x] Add CareRecipient model + CRUD endpoints
+- [x] Add recipient_id to events, quick meds, quick feeds
+- [x] Recipient selector on dashboard + history
+- [x] Admin management for recipients
+- [x] Per-recipient templates (quick meds/feeds)
+- [x] Per-recipient active continuous feed tracking
+
 ## Future Enhancements
 
 ### Post-MVP Features
@@ -543,7 +557,37 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-12 (Token lifetime + keepalive refresh)
+**Last Updated:** 2026-01-12 (Care recipients in progress)
+
+---
+
+## Migration Notes (manual SQL)
+
+When adding care recipients:
+
+```sql
+CREATE TABLE IF NOT EXISTS care_recipients (
+  id uuid PRIMARY KEY,
+  name varchar(100) NOT NULL,
+  is_active boolean NOT NULL DEFAULT true,
+  created_by_user_id uuid NOT NULL REFERENCES users(id),
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+
+ALTER TABLE events ADD COLUMN IF NOT EXISTS recipient_id uuid REFERENCES care_recipients(id);
+ALTER TABLE quick_medications ADD COLUMN IF NOT EXISTS recipient_id uuid REFERENCES care_recipients(id);
+ALTER TABLE quick_feeds ADD COLUMN IF NOT EXISTS recipient_id uuid REFERENCES care_recipients(id);
+```
+
+If you already have events/templates, create at least one recipient and backfill:
+
+```sql
+-- Replace with the recipient you want as default
+UPDATE events SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
+UPDATE quick_medications SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
+UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
+```
 
 ---
 

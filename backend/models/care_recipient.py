@@ -6,17 +6,12 @@ import uuid
 from database import Base
 
 
-class QuickMedication(Base):
-    __tablename__ = "quick_medications"
+class CareRecipient(Base):
+    __tablename__ = "care_recipients"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     name = Column(String(100), nullable=False, index=True)
-    dosage = Column(String(100), nullable=False)
-    route = Column(String(50), nullable=False, default="oral")
     is_active = Column(Boolean, default=True, nullable=False)
-
-    recipient_id = Column(UUID(as_uuid=True), ForeignKey("care_recipients.id"), nullable=True, index=True)
-    recipient = relationship("CareRecipient")
 
     created_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_by = relationship("User")
@@ -25,4 +20,4 @@ class QuickMedication(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def __repr__(self):
-        return f"<QuickMedication {self.name} {self.dosage} ({self.route})>"
+        return f"<CareRecipient {self.name}>"

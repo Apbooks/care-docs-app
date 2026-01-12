@@ -5,6 +5,8 @@
 	import { getEvents } from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { timezone } from '$lib/stores/settings';
+	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
+	import { selectedRecipientId } from '$lib/stores/recipients';
 
 	let user = null;
 
@@ -46,6 +48,10 @@
 		loadHistory();
 	});
 
+	$: if ($selectedRecipientId && user) {
+		loadHistory();
+	}
+
 	function applyDefaultRange() {
 		const now = new Date();
 		const start = new Date();
@@ -70,6 +76,11 @@
 		error = '';
 
 		try {
+			if (!$selectedRecipientId) {
+				events = [];
+				error = 'Select a care recipient to view history.';
+				return;
+			}
 			const params = {
 				limit,
 				offset: 0
@@ -84,6 +95,7 @@
 			const endIso = toISODateBoundary(endDate, true);
 			if (startIso) params.start = startIso;
 			if (endIso) params.end = endIso;
+			if ($selectedRecipientId) params.recipient_id = $selectedRecipientId;
 
 			events = await getEvents(params);
 			buildSummary();
@@ -228,6 +240,10 @@
 		</header>
 
 		<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
+				<RecipientSwitcher />
+			</section>
+
 			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
 				<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Filters</h2>
 				<div class="grid gap-4 sm:grid-cols-4">

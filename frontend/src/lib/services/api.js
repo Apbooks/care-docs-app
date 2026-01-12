@@ -194,6 +194,10 @@ export async function getEvents(params = {}) {
 	if (params.type) queryParams.append('type', params.type);
 	if (params.limit) queryParams.append('limit', params.limit.toString());
 	if (params.offset) queryParams.append('offset', params.offset.toString());
+	if (params.start) queryParams.append('start', params.start);
+	if (params.end) queryParams.append('end', params.end);
+	if (params.q) queryParams.append('q', params.q);
+	if (params.recipient_id) queryParams.append('recipient_id', params.recipient_id);
 
 	const query = queryParams.toString();
 	return apiRequest(`/events/${query ? '?' + query : ''}`);
@@ -240,6 +244,11 @@ export async function getEventStats() {
 	return apiRequest('/events/stats/summary');
 }
 
+export async function getEventStatsForRecipient(recipientId) {
+	const query = recipientId ? `?recipient_id=${encodeURIComponent(recipientId)}` : '';
+	return apiRequest(`/events/stats/summary${query}`);
+}
+
 // ============================================================================
 // QUICK TEMPLATES
 // ============================================================================
@@ -247,6 +256,14 @@ export async function getEventStats() {
 export async function getQuickMeds(includeInactive = false) {
 	const query = includeInactive ? '?include_inactive=true' : '';
 	return apiRequest(`/quick-meds${query}`);
+}
+
+export async function getQuickMedsForRecipient(recipientId, includeInactive = false) {
+	const params = new URLSearchParams();
+	if (includeInactive) params.append('include_inactive', 'true');
+	if (recipientId) params.append('recipient_id', recipientId);
+	const query = params.toString();
+	return apiRequest(`/quick-meds${query ? '?' + query : ''}`);
 }
 
 export async function createQuickMed(data) {
@@ -272,6 +289,14 @@ export async function deleteQuickMed(medId) {
 export async function getQuickFeeds(includeInactive = false) {
 	const query = includeInactive ? '?include_inactive=true' : '';
 	return apiRequest(`/quick-feeds${query}`);
+}
+
+export async function getQuickFeedsForRecipient(recipientId, includeInactive = false) {
+	const params = new URLSearchParams();
+	if (includeInactive) params.append('include_inactive', 'true');
+	if (recipientId) params.append('recipient_id', recipientId);
+	const query = params.toString();
+	return apiRequest(`/quick-feeds${query ? '?' + query : ''}`);
 }
 
 export async function createQuickFeed(data) {
@@ -313,8 +338,9 @@ export async function updateTimezone(timezone) {
 // CONTINUOUS FEED
 // ============================================================================
 
-export async function getActiveContinuousFeed() {
-	return apiRequest('/feeds/continuous/active');
+export async function getActiveContinuousFeed(recipientId) {
+	const query = recipientId ? `?recipient_id=${encodeURIComponent(recipientId)}` : '';
+	return apiRequest(`/feeds/continuous/active${query}`);
 }
 
 export async function startContinuousFeed(data) {
@@ -324,9 +350,38 @@ export async function startContinuousFeed(data) {
 	});
 }
 
-export async function stopContinuousFeed(pumpTotalMl) {
+export async function stopContinuousFeed(recipientId, pumpTotalMl) {
 	return apiRequest('/feeds/continuous/stop', {
 		method: 'POST',
-		body: JSON.stringify({ pump_total_ml: pumpTotalMl ?? null })
+		body: JSON.stringify({ recipient_id: recipientId, pump_total_ml: pumpTotalMl ?? null })
+	});
+}
+
+// ============================================================================
+// CARE RECIPIENTS
+// ============================================================================
+
+export async function getRecipients(includeInactive = false) {
+	const query = includeInactive ? '?include_inactive=true' : '';
+	return apiRequest(`/recipients${query}`);
+}
+
+export async function createRecipient(data) {
+	return apiRequest('/recipients', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function updateRecipient(recipientId, data) {
+	return apiRequest(`/recipients/${recipientId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function deleteRecipient(recipientId) {
+	return apiRequest(`/recipients/${recipientId}`, {
+		method: 'DELETE'
 	});
 }
