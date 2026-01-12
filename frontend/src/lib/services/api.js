@@ -246,3 +246,24 @@ export async function updateTimezone(timezone) {
 		body: JSON.stringify({ timezone })
 	});
 }
+
+// ============================================================================
+// CONTINUOUS FEED
+// ============================================================================
+
+export async function getActiveContinuousFeed() {
+	return apiRequest('/feeds/continuous/active');
+}
+
+export async function startContinuousFeed(data) {
+	return apiRequest('/feeds/continuous/start', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function stopContinuousFeed() {
+	return apiRequest('/feeds/continuous/stop', {
+		method: 'POST'
+	});
+}

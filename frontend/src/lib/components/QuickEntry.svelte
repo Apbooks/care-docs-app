@@ -1,6 +1,6 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import { createEvent, getQuickMeds, getQuickFeeds } from '$lib/services/api';
+	import { createEvent, getQuickMeds, getQuickFeeds, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
 
 	export let show = false;
@@ -38,7 +38,6 @@
 	let feedInterval = '';
 	let oralNotes = '';
 	let activeContinuousFeed = null;
-	const ACTIVE_FEED_KEY = 'active_continuous_feed';
 
 	// Diaper specific
 	let condition = 'wet';
@@ -90,10 +89,13 @@
 		loadActiveFeed();
 	}
 
-	function loadActiveFeed() {
-		if (typeof localStorage === 'undefined') return;
-		const stored = localStorage.getItem(ACTIVE_FEED_KEY);
-		activeContinuousFeed = stored ? JSON.parse(stored) : null;
+	async function loadActiveFeed() {
+		try {
+			const response = await getActiveContinuousFeed();
+			activeContinuousFeed = response?.active_feed || null;
+		} catch (err) {
+			activeContinuousFeed = null;
+		}
 	}
 
 	async function loadQuickTemplates() {
@@ -170,47 +172,30 @@
 
 	function setActiveFeed(feed) {
 		activeContinuousFeed = feed;
-		if (typeof localStorage !== 'undefined') {
-			if (feed) {
-				localStorage.setItem(ACTIVE_FEED_KEY, JSON.stringify(feed));
-			} else {
-				localStorage.removeItem(ACTIVE_FEED_KEY);
-			}
-		}
 		if (typeof window !== 'undefined') {
 			window.dispatchEvent(new Event('active-feed-changed'));
 		}
 	}
 
-	async function startContinuousFeed() {
+	async function startContinuousFeedAction() {
 		if (loading) return;
 		error = '';
 		loading = true;
 
 		try {
-			const startTime = new Date().toISOString();
-			const feedData = {
-				started_at: startTime,
+			const response = await startContinuousFeed({
 				rate_ml_hr: feedRate ? parseFloat(feedRate) : null,
 				dose_ml: feedDose ? parseFloat(feedDose) : null,
 				interval_hr: feedInterval ? parseFloat(feedInterval) : null,
 				formula_type: formulaType || null,
-				pump_model: 'Moog Infinity'
-			};
-
-			const newEvent = await createEvent({
-				type: 'feeding',
-				timestamp: startTime,
-				notes: notes || null,
-				metadata: {
-					mode: 'continuous',
-					status: 'started',
-					...feedData
-				}
+				pump_model: 'Moog Infinity',
+				notes: notes || null
 			});
 
-			setActiveFeed(feedData);
-			dispatch('eventCreated', newEvent);
+			setActiveFeed(response?.active_feed || null);
+			if (response?.event) {
+				dispatch('eventCreated', response.event);
+			}
 		} catch (err) {
 			error = err.message || 'Failed to start feed';
 		} finally {
@@ -218,52 +203,17 @@
 		}
 	}
 
-	async function stopContinuousFeed() {
+	async function stopContinuousFeedAction() {
 		if (!activeContinuousFeed || loading) return;
 		error = '';
 		loading = true;
 
 		try {
-			const stopTime = new Date();
-			const startTime = new Date(activeContinuousFeed.started_at);
-			const durationMs = stopTime - startTime;
-			const durationMinValue = Math.max(0, Math.round(durationMs / 60000));
-			const durationHr = durationMs / 3600000;
-			const rate = activeContinuousFeed.rate_ml_hr || 0;
-			const dose = activeContinuousFeed.dose_ml;
-			const intervalHr = activeContinuousFeed.interval_hr;
-			let amount = rate * durationHr;
-
-			if (intervalHr && dose && rate) {
-				const activeTimeHr = dose / rate;
-				const cycles = Math.floor(durationHr / intervalHr);
-				const remainderHr = Math.max(0, durationHr - cycles * intervalHr);
-				const remainderActiveHr = Math.min(remainderHr, activeTimeHr);
-				const remainderAmount = Math.min(dose, rate * remainderActiveHr);
-				amount = cycles * dose + remainderAmount;
-			} else if (dose) {
-				amount = Math.min(amount, dose);
-			}
-
-			const newEvent = await createEvent({
-				type: 'feeding',
-				timestamp: stopTime.toISOString(),
-				notes: notes || null,
-				metadata: {
-					mode: 'continuous',
-					status: 'stopped',
-					rate_ml_hr: activeContinuousFeed.rate_ml_hr,
-					dose_ml: activeContinuousFeed.dose_ml,
-					interval_hr: activeContinuousFeed.interval_hr,
-					formula_type: activeContinuousFeed.formula_type || null,
-					pump_model: activeContinuousFeed.pump_model || null,
-					duration_min: durationMinValue,
-					amount_ml: Math.round(amount)
-				}
-			});
-
+			const response = await stopContinuousFeed();
 			setActiveFeed(null);
-			dispatch('eventCreated', newEvent);
+			if (response?.event) {
+				dispatch('eventCreated', response.event);
+			}
 		} catch (err) {
 			error = err.message || 'Failed to stop feed';
 		} finally {
@@ -305,37 +255,26 @@
 		loading = true;
 
 		try {
-			if (template.mode === 'continuous') {
-				if (activeContinuousFeed) {
-					throw new Error('A continuous feed is already running.');
-				}
-
-				const startTime = new Date().toISOString();
-				const feedData = {
-					started_at: startTime,
-					rate_ml_hr: template.rate_ml_hr,
-					dose_ml: template.dose_ml,
-					interval_hr: template.interval_hr,
-					formula_type: template.formula_type || null,
-					pump_model: 'Moog Infinity'
-				};
-
-				const newEvent = await createEvent({
-					type: 'feeding',
-					timestamp: startTime,
-					notes: null,
-					metadata: {
-						mode: 'continuous',
-						status: 'started',
-						...feedData
+				if (template.mode === 'continuous') {
+					if (activeContinuousFeed) {
+						throw new Error('A continuous feed is already running.');
 					}
-				});
 
-				setActiveFeed(feedData);
-				dispatch('eventCreated', newEvent);
-				close();
-				return;
-			}
+					const response = await startContinuousFeed({
+						rate_ml_hr: template.rate_ml_hr,
+						dose_ml: template.dose_ml,
+						interval_hr: template.interval_hr,
+						formula_type: template.formula_type || null,
+						pump_model: 'Moog Infinity'
+					});
+
+					setActiveFeed(response?.active_feed || null);
+					if (response?.event) {
+						dispatch('eventCreated', response.event);
+					}
+					close();
+					return;
+				}
 
 			const metadata = template.mode === 'oral'
 				? { mode: 'oral', oral_notes: template.oral_notes || null }
@@ -809,21 +748,21 @@
 							</button>
 							{#if feedingMode === 'continuous'}
 								{#if activeContinuousFeed}
-									<button
-										type="button"
-										on:click={stopContinuousFeed}
-										disabled={loading}
-										class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl text-base hover:bg-red-700 disabled:bg-red-400"
-									>
-										{loading ? 'Stopping...' : 'Stop Feed'}
-									</button>
-								{:else}
-									<button
-										type="button"
-										on:click={startContinuousFeed}
-										disabled={loading}
-										class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl text-base hover:bg-green-700 disabled:bg-green-400"
-									>
+								<button
+									type="button"
+									on:click={stopContinuousFeedAction}
+									disabled={loading}
+									class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl text-base hover:bg-red-700 disabled:bg-red-400"
+								>
+									{loading ? 'Stopping...' : 'Stop Feed'}
+								</button>
+							{:else}
+								<button
+									type="button"
+									on:click={startContinuousFeedAction}
+									disabled={loading}
+									class="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl text-base hover:bg-green-700 disabled:bg-green-400"
+								>
 										{loading ? 'Starting...' : 'Start Feed'}
 									</button>
 								{/if}

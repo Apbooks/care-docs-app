@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-	import { logout as logoutApi, getCurrentUser, createEvent } from '$lib/services/api';
+	import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -15,7 +15,6 @@
 	let activeContinuousFeed = null;
 	let feedActionError = '';
 	let feedActionLoading = false;
-	const ACTIVE_FEED_KEY = 'active_continuous_feed';
 
 	authStore.subscribe(value => {
 		user = value;
@@ -36,28 +35,20 @@
 
 		const handleActiveFeedChanged = () => loadActiveFeed();
 		window.addEventListener('active-feed-changed', handleActiveFeedChanged);
-		window.addEventListener('storage', handleActiveFeedChanged);
+		const interval = setInterval(loadActiveFeed, 30000);
 
 		return () => {
 			window.removeEventListener('active-feed-changed', handleActiveFeedChanged);
-			window.removeEventListener('storage', handleActiveFeedChanged);
+			clearInterval(interval);
 		};
 	});
 
-	function loadActiveFeed() {
-		if (typeof localStorage === 'undefined') return;
-		const stored = localStorage.getItem(ACTIVE_FEED_KEY);
-		activeContinuousFeed = stored ? JSON.parse(stored) : null;
-	}
-
-	function setActiveFeed(feed) {
-		activeContinuousFeed = feed;
-		if (typeof localStorage !== 'undefined') {
-			if (feed) {
-				localStorage.setItem(ACTIVE_FEED_KEY, JSON.stringify(feed));
-			} else {
-				localStorage.removeItem(ACTIVE_FEED_KEY);
-			}
+	async function loadActiveFeed() {
+		try {
+			const response = await getActiveContinuousFeed();
+			activeContinuousFeed = response?.active_feed || null;
+		} catch (error) {
+			activeContinuousFeed = null;
 		}
 	}
 
@@ -77,45 +68,8 @@
 		feedActionLoading = true;
 
 		try {
-			const stopTime = new Date();
-			const startTime = new Date(activeContinuousFeed.started_at);
-			const durationMs = stopTime - startTime;
-			const durationMinValue = Math.max(0, Math.round(durationMs / 60000));
-			const durationHr = durationMs / 3600000;
-			const rate = activeContinuousFeed.rate_ml_hr || 0;
-			const dose = activeContinuousFeed.dose_ml;
-			const intervalHr = activeContinuousFeed.interval_hr;
-			let amount = rate * durationHr;
-
-			if (intervalHr && dose && rate) {
-				const activeTimeHr = dose / rate;
-				const cycles = Math.floor(durationHr / intervalHr);
-				const remainderHr = Math.max(0, durationHr - cycles * intervalHr);
-				const remainderActiveHr = Math.min(remainderHr, activeTimeHr);
-				const remainderAmount = Math.min(dose, rate * remainderActiveHr);
-				amount = cycles * dose + remainderAmount;
-			} else if (dose) {
-				amount = Math.min(amount, dose);
-			}
-
-			await createEvent({
-				type: 'feeding',
-				timestamp: stopTime.toISOString(),
-				notes: null,
-				metadata: {
-					mode: 'continuous',
-					status: 'stopped',
-					rate_ml_hr: activeContinuousFeed.rate_ml_hr,
-					dose_ml: activeContinuousFeed.dose_ml,
-					interval_hr: activeContinuousFeed.interval_hr,
-					formula_type: activeContinuousFeed.formula_type || null,
-					pump_model: activeContinuousFeed.pump_model || null,
-					duration_min: durationMinValue,
-					amount_ml: Math.round(amount)
-				}
-			});
-
-			setActiveFeed(null);
+			await stopContinuousFeed();
+			activeContinuousFeed = null;
 			if (eventListComponent) {
 				eventListComponent.refresh();
 			}

@@ -7,7 +7,7 @@ import os
 from database import init_db
 
 # Import routes
-from routes import auth, events, setup, quick_templates, settings as settings_routes
+from routes import auth, events, setup, quick_templates, settings as settings_routes, feeds
 # from routes import photos, reminders, sync, reports
 
 # Import settings
@@ -73,6 +73,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(events.router, prefix="/api/events", tags=["events"])
 app.include_router(quick_templates.router, prefix="/api", tags=["quick-templates"])
 app.include_router(settings_routes.router, prefix="/api", tags=["settings"])
+app.include_router(feeds.router, prefix="/api", tags=["feeds"])
 # app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
 # app.include_router(reminders.router, prefix="/api/reminders", tags=["reminders"])
 # app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
