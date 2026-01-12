@@ -171,7 +171,7 @@
 						</svg>
 					</button>
 
-					<LogoMark size={40} showLabel={false} />
+					<LogoMark size={48} showLabel={true} />
 
 					<div class="w-12 h-12"></div>
 				</div>
@@ -196,17 +196,17 @@
 					</button>
 				</div>
 
-				<div class="space-y-2">
+				<div class="space-y-1">
 					<button
 						on:click={() => { closeMenu(); goto('/history'); }}
-						class="w-full text-left px-4 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+						class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
 					>
 						History
 					</button>
 					{#if userIsAdmin}
 						<button
 							on:click={() => { closeMenu(); goto('/admin'); }}
-							class="w-full text-left px-4 py-3 rounded-xl bg-purple-600 text-white hover:bg-purple-700"
+							class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
 						>
 							Admin Panel
 						</button>
@@ -216,7 +216,7 @@
 					</div>
 					<button
 						on:click={() => { closeMenu(); handleLogout(); }}
-						class="w-full text-left px-4 py-3 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950"
+						class="w-full text-left px-2 py-3 text-base text-red-600 hover:bg-red-50 dark:text-red-200 dark:hover:bg-red-950 rounded-lg"
 					>
 						Logout
 					</button>
