@@ -8,6 +8,7 @@
 
 	let events = [];
 	let loading = true;
+	let refreshing = false;
 	let error = '';
 	let editEvent = null;
 	let editLoading = false;
@@ -18,8 +19,13 @@
 		loadEvents();
 	});
 
-	async function loadEvents() {
-		loading = true;
+	async function loadEvents(options = {}) {
+		const { silent = false } = options;
+		if (silent && events.length > 0) {
+			refreshing = true;
+		} else {
+			loading = true;
+		}
 		error = '';
 
 		try {
@@ -31,6 +37,7 @@
 			error = err.message || 'Failed to load events';
 		} finally {
 			loading = false;
+			refreshing = false;
 		}
 	}
 
@@ -171,12 +178,12 @@
 
 	// Export refresh function so parent can call it
 	export function refresh() {
-		loadEvents();
+		loadEvents({ silent: true });
 	}
 </script>
 
 <div class="space-y-4">
-	{#if loading}
+	{#if loading && events.length === 0}
 		<div class="text-center py-10">
 			<div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
 			<p class="mt-3 text-gray-600 dark:text-slate-300 text-base">Loading events...</p>
