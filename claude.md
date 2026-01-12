@@ -226,6 +226,8 @@
 - [x] Added hamburger menu header with centered logo for mobile-friendly navigation
 - [x] Fixed quick medication buttons styling in dark mode
 - [x] Added custom Care Docs logo mark for header
+- [x] Added pump actual total entry when stopping continuous feeds
+- [x] Added feeding totals summary to history view
 
 ---
 
@@ -305,6 +307,7 @@
 - [x] Edit/delete events
 - [x] Export to CSV
 - [x] Data visualization (daily activity bars)
+- [x] Feeding totals summary (daily + range)
 
 #### 6. Reminders & Notifications
 - [ ] Web Push API setup
@@ -538,7 +541,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-11 (Phase 4 quick actions + dark mode in progress)
+**Last Updated:** 2026-01-12 (History feeding totals + pump actual totals)
 
 ---
 

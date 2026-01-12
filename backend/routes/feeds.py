@@ -31,6 +31,10 @@ class ContinuousFeedStatus(BaseModel):
     event: Optional[Dict[str, Any]]
 
 
+class ContinuousFeedStop(BaseModel):
+    pump_total_ml: Optional[float] = Field(default=None, ge=0)
+
+
 def to_utc_iso(value: datetime) -> str:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
@@ -139,6 +143,7 @@ async def start_continuous_feed(
 
 @router.post("/feeds/continuous/stop", response_model=ContinuousFeedStatus)
 async def stop_continuous_feed(
+    payload: ContinuousFeedStop,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -184,7 +189,8 @@ async def stop_continuous_feed(
             "formula_type": active_feed.get("formula_type"),
             "pump_model": active_feed.get("pump_model"),
             "duration_min": duration_min_value,
-            "amount_ml": round(amount)
+            "amount_ml": round(amount),
+            "pump_total_ml": payload.pump_total_ml
         },
         synced=True,
         created_offline=False

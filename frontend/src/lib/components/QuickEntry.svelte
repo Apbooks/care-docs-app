@@ -37,6 +37,7 @@
 	let feedDose = '';
 	let feedInterval = '';
 	let oralNotes = '';
+	let pumpTotal = '';
 	let activeContinuousFeed = null;
 
 	// Diaper specific
@@ -151,6 +152,7 @@
 		feedDose = '';
 		feedInterval = '';
 		oralNotes = '';
+		pumpTotal = '';
 		condition = 'wet';
 		rash = false;
 		skinNotes = '';
@@ -203,17 +205,18 @@
 		}
 	}
 
-	async function stopContinuousFeedAction() {
+	async function stopContinuousFeedAction(actualTotal) {
 		if (!activeContinuousFeed || loading) return;
 		error = '';
 		loading = true;
 
 		try {
-			const response = await stopContinuousFeed();
+			const response = await stopContinuousFeed(actualTotal);
 			setActiveFeed(null);
 			if (response?.event) {
 				dispatch('eventCreated', response.event);
 			}
+			pumpTotal = '';
 		} catch (err) {
 			error = err.message || 'Failed to stop feed';
 		} finally {
@@ -688,6 +691,20 @@
 									placeholder="Any additional notes..."
 								></textarea>
 							</div>
+							{#if activeContinuousFeed}
+								<div>
+									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+										Pump Total (ml)
+									</label>
+									<input
+										type="number"
+										min="0"
+										bind:value={pumpTotal}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+										placeholder="Actual pump total"
+									/>
+								</div>
+							{/if}
 						{:else if feedingMode === 'bolus'}
 							<div>
 								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
@@ -748,14 +765,14 @@
 							</button>
 							{#if feedingMode === 'continuous'}
 								{#if activeContinuousFeed}
-								<button
-									type="button"
-									on:click={stopContinuousFeedAction}
-									disabled={loading}
-									class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl text-base hover:bg-red-700 disabled:bg-red-400"
-								>
-									{loading ? 'Stopping...' : 'Stop Feed'}
-								</button>
+									<button
+										type="button"
+										on:click={() => stopContinuousFeedAction(pumpTotal)}
+										disabled={loading}
+										class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl text-base hover:bg-red-700 disabled:bg-red-400"
+									>
+										{loading ? 'Stopping...' : 'Stop Feed'}
+									</button>
 							{:else}
 								<button
 									type="button"

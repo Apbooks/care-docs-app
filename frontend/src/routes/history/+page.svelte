@@ -29,6 +29,9 @@
 
 	let medRows = [];
 	let dailyCounts = [];
+	let feedingTotals = [];
+	let feedingTotalMl = 0;
+	let feedingMax = 1;
 
 	authStore.subscribe(value => {
 		user = value;
@@ -86,6 +89,7 @@
 			buildSummary();
 			buildMedRows();
 			buildDailyCounts();
+			buildFeedingTotals();
 		} catch (err) {
 			error = err.message || 'Failed to load history';
 		} finally {
@@ -149,6 +153,29 @@
 		}
 		const sorted = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
 		dailyCounts = sorted.map(([date, count]) => ({ date, count }));
+	}
+
+	function buildFeedingTotals() {
+		const map = new Map();
+		let total = 0;
+
+		for (const event of events) {
+			if (event.type !== 'feeding') continue;
+			const metadata = event.metadata || {};
+			const pumpTotal = metadata.pump_total_ml;
+			const amount = metadata.amount_ml;
+			const value = typeof pumpTotal === 'number' ? pumpTotal : (typeof amount === 'number' ? amount : 0);
+			if (!value) continue;
+			const date = new Date(event.timestamp);
+			const key = date.toISOString().slice(0, 10);
+			map.set(key, (map.get(key) || 0) + value);
+			total += value;
+		}
+
+		feedingTotalMl = Math.round(total);
+		const sorted = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+		feedingTotals = sorted.map(([date, totalMl]) => ({ date, totalMl: Math.round(totalMl) }));
+		feedingMax = sorted.reduce((max, [, totalMl]) => Math.max(max, totalMl), 1);
 	}
 
 	function exportMedications() {
@@ -269,6 +296,31 @@
 									<div class="bg-blue-600 h-3 rounded-full" style={`width: ${Math.min(100, row.count * 6)}%`}></div>
 								</div>
 								<div class="w-10 text-xs text-gray-500 dark:text-slate-400">{row.count}</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</section>
+
+			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
+				<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+					<div>
+						<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Feeding Totals</h2>
+						<p class="text-sm text-gray-500 dark:text-slate-400">Total {feedingTotalMl} ml in range</p>
+					</div>
+					<p class="text-sm text-gray-500 dark:text-slate-400">Uses pump total when provided</p>
+				</div>
+				{#if feedingTotals.length === 0}
+					<p class="text-sm text-gray-600 dark:text-slate-300">No feeding totals in this range.</p>
+				{:else}
+					<div class="space-y-2">
+						{#each feedingTotals as row}
+							<div class="flex items-center gap-3">
+								<div class="w-24 text-xs text-gray-500 dark:text-slate-400">{row.date}</div>
+								<div class="flex-1 bg-emerald-100 dark:bg-emerald-900 rounded-full h-3">
+									<div class="bg-emerald-600 h-3 rounded-full" style={`width: ${Math.min(100, (row.totalMl / feedingMax) * 100)}%`}></div>
+								</div>
+								<div class="w-16 text-xs text-gray-500 dark:text-slate-400">{row.totalMl} ml</div>
 							</div>
 						{/each}
 					</div>

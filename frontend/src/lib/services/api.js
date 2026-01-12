@@ -272,8 +272,9 @@ export async function startContinuousFeed(data) {
 	});
 }
 
-export async function stopContinuousFeed() {
+export async function stopContinuousFeed(pumpTotalMl) {
 	return apiRequest('/feeds/continuous/stop', {
-		method: 'POST'
+		method: 'POST',
+		body: JSON.stringify({ pump_total_ml: pumpTotalMl ?? null })
 	});
 }

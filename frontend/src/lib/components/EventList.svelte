@@ -89,7 +89,12 @@
 			case 'feeding':
 				if (metadata.mode === 'continuous') {
 					const status = metadata.status || (metadata.duration_min ? 'stopped' : 'started');
-					return `Continuous feed ${status}`;
+					if (status === 'stopped') {
+						const total = metadata.pump_total_ml ?? metadata.amount_ml;
+						const totalLabel = total ? `${total}ml` : 'total pending';
+						return `Continuous feed stopped · ${totalLabel}`;
+					}
+					return 'Continuous feed started';
 				}
 				if (metadata.mode === 'oral') {
 					return metadata.oral_notes || event.notes || 'Oral feeding';
