@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-	import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed } from '$lib/services/api';
+import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -62,7 +62,7 @@
 		});
 	}
 
-	async function stopContinuousFeed() {
+	async function stopContinuousFeedAction() {
 		if (!activeContinuousFeed || feedActionLoading) return;
 		feedActionError = '';
 		feedActionLoading = true;
@@ -154,7 +154,7 @@
 							</p>
 						</div>
 						<button
-							on:click={stopContinuousFeed}
+							on:click={stopContinuousFeedAction}
 							disabled={feedActionLoading}
 							class="px-4 py-2 rounded-xl bg-red-600 text-white text-base font-semibold hover:bg-red-700 disabled:bg-red-400"
 						>
