@@ -38,6 +38,15 @@ async function attemptTokenRefresh() {
 	return data;
 }
 
+export async function refreshSession() {
+	try {
+		return await attemptTokenRefresh();
+	} catch (error) {
+		console.warn('Token refresh failed:', error);
+		return null;
+	}
+}
+
 /**
  * Make an API request with proper error handling
  * @param {string} endpoint - API endpoint (e.g., '/auth/login')

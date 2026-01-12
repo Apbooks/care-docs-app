@@ -229,6 +229,7 @@
 - [x] Added pump actual total entry when stopping continuous feeds
 - [x] Added feeding totals summary to history view
 - [x] Added automatic token refresh to keep sessions alive
+- [x] Increased token lifetimes to reduce logouts
 
 ---
 
@@ -542,7 +543,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-12 (History feeding totals + token refresh)
+**Last Updated:** 2026-01-12 (Token lifetime + keepalive refresh)
 
 ---
 

@@ -3,10 +3,28 @@
 	import { onMount } from 'svelte';
 	import { initTheme } from '$lib/stores/theme';
 	import { initSettings } from '$lib/stores/settings';
+	import { refreshSession } from '$lib/services/api';
 
 	onMount(() => {
 		initTheme();
 		initSettings();
+		refreshSession();
+
+		const intervalId = setInterval(() => {
+			refreshSession();
+		}, 10 * 60 * 1000);
+
+		const handleVisibility = () => {
+			if (document.visibilityState === 'visible') {
+				refreshSession();
+			}
+		};
+		document.addEventListener('visibilitychange', handleVisibility);
+
+		return () => {
+			clearInterval(intervalId);
+			document.removeEventListener('visibilitychange', handleVisibility);
+		};
 	});
 </script>
 

@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     # Generate with: openssl rand -hex 32
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 3650
 
     # Application
     APP_NAME: str = "Care Documentation App"
