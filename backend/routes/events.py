@@ -10,6 +10,7 @@ from database import get_db
 from models.user import User
 from models.event import Event
 from routes.auth import get_current_user
+from routes.stream import broadcast_event
 
 router = APIRouter()
 
@@ -91,6 +92,7 @@ async def create_event(
     db.add(new_event)
     db.commit()
     db.refresh(new_event)
+    await broadcast_event({"type": "event.created", "id": str(new_event.id)})
 
     return EventResponse(
         id=str(new_event.id),
@@ -227,6 +229,7 @@ async def update_event(
 
     db.commit()
     db.refresh(event)
+    await broadcast_event({"type": "event.updated", "id": str(event.id)})
 
     user = db.query(User).filter(User.id == event.user_id).first()
 
@@ -263,6 +266,7 @@ async def delete_event(
 
     db.delete(event)
     db.commit()
+    await broadcast_event({"type": "event.deleted", "id": str(event.id)})
 
     return None
 

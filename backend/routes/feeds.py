@@ -10,6 +10,7 @@ from models.app_setting import AppSetting
 from models.event import Event
 from models.user import User
 from routes.auth import get_current_user
+from routes.stream import broadcast_event
 
 router = APIRouter()
 
@@ -129,6 +130,7 @@ async def start_continuous_feed(
 
     set_active_feed_setting(db, feed_data)
 
+    await broadcast_event({"type": "feed.started"})
     return ContinuousFeedStatus(
         active_feed=feed_data,
         event=event_to_response(new_event, current_user.username)
@@ -193,6 +195,7 @@ async def stop_continuous_feed(
 
     set_active_feed_setting(db, None)
 
+    await broadcast_event({"type": "feed.stopped"})
     return ContinuousFeedStatus(
         active_feed=None,
         event=event_to_response(new_event, current_user.username)

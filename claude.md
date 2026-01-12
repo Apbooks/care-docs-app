@@ -222,6 +222,7 @@
 - [x] Added event edit/delete controls in recent activity (timestamp + metadata)
 - [x] Added feeding modes (continuous/bolus/oral) with start/stop tracking and metadata
 - [x] Added admin-configurable timezone setting
+- [x] Added real-time updates via SSE for events and feed status
 
 ---
 

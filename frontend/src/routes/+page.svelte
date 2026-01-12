@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed } from '$lib/services/api';
+	import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -15,6 +15,7 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 	let activeContinuousFeed = null;
 	let feedActionError = '';
 	let feedActionLoading = false;
+	let stream;
 
 	authStore.subscribe(value => {
 		user = value;
@@ -35,11 +36,39 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 
 		const handleActiveFeedChanged = () => loadActiveFeed();
 		window.addEventListener('active-feed-changed', handleActiveFeedChanged);
-		const interval = setInterval(loadActiveFeed, 30000);
+
+		const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
+		const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+		const streamUrl = token ? `${API_BASE}/stream?token=${encodeURIComponent(token)}` : `${API_BASE}/stream`;
+
+		stream = new EventSource(streamUrl);
+		stream.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data);
+				if (data.type?.startsWith('event.')) {
+					if (eventListComponent) {
+						eventListComponent.refresh();
+					}
+				}
+				if (data.type?.startsWith('feed.')) {
+					loadActiveFeed();
+					if (eventListComponent) {
+						eventListComponent.refresh();
+					}
+				}
+			} catch (error) {
+				console.error('Stream parse error:', error);
+			}
+		};
+		stream.onerror = () => {
+			// Browser will retry automatically.
+		};
 
 		return () => {
 			window.removeEventListener('active-feed-changed', handleActiveFeedChanged);
-			clearInterval(interval);
+			if (stream) {
+				stream.close();
+			}
 		};
 	});
 
