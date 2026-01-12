@@ -173,7 +173,9 @@
 
 					<LogoMark size={48} showLabel={true} />
 
-					<div class="w-12 h-12"></div>
+					<div class="flex items-center">
+						<ThemeToggle />
+					</div>
 				</div>
 			</div>
 		</header>
@@ -211,9 +213,6 @@
 							Admin Panel
 						</button>
 					{/if}
-					<div class="pt-2">
-						<ThemeToggle />
-					</div>
 					<button
 						on:click={() => { closeMenu(); handleLogout(); }}
 						class="w-full text-left px-2 py-3 text-base text-red-600 hover:bg-red-50 dark:text-red-200 dark:hover:bg-red-950 rounded-lg"
