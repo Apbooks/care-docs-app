@@ -465,7 +465,7 @@
 								{#each quickMeds as med}
 									<button
 										on:click={() => logQuickMedication(med)}
-										class="p-3 min-h-[72px] rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 text-left"
+										class="p-3 min-h-[72px] rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 text-left text-gray-900 dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700"
 										disabled={loading}
 									>
 										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm">{med.name}</div>

@@ -223,6 +223,8 @@
 - [x] Added feeding modes (continuous/bolus/oral) with start/stop tracking and metadata
 - [x] Added admin-configurable timezone setting
 - [x] Added real-time updates via SSE for events and feed status
+- [x] Added hamburger menu header with centered logo for mobile-friendly navigation
+- [x] Fixed quick medication buttons styling in dark mode
 
 ---
 
