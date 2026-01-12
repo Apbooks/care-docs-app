@@ -1,5 +1,6 @@
 <script>
 	export let size = 48;
+	export let showLabel = true;
 </script>
 
 <div class="flex flex-col items-center">
@@ -21,5 +22,7 @@
 		<path d="M20 28h18M20 34h22M20 40h12" stroke="#2563eb" stroke-width="3" stroke-linecap="round" />
 		<circle cx="42" cy="20" r="6" class="fill-emerald-400" />
 	</svg>
-	<span class="text-xs tracking-wide text-slate-500 dark:text-slate-300 mt-1">Care Docs</span>
+	{#if showLabel}
+		<span class="text-xs tracking-wide text-slate-500 dark:text-slate-300 mt-1">Care Docs</span>
+	{/if}
 </div>

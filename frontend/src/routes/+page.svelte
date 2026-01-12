@@ -171,7 +171,7 @@
 						</svg>
 					</button>
 
-					<LogoMark size={48} />
+					<LogoMark size={40} showLabel={false} />
 
 					<div class="w-12 h-12"></div>
 				</div>
