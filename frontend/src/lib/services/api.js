@@ -2,17 +2,53 @@
 // otherwise falls back to same-origin `/api`.
 const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
 
+function getStoredToken(key) {
+	return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+}
+
+function setStoredToken(key, value) {
+	if (typeof localStorage === 'undefined') return;
+	if (value) {
+		localStorage.setItem(key, value);
+	} else {
+		localStorage.removeItem(key);
+	}
+}
+
+async function attemptTokenRefresh() {
+	const refreshToken = getStoredToken('refresh_token');
+	if (!refreshToken) return null;
+
+	const response = await fetch(`${API_BASE}/auth/refresh`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ refresh_token: refreshToken }),
+		credentials: 'include'
+	});
+
+	if (!response.ok) {
+		return null;
+	}
+
+	const data = await response.json();
+	setStoredToken('access_token', data?.access_token);
+	setStoredToken('refresh_token', data?.refresh_token);
+	return data;
+}
+
 /**
  * Make an API request with proper error handling
  * @param {string} endpoint - API endpoint (e.g., '/auth/login')
  * @param {object} options - Fetch options
  * @returns {Promise<object>} Response data
  */
-export async function apiRequest(endpoint, options = {}) {
+export async function apiRequest(endpoint, options = {}, hasRetried = false) {
 	const url = `${API_BASE}${endpoint}`;
 
 	// Get access token from localStorage if available
-	const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+	const token = getStoredToken('access_token');
 
 	const config = {
 		...options,
@@ -28,9 +64,16 @@ export async function apiRequest(endpoint, options = {}) {
 		const response = await fetch(url, config);
 
 		if (response.status === 401) {
-			if (typeof localStorage !== 'undefined') {
-				localStorage.removeItem('access_token');
+			const canRefresh = !hasRetried && !endpoint.startsWith('/auth/refresh');
+			if (canRefresh) {
+				const refreshed = await attemptTokenRefresh();
+				if (refreshed?.access_token) {
+					return apiRequest(endpoint, options, true);
+				}
 			}
+
+			setStoredToken('access_token', null);
+			setStoredToken('refresh_token', null);
 			if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
 				window.location.href = '/login';
 			}

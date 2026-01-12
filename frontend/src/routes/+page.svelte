@@ -126,11 +126,13 @@
 			await logoutApi();
 			authStore.logout();
 			localStorage.removeItem('access_token');
+			localStorage.removeItem('refresh_token');
 			goto('/login');
 		} catch (error) {
 			console.error('Logout failed:', error);
 			authStore.logout();
 			localStorage.removeItem('access_token');
+			localStorage.removeItem('refresh_token');
 			goto('/login');
 		}
 	}
