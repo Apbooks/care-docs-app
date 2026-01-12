@@ -27,6 +27,16 @@ export async function apiRequest(endpoint, options = {}) {
 	try {
 		const response = await fetch(url, config);
 
+		if (response.status === 401) {
+			if (typeof localStorage !== 'undefined') {
+				localStorage.removeItem('access_token');
+			}
+			if (typeof window !== 'undefined') {
+				window.location.href = '/login';
+			}
+			throw new Error('Not authenticated');
+		}
+
 		// Handle non-JSON responses
 		const contentType = response.headers.get('content-type');
 		if (!contentType || !contentType.includes('application/json')) {
