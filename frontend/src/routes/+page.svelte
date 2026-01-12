@@ -9,6 +9,7 @@
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { timezone } from '$lib/stores/settings';
+	import LogoMark from '$lib/components/LogoMark.svelte';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -170,12 +171,7 @@
 						</svg>
 					</button>
 
-					<div class="flex flex-col items-center">
-						<div class="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-bold shadow">
-							CD
-						</div>
-						<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Care Docs</p>
-					</div>
+					<LogoMark size={48} />
 
 					<div class="w-12 h-12"></div>
 				</div>

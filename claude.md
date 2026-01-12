@@ -225,6 +225,7 @@
 - [x] Added real-time updates via SSE for events and feed status
 - [x] Added hamburger menu header with centered logo for mobile-friendly navigation
 - [x] Fixed quick medication buttons styling in dark mode
+- [x] Added custom Care Docs logo mark for header
 
 ---
 
