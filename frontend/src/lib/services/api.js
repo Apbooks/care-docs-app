@@ -31,7 +31,7 @@ export async function apiRequest(endpoint, options = {}) {
 			if (typeof localStorage !== 'undefined') {
 				localStorage.removeItem('access_token');
 			}
-			if (typeof window !== 'undefined') {
+			if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
 				window.location.href = '/login';
 			}
 			throw new Error('Not authenticated');
