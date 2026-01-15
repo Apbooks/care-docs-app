@@ -1,25 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, or_
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
+import json
 from uuid import UUID
 
 from database import get_db
 from models.user import User
+from models.app_setting import AppSetting
 from models.event import Event
 from models.care_recipient import CareRecipient
 from routes.auth import get_current_user
 from routes.stream import broadcast_event
+from services.utils import to_utc_iso
 
 router = APIRouter()
+ACTIVE_FEED_KEY_PREFIX = "active_continuous_feed"
 
 
-def to_utc_iso(value: datetime) -> str:
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc).isoformat()
+def feed_setting_key(recipient_id: str) -> str:
+    return f"{ACTIVE_FEED_KEY_PREFIX}:{recipient_id}"
+
+
+def update_active_feed_started_at(db: Session, recipient_id: str, started_at: datetime) -> None:
+    setting = db.query(AppSetting).filter(AppSetting.key == feed_setting_key(recipient_id)).first()
+    if not setting:
+        return
+    try:
+        payload = setting.value
+        data = payload if isinstance(payload, dict) else json.loads(payload)
+    except Exception:
+        return
+    data["started_at"] = to_utc_iso(started_at)
+    setting.value = json.dumps(data)
+    db.commit()
 
 
 # Pydantic models for request/response
@@ -113,7 +129,7 @@ async def create_event(
 
     new_event = Event(
         type=event_data.type,
-        timestamp=event_data.timestamp or datetime.utcnow(),
+        timestamp=event_data.timestamp or datetime.now(timezone.utc),
         user_id=current_user.id,
         recipient_id=recipient.id,
         notes=event_data.notes,
@@ -162,7 +178,11 @@ async def get_events(
     Returns events ordered by timestamp (most recent first)
     """
 
-    query = db.query(Event)
+    # Use joinedload to eagerly fetch related User and CareRecipient (fixes N+1 query)
+    query = db.query(Event).options(
+        joinedload(Event.user),
+        joinedload(Event.recipient)
+    )
 
     # Filter by type if specified
     if type:
@@ -191,19 +211,17 @@ async def get_events(
     # Apply pagination
     events = query.offset(offset).limit(limit).all()
 
-    # Build response with user names
+    # Build response using eager-loaded relationships
     response = []
     for event in events:
-        user = db.query(User).filter(User.id == event.user_id).first()
-        recipient = db.query(CareRecipient).filter(CareRecipient.id == event.recipient_id).first() if event.recipient_id else None
         response.append(EventResponse(
             id=str(event.id),
             type=event.type,
             timestamp=to_utc_iso(event.timestamp),
             user_id=str(event.user_id),
-            user_name=user.username if user else "Unknown",
-            recipient_id=str(recipient.id) if recipient else None,
-            recipient_name=recipient.name if recipient else None,
+            user_name=event.user.username if event.user else "Unknown",
+            recipient_id=str(event.recipient.id) if event.recipient else None,
+            recipient_name=event.recipient.name if event.recipient else None,
             notes=event.notes,
             metadata=event.event_data,
             synced=event.synced,
@@ -223,7 +241,10 @@ async def get_event(
 ):
     """Get a specific event by ID"""
 
-    event = db.query(Event).filter(Event.id == event_id).first()
+    event = db.query(Event).options(
+        joinedload(Event.user),
+        joinedload(Event.recipient)
+    ).filter(Event.id == event_id).first()
 
     if not event:
         raise HTTPException(
@@ -231,17 +252,14 @@ async def get_event(
             detail="Event not found"
         )
 
-    user = db.query(User).filter(User.id == event.user_id).first()
-    recipient = db.query(CareRecipient).filter(CareRecipient.id == event.recipient_id).first() if event.recipient_id else None
-
     return EventResponse(
         id=str(event.id),
         type=event.type,
         timestamp=to_utc_iso(event.timestamp),
         user_id=str(event.user_id),
-        user_name=user.username if user else "Unknown",
-        recipient_id=str(recipient.id) if recipient else None,
-        recipient_name=recipient.name if recipient else None,
+        user_name=event.user.username if event.user else "Unknown",
+        recipient_id=str(event.recipient.id) if event.recipient else None,
+        recipient_name=event.recipient.name if event.recipient else None,
         notes=event.notes,
         metadata=event.event_data,
         synced=event.synced,
@@ -260,7 +278,10 @@ async def update_event(
 ):
     """Update an event (notes and metadata only)"""
 
-    event = db.query(Event).filter(Event.id == event_id).first()
+    event = db.query(Event).options(
+        joinedload(Event.user),
+        joinedload(Event.recipient)
+    ).filter(Event.id == event_id).first()
 
     if not event:
         raise HTTPException(
@@ -290,23 +311,25 @@ async def update_event(
         recipient = resolve_recipient(db, event_update.recipient_id)
         event.recipient_id = recipient.id
 
-    event.updated_at = datetime.utcnow()
+    event.updated_at = datetime.now(timezone.utc)
+
+    if event.type == "feeding":
+        metadata = event.event_data or {}
+        if metadata.get("mode") == "continuous" and metadata.get("status") == "started" and event.recipient_id:
+            update_active_feed_started_at(db, str(event.recipient_id), event.timestamp)
 
     db.commit()
     db.refresh(event)
     await broadcast_event({"type": "event.updated", "id": str(event.id), "recipient_id": str(event.recipient_id) if event.recipient_id else None})
-
-    user = db.query(User).filter(User.id == event.user_id).first()
-    recipient = db.query(CareRecipient).filter(CareRecipient.id == event.recipient_id).first() if event.recipient_id else None
 
     return EventResponse(
         id=str(event.id),
         type=event.type,
         timestamp=to_utc_iso(event.timestamp),
         user_id=str(event.user_id),
-        user_name=user.username if user else "Unknown",
-        recipient_id=str(recipient.id) if recipient else None,
-        recipient_name=recipient.name if recipient else None,
+        user_name=event.user.username if event.user else "Unknown",
+        recipient_id=str(event.recipient.id) if event.recipient else None,
+        recipient_name=event.recipient.name if event.recipient else None,
         notes=event.notes,
         metadata=event.event_data,
         synced=event.synced,

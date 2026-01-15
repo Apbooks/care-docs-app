@@ -1,9 +1,12 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 import json
+
+logger = logging.getLogger(__name__)
 
 from database import get_db
 from models.app_setting import AppSetting
@@ -12,6 +15,7 @@ from models.user import User
 from models.care_recipient import CareRecipient
 from routes.auth import get_current_user
 from routes.stream import broadcast_event
+from services.utils import to_utc_iso
 
 router = APIRouter()
 
@@ -36,12 +40,6 @@ class ContinuousFeedStatus(BaseModel):
 class ContinuousFeedStop(BaseModel):
     recipient_id: str = Field(..., min_length=1)
     pump_total_ml: Optional[float] = Field(default=None, ge=0)
-
-
-def to_utc_iso(value: datetime) -> str:
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc).isoformat()
 
 
 def event_to_response(event: Event, user_name: str, recipient_name: Optional[str]) -> Dict[str, Any]:
@@ -127,7 +125,7 @@ async def start_continuous_feed(
             detail="A continuous feed is already running"
         )
 
-    start_time = datetime.utcnow()
+    start_time = datetime.now(timezone.utc)
     feed_data = {
         "recipient_id": str(recipient.id),
         "started_at": to_utc_iso(start_time),
@@ -187,8 +185,15 @@ async def stop_continuous_feed(
             detail="No active continuous feed found"
         )
 
-    stop_time = datetime.utcnow()
-    started_at = datetime.fromisoformat(active_feed["started_at"].replace("Z", "+00:00"))
+    stop_time = datetime.now(timezone.utc)
+
+    # Parse started_at with error handling for malformed dates
+    try:
+        started_at = datetime.fromisoformat(active_feed["started_at"].replace("Z", "+00:00"))
+    except (ValueError, KeyError, TypeError) as e:
+        logger.error(f"Invalid feed start time in active_feed: {e}")
+        started_at = stop_time  # Fallback to 0 duration
+
     duration_ms = max(0, (stop_time - started_at.replace(tzinfo=None)).total_seconds() * 1000)
     duration_min_value = max(0, round(duration_ms / 60000))
     duration_hr = duration_ms / 3600000

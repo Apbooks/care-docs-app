@@ -37,6 +37,9 @@ export async function initRecipients() {
 			setSelectedRecipient(null);
 		}
 	} catch (error) {
-		// Ignore when unauthenticated.
+		// Only log non-401 errors (401 means user is not authenticated yet)
+		if (error?.message !== 'Not authenticated') {
+			console.warn('Failed to load recipients:', error);
+		}
 	}
 }

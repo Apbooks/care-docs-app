@@ -94,36 +94,38 @@
 	}
 
 	function formatMetadata(event) {
-		const { metadata, type } = event;
+		const { metadata = {}, type } = event;
 
 		switch (type) {
 			case 'medication':
-				return `${metadata.med_name} - ${metadata.dosage} (${metadata.route})`;
+				return `${metadata?.med_name || 'Medication'} - ${metadata?.dosage || '-'} (${metadata?.route || '-'})`;
 			case 'feeding':
-				if (metadata.mode === 'continuous') {
-					const status = metadata.status || (metadata.duration_min ? 'stopped' : 'started');
+				if (metadata?.mode === 'continuous') {
+					const status = metadata?.status || (metadata?.duration_min ? 'stopped' : 'started');
 					if (status === 'stopped') {
-						const total = metadata.pump_total_ml ?? metadata.amount_ml;
+						const total = metadata?.pump_total_ml ?? metadata?.amount_ml;
 						const totalLabel = total ? `${total}ml` : 'total pending';
 						return `Continuous feed stopped · ${totalLabel}`;
 					}
 					return 'Continuous feed started';
 				}
-				if (metadata.mode === 'oral') {
-					return metadata.oral_notes || event.notes || 'Oral feeding';
+				if (metadata?.mode === 'oral') {
+					return metadata?.oral_notes || event.notes || 'Oral feeding';
 				}
 				{
 					let parts = [];
-					if (metadata.amount_ml) parts.push(`${metadata.amount_ml}ml`);
-					if (metadata.formula_type) parts.push(metadata.formula_type);
+					if (metadata?.amount_ml) parts.push(`${metadata.amount_ml}ml`);
+					if (metadata?.formula_type) parts.push(metadata.formula_type);
 					return parts.join(' · ') || 'Bolus feeding';
 				}
 			case 'diaper':
-				let desc = `${metadata.condition}`;
-				if (metadata.rash) desc += ', rash present';
+				let desc = `${metadata?.condition || 'Unknown'}`;
+				if (metadata?.rash) desc += ', rash present';
 				return desc.charAt(0).toUpperCase() + desc.slice(1);
 			case 'demeanor':
-				return `${metadata.mood} - ${metadata.activity_level.replace('_', ' ')}`;
+				const mood = metadata?.mood || 'Unknown';
+				const activity = metadata?.activity_level?.replace('_', ' ') || 'unknown';
+				return `${mood} - ${activity}`;
 			default:
 				return event.notes || 'No details';
 		}

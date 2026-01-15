@@ -23,6 +23,8 @@
 	let stream;
 	let menuOpen = false;
 	let lastRecipientId = null;
+	let reconnectAttempts = 0;
+	let reconnectTimeout = null;
 
 	authStore.subscribe(value => {
 		user = value;
@@ -53,35 +55,54 @@
 		window.addEventListener('active-feed-changed', handleActiveFeedChanged);
 
 		const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
-		const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
-		const streamUrl = token ? `${API_BASE}/stream?token=${encodeURIComponent(token)}` : `${API_BASE}/stream`;
 
-		stream = new EventSource(streamUrl);
-		stream.onmessage = (event) => {
-			try {
-				const data = JSON.parse(event.data);
-				const recipientMatch = !data.recipient_id || data.recipient_id === $selectedRecipientId;
-				if (data.type?.startsWith('event.') && recipientMatch) {
-					if (eventListComponent) {
-						eventListComponent.refresh();
+		function connectStream() {
+			const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+			const streamUrl = token ? `${API_BASE}/stream?token=${encodeURIComponent(token)}` : `${API_BASE}/stream`;
+
+			stream = new EventSource(streamUrl);
+
+			stream.onopen = () => {
+				reconnectAttempts = 0; // Reset on successful connection
+			};
+
+			stream.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data);
+					const recipientMatch = !data.recipient_id || data.recipient_id === $selectedRecipientId;
+					if (data.type?.startsWith('event.') && recipientMatch) {
+						if (eventListComponent) {
+							eventListComponent.refresh();
+						}
+						loadActiveFeed();
 					}
-				}
-				if (data.type?.startsWith('feed.') && recipientMatch) {
-					loadActiveFeed();
-					if (eventListComponent) {
-						eventListComponent.refresh();
+					if (data.type?.startsWith('feed.') && recipientMatch) {
+						loadActiveFeed();
+						if (eventListComponent) {
+							eventListComponent.refresh();
+						}
 					}
+				} catch (error) {
+					console.error('Stream parse error:', error);
 				}
-			} catch (error) {
-				console.error('Stream parse error:', error);
-			}
-		};
-		stream.onerror = () => {
-			// Browser will retry automatically.
-		};
+			};
+
+			stream.onerror = () => {
+				stream.close();
+				// Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
+				const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+				reconnectAttempts++;
+				reconnectTimeout = setTimeout(connectStream, delay);
+			};
+		}
+
+		connectStream();
 
 		return () => {
 			window.removeEventListener('active-feed-changed', handleActiveFeedChanged);
+			if (reconnectTimeout) {
+				clearTimeout(reconnectTimeout);
+			}
 			if (stream) {
 				stream.close();
 			}

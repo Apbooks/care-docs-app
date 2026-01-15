@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from database import get_db
 from models.quick_medication import QuickMedication
@@ -160,7 +160,7 @@ async def update_quick_medication(
             )
         med.recipient_id = recipient.id
 
-    med.updated_at = datetime.utcnow()
+    med.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(med)
 
@@ -392,7 +392,7 @@ async def update_quick_feed(
             )
         feed.recipient_id = recipient.id
 
-    feed.updated_at = datetime.utcnow()
+    feed.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(feed)
 

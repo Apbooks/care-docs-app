@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, Request, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
@@ -72,6 +71,10 @@ class TokenResponse(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 # Helper function to get current user from token
@@ -282,7 +285,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_access_token(
     response: Response,
-    refresh_token: str,
+    request_body: RefreshRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -294,7 +297,7 @@ async def refresh_access_token(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    payload = decode_token(refresh_token)
+    payload = decode_token(request_body.refresh_token)
     if payload is None:
         raise credentials_exception
 

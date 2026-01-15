@@ -11,7 +11,6 @@ from routes import auth, events, setup, quick_templates, settings as settings_ro
 
 # Import pub/sub service
 from services import pubsub
-# from routes import photos, reminders, sync, reports
 
 # Import settings
 from config import get_settings
@@ -88,10 +87,6 @@ app.include_router(settings_routes.router, prefix="/api", tags=["settings"])
 app.include_router(feeds.router, prefix="/api", tags=["feeds"])
 app.include_router(stream.router, prefix="/api", tags=["stream"])
 app.include_router(recipients.router, prefix="/api", tags=["recipients"])
-# app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
-# app.include_router(reminders.router, prefix="/api/reminders", tags=["reminders"])
-# app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
-# app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 
 if __name__ == "__main__":
     import uvicorn

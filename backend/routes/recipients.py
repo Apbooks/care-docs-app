@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from database import get_db
 from models.care_recipient import CareRecipient
@@ -113,7 +113,7 @@ async def update_recipient(
     if updates.is_active is not None:
         recipient.is_active = updates.is_active
 
-    recipient.updated_at = datetime.utcnow()
+    recipient.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(recipient)
 

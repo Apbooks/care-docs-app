@@ -15,27 +15,54 @@ function setStoredToken(key, value) {
 	}
 }
 
+// Prevent duplicate refresh attempts with a promise lock
+let refreshPromise = null;
+
 async function attemptTokenRefresh() {
+	// If a refresh is already in progress, wait for it
+	if (refreshPromise) {
+		return refreshPromise;
+	}
+
 	const refreshToken = getStoredToken('refresh_token');
 	if (!refreshToken) return null;
 
-	const response = await fetch(`${API_BASE}/auth/refresh`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({ refresh_token: refreshToken }),
-		credentials: 'include'
-	});
+	// Create a new refresh promise
+	refreshPromise = (async () => {
+		try {
+			const response = await fetch(`${API_BASE}/auth/refresh`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ refresh_token: refreshToken }),
+				credentials: 'include'
+			});
 
-	if (!response.ok) {
-		return null;
-	}
+			if (!response.ok) {
+				return null;
+			}
 
-	const data = await response.json();
-	setStoredToken('access_token', data?.access_token);
-	setStoredToken('refresh_token', data?.refresh_token);
-	return data;
+			const data = await response.json();
+
+			// Validate response before storing
+			if (!data?.access_token) {
+				console.warn('Invalid refresh response: missing access_token');
+				return null;
+			}
+
+			setStoredToken('access_token', data.access_token);
+			if (data.refresh_token) {
+				setStoredToken('refresh_token', data.refresh_token);
+			}
+			return data;
+		} finally {
+			// Clear the promise lock when done
+			refreshPromise = null;
+		}
+	})();
+
+	return refreshPromise;
 }
 
 export async function refreshSession() {

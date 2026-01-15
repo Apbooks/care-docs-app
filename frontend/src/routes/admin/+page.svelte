@@ -1,6 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { authStore, isAdmin } from '$lib/stores/auth';
 	import {
 		apiRequest,
@@ -94,8 +95,9 @@
 	});
 
 	onMount(async () => {
-		// Redirect if not admin
-		if (!userIsAdmin) {
+		// Check admin status synchronously using get() to avoid race condition
+		const auth = get(authStore);
+		if (!auth || auth.role !== 'admin') {
 			goto('/');
 			return;
 		}
