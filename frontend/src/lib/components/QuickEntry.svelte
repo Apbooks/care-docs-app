@@ -835,21 +835,16 @@
 							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Type
 							</label>
-							<div class="grid grid-cols-2 gap-2">
+							<div class="grid grid-cols-3 gap-2">
 								{#each [
 									{ value: 'wet', label: 'Wet', icon: '💧' },
 									{ value: 'dirty', label: 'Dirty', icon: '💩' },
-									{ value: 'both', label: 'Both', icon: '💧💩' },
-									{ value: 'dry', label: 'Dry', icon: '✨' }
+									{ value: 'both', label: 'Both', icon: '💧💩' }
 								] as opt}
 									<button
 										type="button"
 										on:click={() => {
 											condition = opt.value;
-											if (opt.value === 'dry') {
-												diaperSize = '';
-												diaperConsistency = '';
-											}
 											if (opt.value === 'wet') {
 												diaperConsistency = '';
 											}

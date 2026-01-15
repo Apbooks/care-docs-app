@@ -483,22 +483,18 @@
 						<!-- Condition Buttons -->
 						<div>
 							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Type</label>
-							<div class="grid grid-cols-4 gap-2">
+							<div class="grid grid-cols-3 gap-2">
 								{#each [
 									{ value: 'wet', label: '💧 Wet' },
 									{ value: 'dirty', label: '💩 Dirty' },
-									{ value: 'both', label: '💧💩 Both' },
-									{ value: 'dry', label: '✨ Dry' }
+									{ value: 'both', label: '💧💩 Both' }
 								] as opt}
 									<button
 										type="button"
 										on:click={() => {
 											editEvent.metadata.condition = opt.value;
-											if (opt.value === 'dry' || opt.value === 'wet') {
+											if (opt.value === 'wet') {
 												editEvent.metadata.consistency = null;
-											}
-											if (opt.value === 'dry') {
-												editEvent.metadata.size = null;
 											}
 										}}
 										class="px-3 py-2 rounded-lg text-sm font-medium transition-all
