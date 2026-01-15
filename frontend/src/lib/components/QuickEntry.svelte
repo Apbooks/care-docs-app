@@ -47,6 +47,8 @@
 	let rash = false;
 	let skinNotes = '';
 	let diaperSize = '';
+	let wetSize = '';
+	let dirtySize = '';
 	let diaperConsistency = '';
 
 	// Demeanor specific
@@ -169,6 +171,8 @@
 		rash = false;
 		skinNotes = '';
 		diaperSize = '';
+		wetSize = '';
+		dirtySize = '';
 		diaperConsistency = '';
 		mood = 'neutral';
 		activityLevel = 'moderate';
@@ -361,13 +365,24 @@
 					}
 					break;
 				case 'diaper':
-					metadata = {
-						condition: condition,
-						size: diaperSize || null,
-						consistency: diaperConsistency || null,
-						rash: rash,
-						skin_notes: skinNotes
-					};
+					if (condition === 'both') {
+						metadata = {
+							condition: condition,
+							wet_size: wetSize || null,
+							dirty_size: dirtySize || null,
+							consistency: diaperConsistency || null,
+							rash: rash,
+							skin_notes: skinNotes
+						};
+					} else {
+						metadata = {
+							condition: condition,
+							size: diaperSize || null,
+							consistency: diaperConsistency || null,
+							rash: rash,
+							skin_notes: skinNotes
+						};
+					}
 					break;
 				case 'demeanor':
 					metadata = {
@@ -844,9 +859,20 @@
 									<button
 										type="button"
 										on:click={() => {
+											const prevCondition = condition;
 											condition = opt.value;
 											if (opt.value === 'wet') {
 												diaperConsistency = '';
+											}
+											// Clear size fields when switching between both and wet/dirty
+											if (opt.value === 'both' && prevCondition !== 'both') {
+												wetSize = '';
+												dirtySize = '';
+												diaperSize = '';
+											} else if (opt.value !== 'both' && prevCondition === 'both') {
+												diaperSize = '';
+												wetSize = '';
+												dirtySize = '';
 											}
 										}}
 										class="px-4 py-3 rounded-xl text-base font-medium transition-all
@@ -860,8 +886,8 @@
 							</div>
 						</div>
 
-						<!-- Size Selection - Show for wet, dirty, or both -->
-						{#if condition === 'wet' || condition === 'dirty' || condition === 'both'}
+						<!-- Size Selection - Show for wet or dirty (single size) -->
+						{#if condition === 'wet' || condition === 'dirty'}
 							<div>
 								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Size
@@ -874,6 +900,48 @@
 											class="px-4 py-3 rounded-xl text-base font-medium capitalize transition-all
 												{diaperSize === size
 													? 'bg-yellow-500 text-white ring-2 ring-yellow-600'
+													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+										>
+											{size}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						<!-- Separate Wet and Dirty Size Selection - Show for both -->
+						{#if condition === 'both'}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									💧 Wet Size
+								</label>
+								<div class="grid grid-cols-3 gap-2">
+									{#each ['small', 'medium', 'large'] as size}
+										<button
+											type="button"
+											on:click={() => wetSize = size}
+											class="px-4 py-3 rounded-xl text-base font-medium capitalize transition-all
+												{wetSize === size
+													? 'bg-blue-500 text-white ring-2 ring-blue-600'
+													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+										>
+											{size}
+										</button>
+									{/each}
+								</div>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									💩 Dirty Size
+								</label>
+								<div class="grid grid-cols-3 gap-2">
+									{#each ['small', 'medium', 'large'] as size}
+										<button
+											type="button"
+											on:click={() => dirtySize = size}
+											class="px-4 py-3 rounded-xl text-base font-medium capitalize transition-all
+												{dirtySize === size
+													? 'bg-amber-600 text-white ring-2 ring-amber-700'
 													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
 										>
 											{size}

@@ -121,7 +121,12 @@
 			case 'diaper':
 				let diaperParts = [];
 				if (metadata?.condition) diaperParts.push(metadata.condition);
-				if (metadata?.size) diaperParts.push(metadata.size);
+				if (metadata?.condition === 'both') {
+					if (metadata?.wet_size) diaperParts.push(`wet: ${metadata.wet_size}`);
+					if (metadata?.dirty_size) diaperParts.push(`dirty: ${metadata.dirty_size}`);
+				} else {
+					if (metadata?.size) diaperParts.push(metadata.size);
+				}
 				if (metadata?.consistency) diaperParts.push(metadata.consistency);
 				if (metadata?.rash) diaperParts.push('rash present');
 				let diaperDesc = diaperParts.join(', ') || 'Unknown';
@@ -492,9 +497,20 @@
 									<button
 										type="button"
 										on:click={() => {
+											const prevCondition = editEvent.metadata.condition;
 											editEvent.metadata.condition = opt.value;
 											if (opt.value === 'wet') {
 												editEvent.metadata.consistency = null;
+											}
+											// Clear size fields when switching between both and wet/dirty
+											if (opt.value === 'both' && prevCondition !== 'both') {
+												editEvent.metadata.wet_size = null;
+												editEvent.metadata.dirty_size = null;
+												editEvent.metadata.size = null;
+											} else if (opt.value !== 'both' && prevCondition === 'both') {
+												editEvent.metadata.size = null;
+												editEvent.metadata.wet_size = null;
+												editEvent.metadata.dirty_size = null;
 											}
 										}}
 										class="px-3 py-2 rounded-lg text-sm font-medium transition-all
@@ -508,8 +524,8 @@
 							</div>
 						</div>
 
-						<!-- Size Buttons - show for wet, dirty, both -->
-						{#if ['wet', 'dirty', 'both'].includes(editEvent.metadata.condition)}
+						<!-- Size Buttons - show for wet or dirty (single size) -->
+						{#if ['wet', 'dirty'].includes(editEvent.metadata.condition)}
 							<div>
 								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Size</label>
 								<div class="grid grid-cols-3 gap-2">
@@ -520,6 +536,44 @@
 											class="px-3 py-2 rounded-lg text-sm font-medium capitalize transition-all
 												{editEvent.metadata.size === size
 													? 'bg-yellow-500 text-white'
+													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+										>
+											{size}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						<!-- Separate Wet and Dirty Size - show for both -->
+						{#if editEvent.metadata.condition === 'both'}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">💧 Wet Size</label>
+								<div class="grid grid-cols-3 gap-2">
+									{#each ['small', 'medium', 'large'] as size}
+										<button
+											type="button"
+											on:click={() => editEvent.metadata.wet_size = size}
+											class="px-3 py-2 rounded-lg text-sm font-medium capitalize transition-all
+												{editEvent.metadata.wet_size === size
+													? 'bg-blue-500 text-white'
+													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+										>
+											{size}
+										</button>
+									{/each}
+								</div>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">💩 Dirty Size</label>
+								<div class="grid grid-cols-3 gap-2">
+									{#each ['small', 'medium', 'large'] as size}
+										<button
+											type="button"
+											on:click={() => editEvent.metadata.dirty_size = size}
+											class="px-3 py-2 rounded-lg text-sm font-medium capitalize transition-all
+												{editEvent.metadata.dirty_size === size
+													? 'bg-amber-600 text-white'
 													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
 										>
 											{size}
