@@ -194,7 +194,10 @@ async def stop_continuous_feed(
         logger.error(f"Invalid feed start time in active_feed: {e}")
         started_at = stop_time  # Fallback to 0 duration
 
-    duration_ms = max(0, (stop_time - started_at.replace(tzinfo=None)).total_seconds() * 1000)
+    # Ensure both datetimes are UTC-aware for proper comparison
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=timezone.utc)
+    duration_ms = max(0, (stop_time - started_at).total_seconds() * 1000)
     duration_min_value = max(0, round(duration_ms / 60000))
     duration_hr = duration_ms / 3600000
 
