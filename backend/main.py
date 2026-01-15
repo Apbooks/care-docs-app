@@ -8,6 +8,9 @@ from database import init_db
 
 # Import routes
 from routes import auth, events, setup, quick_templates, settings as settings_routes, feeds, stream, recipients
+
+# Import pub/sub service
+from services import pubsub
 # from routes import photos, reminders, sync, reports
 
 # Import settings
@@ -36,11 +39,20 @@ os.makedirs("photos", exist_ok=True)
 # Mount static files for photos
 app.mount("/photos", StaticFiles(directory="photos"), name="photos")
 
-# Initialize database tables
+# Initialize database tables and start pub/sub listener
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on application startup"""
+    """Initialize database and start pub/sub listener on application startup"""
     init_db()
+    # Register local broadcast handler and start listening for cross-worker events
+    pubsub.register_handler(stream.local_broadcast)
+    await pubsub.start_listener()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up pub/sub listener on application shutdown"""
+    await pubsub.stop_listener()
 
 # Health check endpoint
 @app.get("/api/health")

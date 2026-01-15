@@ -10,11 +10,24 @@ from database import get_db
 from models.user import User
 from routes.auth import get_token_from_request
 from services.auth_service import decode_token, verify_token_type
+from services import pubsub
 
 router = APIRouter()
 
 _subscribers: Set[asyncio.Queue] = set()
 _lock = asyncio.Lock()
+
+
+async def local_broadcast(payload: Dict[str, Any]) -> None:
+    """Broadcast to this worker's local SSE subscribers only."""
+    async with _lock:
+        queues = list(_subscribers)
+
+    for queue in queues:
+        try:
+            queue.put_nowait(payload)
+        except asyncio.QueueFull:
+            pass
 
 
 async def _get_current_user_from_stream(
@@ -50,14 +63,8 @@ async def _get_current_user_from_stream(
 
 
 async def broadcast_event(payload: Dict[str, Any]) -> None:
-    async with _lock:
-        queues = list(_subscribers)
-
-    for queue in queues:
-        try:
-            queue.put_nowait(payload)
-        except asyncio.QueueFull:
-            pass
+    """Publish event to all workers via PostgreSQL NOTIFY."""
+    await pubsub.publish(payload)
 
 
 @router.get("/stream")
