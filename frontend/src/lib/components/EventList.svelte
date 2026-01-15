@@ -119,9 +119,13 @@
 					return parts.join(' · ') || 'Bolus feeding';
 				}
 			case 'diaper':
-				let desc = `${metadata?.condition || 'Unknown'}`;
-				if (metadata?.rash) desc += ', rash present';
-				return desc.charAt(0).toUpperCase() + desc.slice(1);
+				let diaperParts = [];
+				if (metadata?.condition) diaperParts.push(metadata.condition);
+				if (metadata?.size) diaperParts.push(metadata.size);
+				if (metadata?.consistency) diaperParts.push(metadata.consistency);
+				if (metadata?.rash) diaperParts.push('rash present');
+				let diaperDesc = diaperParts.join(', ') || 'Unknown';
+				return diaperDesc.charAt(0).toUpperCase() + diaperDesc.slice(1);
 			case 'demeanor':
 				const mood = metadata?.mood || 'Unknown';
 				const activity = metadata?.activity_level?.replace('_', ' ') || 'unknown';
@@ -475,15 +479,87 @@
 						{/if}
 					</div>
 				{:else if editEvent.type === 'diaper'}
-					<div class="grid gap-3 sm:grid-cols-2">
+					<div class="space-y-4">
+						<!-- Condition Buttons -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Condition</label>
-							<input
-								type="text"
-								bind:value={editEvent.metadata.condition}
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-							/>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Type</label>
+							<div class="grid grid-cols-4 gap-2">
+								{#each [
+									{ value: 'wet', label: '💧 Wet' },
+									{ value: 'dirty', label: '💩 Dirty' },
+									{ value: 'both', label: '💧💩 Both' },
+									{ value: 'dry', label: '✨ Dry' }
+								] as opt}
+									<button
+										type="button"
+										on:click={() => {
+											editEvent.metadata.condition = opt.value;
+											if (opt.value === 'dry' || opt.value === 'wet') {
+												editEvent.metadata.consistency = null;
+											}
+											if (opt.value === 'dry') {
+												editEvent.metadata.size = null;
+											}
+										}}
+										class="px-3 py-2 rounded-lg text-sm font-medium transition-all
+											{editEvent.metadata.condition === opt.value
+												? 'bg-yellow-500 text-white'
+												: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+									>
+										{opt.label}
+									</button>
+								{/each}
+							</div>
 						</div>
+
+						<!-- Size Buttons - show for wet, dirty, both -->
+						{#if ['wet', 'dirty', 'both'].includes(editEvent.metadata.condition)}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Size</label>
+								<div class="grid grid-cols-3 gap-2">
+									{#each ['small', 'medium', 'large'] as size}
+										<button
+											type="button"
+											on:click={() => editEvent.metadata.size = size}
+											class="px-3 py-2 rounded-lg text-sm font-medium capitalize transition-all
+												{editEvent.metadata.size === size
+													? 'bg-yellow-500 text-white'
+													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+										>
+											{size}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						<!-- Consistency Buttons - show for dirty, both -->
+						{#if ['dirty', 'both'].includes(editEvent.metadata.condition)}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Consistency</label>
+								<div class="grid grid-cols-2 gap-2">
+									{#each [
+										{ value: 'loose', label: 'Loose' },
+										{ value: 'semi-firm', label: 'Semi-firm' },
+										{ value: 'firm', label: 'Firm' },
+										{ value: 'good', label: 'Good' }
+									] as opt}
+										<button
+											type="button"
+											on:click={() => editEvent.metadata.consistency = opt.value}
+											class="px-3 py-2 rounded-lg text-sm font-medium transition-all
+												{editEvent.metadata.consistency === opt.value
+													? 'bg-yellow-500 text-white'
+													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+										>
+											{opt.label}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						<!-- Rash and Skin Notes -->
 						<div class="flex items-center gap-3">
 							<input
 								type="checkbox"
@@ -492,12 +568,12 @@
 							/>
 							<label class="text-sm font-medium text-gray-700 dark:text-slate-300">Rash present</label>
 						</div>
-						<div class="sm:col-span-2">
+						<div>
 							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Skin Notes</label>
 							<input
 								type="text"
 								bind:value={editEvent.metadata.skin_notes}
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+								class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl text-base"
 							/>
 						</div>
 					</div>

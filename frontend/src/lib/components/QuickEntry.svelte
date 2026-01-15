@@ -43,9 +43,11 @@
 	let activeContinuousFeed = null;
 
 	// Diaper specific
-	let condition = 'wet';
+	let condition = '';
 	let rash = false;
 	let skinNotes = '';
+	let diaperSize = '';
+	let diaperConsistency = '';
 
 	// Demeanor specific
 	let mood = 'neutral';
@@ -163,9 +165,11 @@
 		feedInterval = '';
 		oralNotes = '';
 		pumpTotal = '';
-		condition = 'wet';
+		condition = '';
 		rash = false;
 		skinNotes = '';
+		diaperSize = '';
+		diaperConsistency = '';
 		mood = 'neutral';
 		activityLevel = 'moderate';
 		concerns = '';
@@ -359,6 +363,8 @@
 				case 'diaper':
 					metadata = {
 						condition: condition,
+						size: diaperSize || null,
+						consistency: diaperConsistency || null,
 						rash: rash,
 						skin_notes: skinNotes
 					};
@@ -824,20 +830,91 @@
 				{:else if step === 'diaper'}
 					<!-- Diaper Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
+						<!-- Type Selection - Buttons -->
 						<div>
 							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-								Condition
+								Type
 							</label>
-							<select
-								bind:value={condition}
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 text-base"
-							>
-								<option value="wet">Wet</option>
-								<option value="dirty">Dirty</option>
-								<option value="both">Both</option>
-								<option value="dry">Dry (preventive change)</option>
-							</select>
+							<div class="grid grid-cols-2 gap-2">
+								{#each [
+									{ value: 'wet', label: 'Wet', icon: '💧' },
+									{ value: 'dirty', label: 'Dirty', icon: '💩' },
+									{ value: 'both', label: 'Both', icon: '💧💩' },
+									{ value: 'dry', label: 'Dry', icon: '✨' }
+								] as opt}
+									<button
+										type="button"
+										on:click={() => {
+											condition = opt.value;
+											if (opt.value === 'dry') {
+												diaperSize = '';
+												diaperConsistency = '';
+											}
+											if (opt.value === 'wet') {
+												diaperConsistency = '';
+											}
+										}}
+										class="px-4 py-3 rounded-xl text-base font-medium transition-all
+											{condition === opt.value
+												? 'bg-yellow-500 text-white ring-2 ring-yellow-600'
+												: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+									>
+										{opt.icon} {opt.label}
+									</button>
+								{/each}
+							</div>
 						</div>
+
+						<!-- Size Selection - Show for wet, dirty, or both -->
+						{#if condition === 'wet' || condition === 'dirty' || condition === 'both'}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									Size
+								</label>
+								<div class="grid grid-cols-3 gap-2">
+									{#each ['small', 'medium', 'large'] as size}
+										<button
+											type="button"
+											on:click={() => diaperSize = size}
+											class="px-4 py-3 rounded-xl text-base font-medium capitalize transition-all
+												{diaperSize === size
+													? 'bg-yellow-500 text-white ring-2 ring-yellow-600'
+													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+										>
+											{size}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						<!-- Consistency Selection - Show only for dirty or both -->
+						{#if condition === 'dirty' || condition === 'both'}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									Consistency
+								</label>
+								<div class="grid grid-cols-2 gap-2">
+									{#each [
+										{ value: 'loose', label: 'Loose' },
+										{ value: 'semi-firm', label: 'Semi-firm' },
+										{ value: 'firm', label: 'Firm' },
+										{ value: 'good', label: 'Good' }
+									] as opt}
+										<button
+											type="button"
+											on:click={() => diaperConsistency = opt.value}
+											class="px-4 py-3 rounded-xl text-base font-medium transition-all
+												{diaperConsistency === opt.value
+													? 'bg-yellow-500 text-white ring-2 ring-yellow-600'
+													: 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}"
+										>
+											{opt.label}
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
 
 						<div>
 							<label class="flex items-center gap-3">
@@ -857,7 +934,7 @@
 							<textarea
 								bind:value={skinNotes}
 								rows="2"
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 text-base"
+								class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-yellow-500 text-base"
 								placeholder="Describe skin condition..."
 							></textarea>
 						</div>
@@ -869,7 +946,7 @@
 							<textarea
 								bind:value={notes}
 								rows="2"
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 text-base"
+								class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-yellow-500 text-base"
 								placeholder="Any additional notes..."
 							></textarea>
 						</div>
@@ -878,14 +955,14 @@
 							<button
 								type="button"
 								on:click={back}
-								class="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 text-base hover:bg-gray-50"
+								class="flex-1 px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl text-gray-700 dark:text-slate-300 text-base hover:bg-gray-50 dark:hover:bg-slate-700"
 							>
 								Back
 							</button>
 							<button
 								type="submit"
-								disabled={loading}
-								class="flex-1 px-4 py-3 bg-yellow-600 text-white rounded-xl text-base hover:bg-yellow-700 disabled:bg-yellow-400"
+								disabled={loading || !condition}
+								class="flex-1 px-4 py-3 bg-yellow-600 text-white rounded-xl text-base hover:bg-yellow-700 disabled:bg-yellow-400 disabled:cursor-not-allowed"
 							>
 								{loading ? 'Saving...' : 'Save Entry'}
 							</button>
