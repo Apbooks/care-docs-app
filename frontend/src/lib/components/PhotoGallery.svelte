@@ -17,13 +17,18 @@
 	// Get full image URL
 	function getPhotoUrl(photo) {
 		const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '';
-		return `${API_BASE}${photo.url}`;
+		const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
+		if (photo.url && /^https?:\/\//i.test(photo.url)) return photo.url;
+		return `${API_ORIGIN || API_BASE}${photo.url}`;
 	}
 
 	// Get thumbnail URL
 	function getThumbnailUrl(photo) {
 		const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '';
-		return `${API_BASE}${photo.thumbnail_url || photo.url}`;
+		const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
+		const rawUrl = photo.thumbnail_url || photo.url;
+		if (rawUrl && /^https?:\/\//i.test(rawUrl)) return rawUrl;
+		return `${API_ORIGIN || API_BASE}${rawUrl}`;
 	}
 
 	// Open lightbox
