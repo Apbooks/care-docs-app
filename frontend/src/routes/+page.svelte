@@ -4,7 +4,7 @@
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-	import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed } from '$lib/services/api';
+	import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -58,7 +58,12 @@
 
 		const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
 
-		function connectStream() {
+		async function connectStream() {
+			try {
+				await refreshSession();
+			} catch (error) {
+				// Token refresh is best-effort; stream can still connect without it.
+			}
 			const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
 			const streamUrl = token ? `${API_BASE}/stream?token=${encodeURIComponent(token)}` : `${API_BASE}/stream`;
 
