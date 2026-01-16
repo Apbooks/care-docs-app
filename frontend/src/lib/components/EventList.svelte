@@ -1,8 +1,9 @@
 <script>
 	import { onMount } from 'svelte';
-	import { getEvents, getEvent, updateEvent, deleteEvent } from '$lib/services/api';
+	import { getEvents, getEvent, updateEvent, deleteEvent, getEventPhotos, deletePhoto } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
 	import { recipients } from '$lib/stores/recipients';
+	import PhotoGallery from './PhotoGallery.svelte';
 
 	export let limit = 10;
 	export let type = null;
@@ -19,6 +20,11 @@
 	let lastRecipientId = null;
 	let hasMore = true;
 	let loadingMore = false;
+
+	// Photo state
+	let eventPhotos = [];
+	let loadingPhotos = false;
+	let photosError = '';
 
 	onMount(() => {
 		loadEvents();
@@ -173,8 +179,10 @@
 		return local.toISOString().slice(0, 16);
 	}
 
-	function startEdit(event) {
+	async function startEdit(event) {
 		editError = '';
+		photosError = '';
+		eventPhotos = [];
 		const metadata = JSON.parse(JSON.stringify(event.metadata || {}));
 		if (event.type === 'feeding' && !metadata.mode) {
 			metadata.mode = 'bolus';
@@ -190,11 +198,40 @@
 			recipient_id: event.recipient_id || null,
 			metadata
 		};
+
+		// Load photos for this event
+		loadEventPhotos(event.id);
+	}
+
+	async function loadEventPhotos(eventId) {
+		if (!eventId || eventId.startsWith('temp_')) return;
+		loadingPhotos = true;
+		photosError = '';
+		try {
+			eventPhotos = await getEventPhotos(eventId);
+		} catch (err) {
+			photosError = err.message || 'Failed to load photos';
+			eventPhotos = [];
+		} finally {
+			loadingPhotos = false;
+		}
+	}
+
+	async function handlePhotoDelete(event) {
+		const photo = event.detail;
+		try {
+			await deletePhoto(photo.id);
+			eventPhotos = eventPhotos.filter(p => p.id !== photo.id);
+		} catch (err) {
+			photosError = err.message || 'Failed to delete photo';
+		}
 	}
 
 	function closeEdit() {
 		editEvent = null;
 		editError = '';
+		eventPhotos = [];
+		photosError = '';
 	}
 
 	async function saveEdit() {
@@ -711,6 +748,22 @@
 						bind:value={editEvent.notes}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 					></textarea>
+				</div>
+
+				<!-- Photos Section -->
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Photos</label>
+					{#if loadingPhotos}
+						<div class="flex items-center justify-center py-4">
+							<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+						</div>
+					{:else if photosError}
+						<p class="text-sm text-red-600 dark:text-red-400">{photosError}</p>
+					{:else if eventPhotos.length > 0}
+						<PhotoGallery photos={eventPhotos} on:delete={handlePhotoDelete} />
+					{:else}
+						<p class="text-sm text-gray-500 dark:text-slate-400 italic">No photos attached</p>
+					{/if}
 				</div>
 			</div>
 			<div class="flex flex-wrap items-center justify-between gap-3 p-6 border-t border-gray-200 dark:border-slate-800">

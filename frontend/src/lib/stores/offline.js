@@ -18,6 +18,12 @@ const cacheStore = browser ? localforage.createInstance({
 	storeName: 'cache'
 }) : null;
 
+// Photo queue for offline uploads
+const photoQueueStore = browser ? localforage.createInstance({
+	name: 'care-docs',
+	storeName: 'photo_queue'
+}) : null;
+
 // Sync status: 'synced' | 'pending' | 'syncing' | 'error' | 'offline'
 export const syncStatus = writable('synced');
 
@@ -282,6 +288,11 @@ export async function syncPendingEvents() {
 	await updatePendingCount();
 	lastSyncTime.set(new Date().toISOString());
 
+	// Also sync pending photos after events are synced
+	await syncPendingPhotos();
+
+	await updatePendingCount();
+
 	if (errorCount > 0 && successCount === 0) {
 		syncStatus.set('error');
 	} else if (get(pendingCount) > 0) {
@@ -304,3 +315,123 @@ export const syncStatusText = derived(
 		return 'Synced';
 	}
 );
+
+// ============================================================================
+// PHOTO QUEUE FUNCTIONS
+// ============================================================================
+
+/**
+ * Queue a photo for upload when online
+ * @param {string} eventId - The event ID (can be temp ID for offline events)
+ * @param {Blob} blob - The image blob
+ * @param {string} filename - Original filename
+ * @returns {Promise<string>} Queue item ID
+ */
+export async function queuePhoto(eventId, blob, filename) {
+	if (!photoQueueStore) return null;
+
+	const id = generateTempId();
+	const queueItem = {
+		id,
+		eventId,
+		filename,
+		blob,
+		timestamp: new Date().toISOString(),
+		retries: 0
+	};
+
+	await photoQueueStore.setItem(id, queueItem);
+	await updatePendingCount();
+
+	return id;
+}
+
+/**
+ * Get all pending photos from the queue
+ */
+export async function getPendingPhotos() {
+	if (!photoQueueStore) return [];
+
+	const photos = [];
+	await photoQueueStore.iterate((value) => {
+		photos.push(value);
+	});
+
+	return photos.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
+/**
+ * Remove a photo from the queue
+ */
+export async function removePhotoFromQueue(id) {
+	if (!photoQueueStore) return;
+	await photoQueueStore.removeItem(id);
+	await updatePendingCount();
+}
+
+/**
+ * Update event ID for queued photos (when temp event ID is replaced with real ID)
+ */
+export async function updatePhotoEventId(tempEventId, realEventId) {
+	if (!photoQueueStore) return;
+
+	const photos = await getPendingPhotos();
+	for (const photo of photos) {
+		if (photo.eventId === tempEventId) {
+			photo.eventId = realEventId;
+			await photoQueueStore.setItem(photo.id, photo);
+		}
+	}
+}
+
+/**
+ * Upload pending photos
+ * Called after sync or when coming online
+ */
+export async function syncPendingPhotos() {
+	if (!browser || !get(isOnline)) return;
+
+	const pendingPhotos = await getPendingPhotos();
+	if (pendingPhotos.length === 0) return;
+
+	// Import api dynamically
+	const { uploadPhoto } = await import('../services/api.js');
+
+	for (const photo of pendingPhotos) {
+		// Skip if event ID is still a temp ID (event hasn't synced yet)
+		if (photo.eventId.startsWith('temp_')) {
+			continue;
+		}
+
+		try {
+			// Create a File from the blob
+			const file = new File([photo.blob], photo.filename, { type: 'image/jpeg' });
+			await uploadPhoto(photo.eventId, file);
+			await removePhotoFromQueue(photo.id);
+		} catch (error) {
+			console.error('Failed to upload photo:', photo, error);
+
+			photo.retries = (photo.retries || 0) + 1;
+			if (photo.retries >= 5) {
+				console.warn('Removing photo after 5 failed retries:', photo);
+				await removePhotoFromQueue(photo.id);
+			} else {
+				await photoQueueStore.setItem(photo.id, photo);
+			}
+		}
+	}
+}
+
+/**
+ * Get count of pending photos for an event
+ */
+export async function getPendingPhotoCount(eventId) {
+	if (!photoQueueStore) return 0;
+
+	let count = 0;
+	await photoQueueStore.iterate((value) => {
+		if (value.eventId === eventId) count++;
+	});
+
+	return count;
+}

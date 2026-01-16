@@ -293,15 +293,15 @@
 - [x] Conflict resolution
 - [x] Sync status indicator
 
-#### 4. Photo Attachments
-- [ ] Camera access
-- [ ] Client-side compression
-- [ ] IndexedDB blob storage
-- [ ] Upload endpoint
-- [ ] Server-side thumbnail generation
-- [ ] Photo gallery component
-- [ ] Lazy loading
-- [ ] Offline photo queue
+#### 4. Photo Attachments ✓
+- [x] Camera access
+- [x] Client-side compression
+- [x] IndexedDB blob storage
+- [x] Upload endpoint
+- [x] Server-side thumbnail generation
+- [x] Photo gallery component
+- [x] Lazy loading
+- [x] Offline photo queue
 
 #### 5. Historical View & Reports
 - [x] Timeline view (history list)
@@ -332,8 +332,8 @@
 - [x] events
 - [x] quick_medications
 - [x] quick_feeds
-- [ ] care_recipients
-- [ ] photos
+- [x] care_recipients
+- [x] photos
 - [ ] reminders
 - [ ] push_subscriptions
 
@@ -617,7 +617,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-16 (Phase 6: Offline-First Architecture)
+**Last Updated:** 2026-01-16 (Phase 7: Photo Attachments)
 
 ---
 
@@ -690,6 +690,57 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 - `frontend/static/icon.svg` - PWA icon
 - `frontend/static/favicon.svg` - Favicon
 - `frontend/src/app.html` - Updated icon references
+
+---
+
+### 2026-01-16 - Phase 7: Photo Attachments Complete ✓
+
+#### Photo Attachments Implementation
+- [x] Created Photo model with UUID, event relationship, and metadata
+- [x] Built image processing service with:
+  - EXIF GPS stripping for privacy
+  - Automatic image compression (target 500KB)
+  - Thumbnail generation (200x200)
+  - MIME type validation
+  - Orientation correction from EXIF data
+- [x] Created photo API endpoints:
+  - POST /api/photos/ - Upload photo with multipart form
+  - GET /api/photos/event/{event_id} - List photos for event
+  - GET /api/photos/{photo_id} - Get single photo
+  - DELETE /api/photos/{photo_id} - Delete photo
+  - GET /api/photos/count/{event_id} - Get photo count for event
+- [x] Built PhotoCapture component with:
+  - Camera capture via native input
+  - Gallery picker for existing photos
+  - Client-side compression using Canvas API
+  - Preview with file size display
+  - Progress indicator during compression
+- [x] Built PhotoGallery component with:
+  - Thumbnail grid display
+  - Lightbox for full-size viewing
+  - Keyboard navigation (arrow keys, escape)
+  - Delete with confirmation
+- [x] Integrated photo capture into QuickEntry (observation and diaper forms)
+- [x] Integrated photo gallery into EventList edit modal
+- [x] Added offline photo queue:
+  - Queue photos for upload when offline
+  - Auto-sync when connection restored
+  - Handle temp event ID mapping after event sync
+
+#### Files Added
+- `backend/models/photo.py` - Photo SQLAlchemy model
+- `backend/routes/photos.py` - Photo CRUD endpoints
+- `backend/services/image_service.py` - Image processing service
+- `frontend/src/lib/components/PhotoCapture.svelte` - Camera/file capture UI
+- `frontend/src/lib/components/PhotoGallery.svelte` - Photo display grid
+
+#### Files Modified
+- `backend/models/__init__.py` - Added Photo export
+- `backend/main.py` - Registered photos router
+- `frontend/src/lib/stores/offline.js` - Added photo queue functions
+- `frontend/src/lib/services/api.js` - Added photo API functions
+- `frontend/src/lib/components/QuickEntry.svelte` - Added PhotoCapture integration
+- `frontend/src/lib/components/EventList.svelte` - Added PhotoGallery integration
 
 ---
 

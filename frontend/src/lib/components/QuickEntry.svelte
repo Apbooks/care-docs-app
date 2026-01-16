@@ -1,8 +1,10 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed } from '$lib/services/api';
+	import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed, uploadPhoto } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
 	import { selectedRecipientId } from '$lib/stores/recipients';
+	import { isOnline, queuePhoto } from '$lib/stores/offline';
+	import PhotoCapture from './PhotoCapture.svelte';
 
 	export let show = false;
 
@@ -11,6 +13,11 @@
 	let step = 'select'; // 'select' or event type
 	let loading = false;
 	let error = '';
+
+	// Photo state
+	let selectedPhoto = null;
+	let photoPreviewUrl = null;
+	let uploadingPhoto = false;
 
 	let quickLoading = false;
 	let quickError = '';
@@ -149,6 +156,21 @@
 		quickNote = '';
 	}
 
+	function resetPhoto() {
+		selectedPhoto = null;
+		photoPreviewUrl = null;
+		uploadingPhoto = false;
+	}
+
+	function handlePhotoSelect(event) {
+		selectedPhoto = event.detail.file;
+		photoPreviewUrl = event.detail.previewUrl;
+	}
+
+	function handlePhotoRemove() {
+		resetPhoto();
+	}
+
 	function reset() {
 		step = 'select';
 		selectedType = '';
@@ -178,6 +200,7 @@
 		activityLevel = 'moderate';
 		concerns = '';
 		resetQuickNote();
+		resetPhoto();
 	}
 
 	function formatRunningTime(value) {
@@ -404,6 +427,26 @@
 				notes: notes || null,
 				metadata: metadata
 			});
+
+			// Upload photo if one was selected
+			if (selectedPhoto && newEvent?.id) {
+				uploadingPhoto = true;
+				try {
+					if ($isOnline && !newEvent._offline) {
+						// Online: upload directly
+						await uploadPhoto(newEvent.id, selectedPhoto);
+					} else {
+						// Offline: queue for later
+						await queuePhoto(newEvent.id, selectedPhoto, selectedPhoto.name);
+					}
+				} catch (photoErr) {
+					console.error('Photo upload failed:', photoErr);
+					// Don't fail the whole operation for photo upload failure
+					// The event was already created
+				} finally {
+					uploadingPhoto = false;
+				}
+			}
 
 			// Dispatch success event
 			dispatch('eventCreated', newEvent);
@@ -1014,6 +1057,18 @@
 							></textarea>
 						</div>
 
+						<!-- Photo Capture - useful for documenting rashes -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								Add Photo (Optional)
+							</label>
+							<PhotoCapture
+								on:select={handlePhotoSelect}
+								on:remove={handlePhotoRemove}
+								disabled={loading}
+							/>
+						</div>
+
 						<div class="flex gap-3 pt-4">
 							<button
 								type="button"
@@ -1125,6 +1180,18 @@
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 text-base"
 								placeholder="Describe what you observed..."
 							></textarea>
+						</div>
+
+						<!-- Photo Capture -->
+						<div>
+							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								Add Photo (Optional)
+							</label>
+							<PhotoCapture
+								on:select={handlePhotoSelect}
+								on:remove={handlePhotoRemove}
+								disabled={loading}
+							/>
 						</div>
 
 						<div class="flex gap-3 pt-4">

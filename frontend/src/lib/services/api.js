@@ -694,3 +694,67 @@ export async function deleteRecipient(recipientId) {
 		method: 'DELETE'
 	});
 }
+
+// ============================================================================
+// PHOTOS
+// ============================================================================
+
+/**
+ * Upload a photo to an event
+ * @param {string} eventId - Event ID to attach photo to
+ * @param {File} file - Image file to upload
+ * @returns {Promise<object>} Photo metadata
+ */
+export async function uploadPhoto(eventId, file) {
+	const url = `${API_BASE}/photos/`;
+	const token = getStoredToken('access_token');
+
+	const formData = new FormData();
+	formData.append('file', file);
+	formData.append('event_id', eventId);
+
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			...(token ? { 'Authorization': `Bearer ${token}` } : {})
+		},
+		credentials: 'include',
+		body: formData
+	});
+
+	if (!response.ok) {
+		const data = await response.json().catch(() => ({}));
+		throw new Error(data.detail || `HTTP ${response.status}`);
+	}
+
+	return response.json();
+}
+
+/**
+ * Get photos for an event
+ * @param {string} eventId - Event ID
+ * @returns {Promise<array>} Array of photo metadata
+ */
+export async function getEventPhotos(eventId) {
+	return apiRequest(`/photos/event/${eventId}`);
+}
+
+/**
+ * Get photo count for an event (lightweight)
+ * @param {string} eventId - Event ID
+ * @returns {Promise<object>} { event_id, count }
+ */
+export async function getPhotoCount(eventId) {
+	return apiRequest(`/photos/count/${eventId}`);
+}
+
+/**
+ * Delete a photo
+ * @param {string} photoId - Photo ID to delete
+ * @returns {Promise<void>}
+ */
+export async function deletePhoto(photoId) {
+	return apiRequest(`/photos/${photoId}`, {
+		method: 'DELETE'
+	});
+}
