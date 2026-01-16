@@ -26,7 +26,8 @@ class Photo(Base):
 
     # Additional metadata (dimensions, device info, etc.)
     # GPS data should be stripped for privacy
-    metadata = Column(JSONB, nullable=True, default={})
+    # Use a non-reserved attribute name; keep DB column name as "metadata".
+    photo_metadata = Column("metadata", JSONB, nullable=True, default={})
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -44,7 +45,7 @@ class Photo(Base):
             "thumbnail_filename": self.thumbnail_filename,
             "size_bytes": self.size_bytes,
             "mime_type": self.mime_type,
-            "metadata": self.metadata or {},
+            "metadata": self.photo_metadata or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

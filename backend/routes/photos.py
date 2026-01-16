@@ -47,7 +47,7 @@ def photo_to_response(photo: Photo) -> PhotoResponse:
         thumbnail_filename=photo.thumbnail_filename,
         size_bytes=photo.size_bytes,
         mime_type=photo.mime_type,
-        metadata=photo.metadata or {},
+        metadata=photo.photo_metadata or {},
         url=f"/photos/{photo.filename}",
         thumbnail_url=f"/photos/{photo.thumbnail_filename}" if photo.thumbnail_filename else None,
         created_at=photo.created_at.isoformat() if photo.created_at else None,
@@ -126,7 +126,7 @@ async def upload_photo(
             thumbnail_filename=thumbnail_filename,
             size_bytes=size_bytes,
             mime_type=file.content_type,
-            metadata=metadata,
+            photo_metadata=metadata,
         )
 
         db.add(photo)
