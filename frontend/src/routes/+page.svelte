@@ -210,7 +210,7 @@
 						</svg>
 					</button>
 
-					<LogoMark size={48} showLabel={true} />
+					<LogoMark size={48} showLabel={true} href="/" />
 
 					<div class="flex items-center">
 						<ThemeToggle />
@@ -238,6 +238,12 @@
 				</div>
 
 				<div class="space-y-1">
+					<button
+						on:click={() => { closeMenu(); goto('/'); }}
+						class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+					>
+						Dashboard
+					</button>
 					<button
 						on:click={() => { closeMenu(); goto('/history'); }}
 						class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"

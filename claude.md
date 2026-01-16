@@ -231,6 +231,8 @@
 - [x] Added automatic token refresh to keep sessions alive
 - [x] Increased token lifetimes to reduce logouts
 - [x] Care recipients (per-person profiles) with recipient selector and per-recipient templates
+- [x] Sync active continuous feed start time when editing feed start event
+- [x] Refresh active feed banner on event updates
 
 ---
 
@@ -557,7 +559,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-12 (Care recipients in progress)
+**Last Updated:** 2026-01-16 (Consistent navigation across all pages)
 
 ---
 
@@ -588,6 +590,38 @@ UPDATE events SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
 UPDATE quick_medications SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
 UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
 ```
+
+---
+
+### 2026-01-16 - Consistent Navigation Across All Pages
+
+#### Navigation Updates
+- [x] Added `href` prop to LogoMark.svelte for clickable logo linking to dashboard
+- [x] Updated Dashboard page to include "Dashboard" menu item and clickable logo
+- [x] Updated History page with hamburger menu navigation (replaced "Back" button)
+- [x] Updated Admin page with hamburger menu navigation (replaced "Back to Dashboard" button)
+- [x] Updated Register page with hamburger menu navigation (replaced inline back link)
+
+#### Navigation Pattern (all authenticated pages)
+- Hamburger menu (left) - opens slide-out menu with Dashboard, History, Admin Panel (if admin), Logout
+- Logo (center) - clickable, links to dashboard (serves as refresh in PWA)
+- Theme toggle (right) - dark/light mode switch
+
+---
+
+### 2026-01-15 - Bug Fixes & Diaper Form Enhancements
+
+#### Bug Fixes
+- [x] Removed `mem_reservation` from docker-compose.prod.yml (not supported on Raspberry Pi kernel)
+- [x] Fixed datetime comparison bug in continuous feed stop endpoint (timezone-aware vs naive datetime)
+  - Added check to ensure `started_at` is UTC-aware before comparison with `stop_time`
+
+#### Diaper Change Form Enhancements
+- [x] Changed diaper type from dropdown to button-based selection (Wet/Dirty/Both)
+- [x] Added conditional size buttons (Small/Medium/Large) - shown for wet, dirty, or both
+- [x] Added conditional consistency buttons (Loose/Semi-firm/Firm/Good) - shown only for dirty or both
+- [x] Updated EventList display to show size and consistency in event summary
+- [x] Updated edit modal with button-based editing matching QuickEntry form
 
 ---
 

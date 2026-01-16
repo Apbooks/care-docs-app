@@ -1,14 +1,17 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/auth';
-	import { getEvents } from '$lib/services/api';
+	import { authStore, isAdmin } from '$lib/stores/auth';
+	import { getEvents, logout as logoutApi } from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import LogoMark from '$lib/components/LogoMark.svelte';
 	import { timezone } from '$lib/stores/settings';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
 	import { selectedRecipientId } from '$lib/stores/recipients';
 
 	let user = null;
+	let userIsAdmin = false;
+	let menuOpen = false;
 
 	let events = [];
 	let loading = true;
@@ -38,6 +41,33 @@
 	authStore.subscribe(value => {
 		user = value;
 	});
+
+	isAdmin.subscribe(value => {
+		userIsAdmin = value;
+	});
+
+	function toggleMenu() {
+		menuOpen = !menuOpen;
+	}
+
+	function closeMenu() {
+		menuOpen = false;
+	}
+
+	async function handleLogout() {
+		try {
+			await logoutApi();
+			authStore.logout();
+			localStorage.removeItem('access_token');
+			localStorage.removeItem('refresh_token');
+			goto('/login');
+		} catch (error) {
+			authStore.logout();
+			localStorage.removeItem('access_token');
+			localStorage.removeItem('refresh_token');
+			goto('/login');
+		}
+	}
 
 	onMount(() => {
 		if (!user) {
@@ -221,26 +251,81 @@
 	<div class="min-h-screen bg-gray-50 dark:bg-slate-950 pb-20">
 		<header class="bg-white dark:bg-slate-900 shadow sticky top-0 z-30">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-				<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-					<div>
-						<h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">History</h1>
-						<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Filter events, see trends, export data.</p>
-					</div>
-					<div class="flex flex-wrap items-center gap-2">
+				<div class="flex items-center justify-between">
+					<button
+						on:click={toggleMenu}
+						class="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+						aria-label="Open menu"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+						</svg>
+					</button>
+
+					<LogoMark size={48} showLabel={true} href="/" />
+
+					<div class="flex items-center">
 						<ThemeToggle />
-						<button
-							on:click={() => goto('/')}
-							class="px-4 py-2 text-base text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl dark:text-slate-200 dark:hover:bg-slate-800"
-						>
-							Back
-						</button>
 					</div>
 				</div>
 			</div>
 		</header>
 
+		{#if menuOpen}
+			<div class="fixed inset-0 z-40 bg-black/40" on:click={closeMenu}></div>
+			<div class="fixed top-0 left-0 z-50 h-full w-64 bg-white dark:bg-slate-900 shadow-xl p-5">
+				<div class="flex items-center justify-between mb-6">
+					<div>
+						<p class="text-sm text-slate-500 dark:text-slate-400">Signed in as</p>
+						<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{user?.username || 'User'}</p>
+					</div>
+					<button
+						on:click={closeMenu}
+						class="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+
+				<div class="space-y-1">
+					<button
+						on:click={() => { closeMenu(); goto('/'); }}
+						class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+					>
+						Dashboard
+					</button>
+					<button
+						on:click={() => { closeMenu(); goto('/history'); }}
+						class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+					>
+						History
+					</button>
+					{#if userIsAdmin}
+						<button
+							on:click={() => { closeMenu(); goto('/admin'); }}
+							class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+						>
+							Admin Panel
+						</button>
+					{/if}
+					<button
+						on:click={() => { closeMenu(); handleLogout(); }}
+						class="w-full text-left px-2 py-3 text-base text-red-600 hover:bg-red-50 dark:text-red-200 dark:hover:bg-red-950 rounded-lg"
+					>
+						Logout
+					</button>
+				</div>
+			</div>
+		{/if}
+
 		<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
+				<div class="mb-4">
+					<h1 class="text-2xl font-bold text-gray-900 dark:text-slate-100">History</h1>
+					<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Filter events, see trends, export data.</p>
+				</div>
 				<RecipientSwitcher />
 			</section>
 

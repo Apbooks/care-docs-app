@@ -16,9 +16,11 @@
 		getRecipients,
 		createRecipient,
 		updateRecipient,
-		deleteRecipient
+		deleteRecipient,
+		logout as logoutApi
 	} from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import LogoMark from '$lib/components/LogoMark.svelte';
 	import { getTimezone, updateTimezone } from '$lib/services/api';
 	import { timezone as timezoneStore, setTimezone as setTimezoneStore } from '$lib/stores/settings';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
@@ -26,6 +28,7 @@
 
 	let user = null;
 	let userIsAdmin = false;
+	let menuOpen = false;
 	let users = [];
 	let loading = true;
 	let error = '';
@@ -93,6 +96,29 @@
 	isAdmin.subscribe(value => {
 		userIsAdmin = value;
 	});
+
+	function toggleMenu() {
+		menuOpen = !menuOpen;
+	}
+
+	function closeMenu() {
+		menuOpen = false;
+	}
+
+	async function handleLogout() {
+		try {
+			await logoutApi();
+			authStore.logout();
+			localStorage.removeItem('access_token');
+			localStorage.removeItem('refresh_token');
+			goto('/login');
+		} catch (err) {
+			authStore.logout();
+			localStorage.removeItem('access_token');
+			localStorage.removeItem('refresh_token');
+			goto('/login');
+		}
+	}
 
 	onMount(async () => {
 		// Check admin status synchronously using get() to avoid race condition
@@ -493,28 +519,85 @@
 
 <div class="min-h-screen bg-gray-50 dark:bg-slate-950">
 	<!-- Header -->
-	<header class="bg-white dark:bg-slate-900 shadow">
+	<header class="bg-white dark:bg-slate-900 shadow sticky top-0 z-30">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-			<div class="flex justify-between items-center">
-				<div>
-					<h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">Admin Panel</h1>
-					<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage users and system settings</p>
-				</div>
-				<div class="flex items-center gap-3">
+			<div class="flex items-center justify-between">
+				<button
+					on:click={toggleMenu}
+					class="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+					aria-label="Open menu"
+				>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+					</svg>
+				</button>
+
+				<LogoMark size={48} showLabel={true} href="/" />
+
+				<div class="flex items-center">
 					<ThemeToggle />
-					<button
-						on:click={() => goto('/')}
-						class="px-4 py-2 text-base text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl dark:text-slate-200 dark:hover:bg-slate-800"
-					>
-						Back to Dashboard
-					</button>
 				</div>
 			</div>
 		</div>
 	</header>
 
+	{#if menuOpen}
+		<div class="fixed inset-0 z-40 bg-black/40" on:click={closeMenu}></div>
+		<div class="fixed top-0 left-0 z-50 h-full w-64 bg-white dark:bg-slate-900 shadow-xl p-5">
+			<div class="flex items-center justify-between mb-6">
+				<div>
+					<p class="text-sm text-slate-500 dark:text-slate-400">Signed in as</p>
+					<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{user?.username || 'User'}</p>
+				</div>
+				<button
+					on:click={closeMenu}
+					class="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<div class="space-y-1">
+				<button
+					on:click={() => { closeMenu(); goto('/'); }}
+					class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+				>
+					Dashboard
+				</button>
+				<button
+					on:click={() => { closeMenu(); goto('/history'); }}
+					class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+				>
+					History
+				</button>
+				{#if userIsAdmin}
+					<button
+						on:click={() => { closeMenu(); goto('/admin'); }}
+						class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+					>
+						Admin Panel
+					</button>
+				{/if}
+				<button
+					on:click={() => { closeMenu(); handleLogout(); }}
+					class="w-full text-left px-2 py-3 text-base text-red-600 hover:bg-red-50 dark:text-red-200 dark:hover:bg-red-950 rounded-lg"
+				>
+					Logout
+				</button>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Main Content -->
 	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+		<!-- Page Title -->
+		<div class="mb-6">
+			<h1 class="text-2xl font-bold text-gray-900 dark:text-slate-100">Admin Panel</h1>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage users and system settings</p>
+		</div>
+
 		<!-- Error Display -->
 	{#if error}
 		<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
