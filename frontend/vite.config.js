@@ -7,7 +7,8 @@ export default defineConfig({
 		sveltekit(),
 		SvelteKitPWA({
 			srcDir: 'src',
-			mode: 'production',
+			strategies: 'injectManifest',
+			filename: 'service-worker.js',
 			scope: '/',
 			base: '/',
 			manifest: {
@@ -18,62 +19,35 @@ export default defineConfig({
 				background_color: '#ffffff',
 				display: 'standalone',
 				orientation: 'portrait',
+				start_url: '/',
 				icons: [
 					{
-						src: '/icon-192.png',
+						src: '/icon.svg',
+						sizes: 'any',
+						type: 'image/svg+xml'
+					},
+					{
+						src: '/icon.svg',
 						sizes: '192x192',
-						type: 'image/png'
+						type: 'image/svg+xml',
+						purpose: 'any'
 					},
 					{
-						src: '/icon-512.png',
+						src: '/icon.svg',
 						sizes: '512x512',
-						type: 'image/png'
-					},
-					{
-						src: '/icon-512.png',
-						sizes: '512x512',
-						type: 'image/png',
+						type: 'image/svg+xml',
 						purpose: 'any maskable'
 					}
 				]
 			},
 			injectManifest: {
-				globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,woff,woff2}']
-			},
-			workbox: {
-				globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,woff,woff2}'],
-				runtimeCaching: [
-					{
-						urlPattern: /^https:\/\/.*\/api\/.*/,
-						handler: 'NetworkFirst',
-						options: {
-							cacheName: 'api-cache',
-							networkTimeoutSeconds: 10,
-							expiration: {
-								maxEntries: 50,
-								maxAgeSeconds: 60 * 60 * 24 // 24 hours
-							},
-							cacheableResponse: {
-								statuses: [0, 200]
-							}
-						}
-					},
-					{
-						urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'image-cache',
-							expiration: {
-								maxEntries: 100,
-								maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-							}
-						}
-					}
-				]
+				globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,woff,woff2,ico}'],
+				globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js']
 			},
 			devOptions: {
 				enabled: true,
-				type: 'module'
+				type: 'module',
+				navigateFallback: '/'
 			}
 		})
 	],

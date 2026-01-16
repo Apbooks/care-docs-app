@@ -12,6 +12,8 @@
 	import LogoMark from '$lib/components/LogoMark.svelte';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
 	import { selectedRecipientId } from '$lib/stores/recipients';
+	import SyncStatus from '$lib/components/SyncStatus.svelte';
+	import { isOnline } from '$lib/stores/offline';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -212,7 +214,8 @@
 
 					<LogoMark size={48} showLabel={true} href="/" />
 
-					<div class="flex items-center">
+					<div class="flex items-center gap-2">
+						<SyncStatus />
 						<ThemeToggle />
 					</div>
 				</div>
@@ -270,6 +273,14 @@
 
 		<!-- Main Content -->
 		<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+			{#if !$isOnline}
+				<div class="mb-4 p-3 bg-gray-100 border border-gray-300 rounded-xl dark:bg-gray-800 dark:border-gray-700">
+					<p class="text-gray-700 dark:text-gray-300 text-sm flex items-center gap-2">
+						<span>📴</span>
+						<span>You're offline. Events will be saved locally and synced when back online.</span>
+					</p>
+				</div>
+			{/if}
 			<div class="mb-6">
 				<RecipientSwitcher />
 			</div>

@@ -284,14 +284,14 @@
 - [x] Session management
 - [ ] Offline auth persistence (Phase 4)
 
-#### 3. Offline-First Architecture
-- [ ] Service worker setup
-- [ ] IndexedDB configuration
-- [ ] LocalForage integration
-- [ ] Workbox caching strategies
-- [ ] Background sync
-- [ ] Conflict resolution
-- [ ] Sync status indicator
+#### 3. Offline-First Architecture ✓
+- [x] Service worker setup
+- [x] IndexedDB configuration
+- [x] LocalForage integration
+- [x] Workbox caching strategies
+- [x] Background sync
+- [x] Conflict resolution
+- [x] Sync status indicator
 
 #### 4. Photo Attachments
 - [ ] Camera access
@@ -412,7 +412,7 @@ _To be measured after deployment_
 - ✓ User management capabilities
 
 ### To Address (Non-Critical)
-- Missing PWA icons (/icon-192.png, /icon-512.png)
+- ✓ PWA icons (now using SVG - icon.svg, favicon.svg)
 - No testing infrastructure (pytest, Vitest)
 - No rate limiting on authentication endpoints
 - No database migration system (using create_all instead of Alembic)
@@ -506,17 +506,75 @@ _To be measured after deployment_
 
 ---
 
-## Phase 5: Care Recipients (In Progress - 2026-01-12)
+## Phase 5: Care Recipients (Complete - 2026-01-12) ✓
 
 **Goal:** Support multiple care recipients with per-recipient templates and reports.
 
-#### Planned / In Progress
+#### Completed
 - [x] Add CareRecipient model + CRUD endpoints
 - [x] Add recipient_id to events, quick meds, quick feeds
 - [x] Recipient selector on dashboard + history
 - [x] Admin management for recipients
 - [x] Per-recipient templates (quick meds/feeds)
 - [x] Per-recipient active continuous feed tracking
+
+---
+
+## Phase 6: Offline-First Architecture (Complete - 2026-01-16) ✓
+
+**Goal:** Enable full offline functionality with automatic sync when connection is restored.
+
+#### Implementation Details
+
+**Offline Store (src/lib/stores/offline.js)**
+- LocalForage instances for events, pending queue, and cache
+- Sync status tracking: synced | pending | syncing | error | offline
+- Online/offline event listeners with auto-sync on reconnection
+- Temporary ID generation for offline-created events
+- Cache management with configurable max age
+
+**Service Worker (src/service-worker.js)**
+- Workbox-based with injectManifest strategy
+- NetworkFirst for API calls with 10s timeout
+- CacheFirst for images and static assets
+- StaleWhileRevalidate for JS/CSS
+- Background sync via Workbox BackgroundSyncPlugin
+- Push notification support (ready for Phase 7)
+
+**API Service Enhancements (src/lib/services/api.js)**
+- Offline detection and automatic queueing
+- Optimistic responses for creates
+- Cache-first reads when offline
+- Automatic cache population on successful fetches
+- Network error detection and fallback
+
+**Sync Status Component (src/lib/components/SyncStatus.svelte)**
+- Visual indicator: green (synced), yellow (pending), blue (syncing), red (error), gray (offline)
+- Shows pending count
+- Click to manually trigger sync
+- Integrated into dashboard header
+
+**Auth Persistence (src/lib/stores/auth.js)**
+- Dual storage: localStorage (sync) + IndexedDB (reliable)
+- Token persistence for offline session restoration
+- Automatic recovery from IndexedDB if localStorage cleared
+
+**PWA Icons**
+- SVG-based icons for crisp display at any size
+- icon.svg (512x512) and favicon.svg (32x32)
+
+#### Completed
+- [x] Create offline store with IndexedDB via LocalForage
+- [x] Implement custom service worker with caching strategies
+- [x] Create offline event queue for background sync
+- [x] Add sync status indicator component
+- [x] Implement conflict resolution for offline changes
+- [x] Update API service to use offline-first pattern
+- [x] Add offline auth persistence
+- [x] Create PWA icons (SVG-based)
+- [x] Integrate SyncStatus into dashboard
+
+---
 
 ## Future Enhancements
 
@@ -559,7 +617,20 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-16 (Consistent navigation across all pages)
+**Last Updated:** 2026-01-16 (Phase 6: Offline-First Architecture)
+
+---
+
+## Development Guidelines
+
+**IMPORTANT:** Always keep this `claude.md` file updated when making changes to the project. This includes:
+- Logging new features and bug fixes with dates
+- Updating the Feature Implementation Tracker
+- Documenting architecture decisions
+- Recording deployment changes
+- Noting any known issues
+
+After completing work, always commit changes and push to the remote repository.
 
 ---
 
@@ -590,6 +661,35 @@ UPDATE events SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
 UPDATE quick_medications SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
 UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NULL;
 ```
+
+---
+
+### 2026-01-16 - Phase 6: Offline-First Architecture Complete ✓
+
+#### Offline-First Implementation
+- [x] Created offline store with LocalForage (IndexedDB) for events, queue, and cache
+- [x] Implemented custom service worker with Workbox strategies:
+  - NetworkFirst for API calls with background sync
+  - CacheFirst for images
+  - StaleWhileRevalidate for static assets
+- [x] Built sync status indicator component with visual feedback
+- [x] Updated all API functions to support offline caching and queueing
+- [x] Enhanced auth store with dual persistence (localStorage + IndexedDB)
+- [x] Added offline detection and banner in dashboard
+- [x] Created SVG-based PWA icons (icon.svg, favicon.svg)
+
+#### Files Added/Modified
+- `frontend/src/lib/stores/offline.js` - New offline state management
+- `frontend/src/service-worker.js` - Custom Workbox service worker
+- `frontend/src/lib/components/SyncStatus.svelte` - Sync status indicator
+- `frontend/src/lib/services/api.js` - Offline-first API patterns
+- `frontend/src/lib/stores/auth.js` - Enhanced auth persistence
+- `frontend/src/routes/+page.svelte` - Added SyncStatus and offline banner
+- `frontend/vite.config.js` - Updated PWA config for injectManifest
+- `frontend/package.json` - Added workbox dependencies
+- `frontend/static/icon.svg` - PWA icon
+- `frontend/static/favicon.svg` - Favicon
+- `frontend/src/app.html` - Updated icon references
 
 ---
 

@@ -2,6 +2,15 @@
 // otherwise falls back to same-origin `/api`.
 const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
 
+// Import offline stores (lazy loaded to avoid circular deps)
+let offlineModule = null;
+async function getOfflineModule() {
+	if (!offlineModule) {
+		offlineModule = await import('../stores/offline.js');
+	}
+	return offlineModule;
+}
+
 function getStoredToken(key) {
 	return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
 }
@@ -75,13 +84,23 @@ export async function refreshSession() {
 }
 
 /**
- * Make an API request with proper error handling
+ * Check if we're online
+ */
+function checkOnline() {
+	return typeof navigator !== 'undefined' ? navigator.onLine : true;
+}
+
+/**
+ * Make an API request with proper error handling and offline support
  * @param {string} endpoint - API endpoint (e.g., '/auth/login')
  * @param {object} options - Fetch options
+ * @param {boolean} hasRetried - Whether this is a retry after token refresh
+ * @param {object} offlineOptions - Options for offline handling
  * @returns {Promise<object>} Response data
  */
-export async function apiRequest(endpoint, options = {}, hasRetried = false) {
+export async function apiRequest(endpoint, options = {}, hasRetried = false, offlineOptions = {}) {
 	const url = `${API_BASE}${endpoint}`;
+	const method = options.method || 'GET';
 
 	// Get access token from localStorage if available
 	const token = getStoredToken('access_token');
@@ -96,6 +115,11 @@ export async function apiRequest(endpoint, options = {}, hasRetried = false) {
 		credentials: 'include' // Important for cookies
 	};
 
+	// Check if we're offline
+	if (!checkOnline()) {
+		return handleOfflineRequest(endpoint, method, options, offlineOptions);
+	}
+
 	try {
 		const response = await fetch(url, config);
 
@@ -104,7 +128,7 @@ export async function apiRequest(endpoint, options = {}, hasRetried = false) {
 			if (canRefresh) {
 				const refreshed = await attemptTokenRefresh();
 				if (refreshed?.access_token) {
-					return apiRequest(endpoint, options, true);
+					return apiRequest(endpoint, options, true, offlineOptions);
 				}
 			}
 
@@ -134,9 +158,78 @@ export async function apiRequest(endpoint, options = {}, hasRetried = false) {
 
 		return data ?? { success: true };
 	} catch (error) {
+		// If network error and we should queue offline
+		if (isNetworkError(error) && offlineOptions.queueIfOffline) {
+			return handleOfflineRequest(endpoint, method, options, offlineOptions);
+		}
 		console.error('API request failed:', error);
 		throw error;
 	}
+}
+
+/**
+ * Check if an error is a network error
+ */
+function isNetworkError(error) {
+	return error instanceof TypeError && error.message.includes('fetch') ||
+		error.message.includes('network') ||
+		error.message.includes('Failed to fetch') ||
+		error.name === 'NetworkError';
+}
+
+/**
+ * Handle offline requests by queueing them for later sync
+ */
+async function handleOfflineRequest(endpoint, method, options, offlineOptions) {
+	const offline = await getOfflineModule();
+
+	// For GET requests, try to return cached data
+	if (method === 'GET') {
+		const cacheKey = offlineOptions.cacheKey || endpoint;
+		const cachedData = await offline.getCachedData(cacheKey);
+		if (cachedData) {
+			return cachedData;
+		}
+		throw new Error('No cached data available offline');
+	}
+
+	// For write operations, queue them for later sync
+	if (['POST', 'PATCH', 'DELETE'].includes(method)) {
+		const data = options.body ? JSON.parse(options.body) : null;
+
+		// Generate temp ID for new items
+		const tempId = offlineOptions.tempId || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+		const queueItem = await offline.queueOfflineAction({
+			type: method === 'POST' ? 'create' : method === 'DELETE' ? 'delete' : 'update',
+			endpoint,
+			data
+		});
+
+		// Return optimistic response for creates
+		if (method === 'POST' && data) {
+			const optimisticResponse = {
+				...data,
+				id: tempId,
+				_offline: true,
+				_queueId: queueItem?.id,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			};
+
+			// Cache the optimistic response
+			if (offlineOptions.cacheKey) {
+				await offline.cacheData(`${offlineOptions.cacheKey}_${tempId}`, optimisticResponse);
+			}
+
+			return optimisticResponse;
+		}
+
+		// Return success for updates/deletes
+		return { success: true, _offline: true, _queueId: queueItem?.id };
+	}
+
+	throw new Error('Cannot perform this operation offline');
 }
 
 /**
@@ -195,23 +288,38 @@ export async function refreshAccessToken(refreshToken) {
 }
 
 // ============================================================================
-// EVENT ENDPOINTS
+// EVENT ENDPOINTS (with offline support)
 // ============================================================================
 
 /**
- * Create a new care event
+ * Create a new care event (supports offline queueing)
  * @param {object} eventData - { type, timestamp, notes, metadata }
  * @returns {Promise<object>} Created event
  */
 export async function createEvent(eventData) {
-	return apiRequest('/events/', {
+	const result = await apiRequest('/events/', {
 		method: 'POST',
 		body: JSON.stringify(eventData)
+	}, false, {
+		queueIfOffline: true,
+		cacheKey: 'events'
 	});
+
+	// Cache events after successful online creation
+	if (result && !result._offline) {
+		try {
+			const offline = await getOfflineModule();
+			await offline.cacheEvent(result);
+		} catch (e) {
+			// Caching is best-effort
+		}
+	}
+
+	return result;
 }
 
 /**
- * Get list of events
+ * Get list of events (with offline cache support)
  * @param {object} params - { type, limit, offset }
  * @returns {Promise<array>} Array of events
  */
@@ -227,7 +335,38 @@ export async function getEvents(params = {}) {
 	if (params.recipient_id) queryParams.append('recipient_id', params.recipient_id);
 
 	const query = queryParams.toString();
-	return apiRequest(`/events/${query ? '?' + query : ''}`);
+	const endpoint = `/events/${query ? '?' + query : ''}`;
+	const cacheKey = `events_${params.recipient_id || 'all'}`;
+
+	try {
+		const result = await apiRequest(endpoint, {}, false, { cacheKey });
+
+		// Cache successful results
+		if (Array.isArray(result)) {
+			try {
+				const offline = await getOfflineModule();
+				await offline.cacheEvents(result, params.recipient_id || 'all');
+			} catch (e) {
+				// Caching is best-effort
+			}
+		}
+
+		return result;
+	} catch (error) {
+		// Try to return cached data if offline
+		if (!checkOnline() || isNetworkError(error)) {
+			try {
+				const offline = await getOfflineModule();
+				const cached = await offline.getCachedEvents(params.recipient_id || 'all');
+				if (cached) {
+					return cached;
+				}
+			} catch (e) {
+				// Fall through to throw original error
+			}
+		}
+		throw error;
+	}
 }
 
 /**
@@ -236,11 +375,25 @@ export async function getEvents(params = {}) {
  * @returns {Promise<object>} Event data
  */
 export async function getEvent(eventId) {
-	return apiRequest(`/events/${eventId}`);
+	try {
+		return await apiRequest(`/events/${eventId}`);
+	} catch (error) {
+		// Try cache if offline
+		if (!checkOnline() || isNetworkError(error)) {
+			try {
+				const offline = await getOfflineModule();
+				const cached = await offline.getCachedEvent(eventId);
+				if (cached) return cached;
+			} catch (e) {
+				// Fall through
+			}
+		}
+		throw error;
+	}
 }
 
 /**
- * Update an event
+ * Update an event (supports offline queueing)
  * @param {string} eventId
  * @param {object} updates - { notes, metadata }
  * @returns {Promise<object>} Updated event
@@ -249,40 +402,81 @@ export async function updateEvent(eventId, updates) {
 	return apiRequest(`/events/${eventId}`, {
 		method: 'PATCH',
 		body: JSON.stringify(updates)
+	}, false, {
+		queueIfOffline: true
 	});
 }
 
 /**
- * Delete an event
+ * Delete an event (supports offline queueing)
  * @param {string} eventId
  * @returns {Promise<object>}
  */
 export async function deleteEvent(eventId) {
-	return apiRequest(`/events/${eventId}`, {
+	const result = await apiRequest(`/events/${eventId}`, {
 		method: 'DELETE'
+	}, false, {
+		queueIfOffline: true
 	});
+
+	// Remove from cache
+	try {
+		const offline = await getOfflineModule();
+		await offline.removeCachedEvent(eventId);
+	} catch (e) {
+		// Best effort
+	}
+
+	return result;
 }
 
 /**
- * Get event statistics
+ * Get event statistics (with caching)
  * @returns {Promise<object>} Event counts by type
  */
 export async function getEventStats() {
-	return apiRequest('/events/stats/summary');
+	return apiRequest('/events/stats/summary', {}, false, {
+		cacheKey: 'event_stats'
+	});
 }
 
 export async function getEventStatsForRecipient(recipientId) {
 	const query = recipientId ? `?recipient_id=${encodeURIComponent(recipientId)}` : '';
-	return apiRequest(`/events/stats/summary${query}`);
+	return apiRequest(`/events/stats/summary${query}`, {}, false, {
+		cacheKey: `event_stats_${recipientId || 'all'}`
+	});
 }
 
 // ============================================================================
-// QUICK TEMPLATES
+// QUICK TEMPLATES (with offline caching)
 // ============================================================================
 
 export async function getQuickMeds(includeInactive = false) {
 	const query = includeInactive ? '?include_inactive=true' : '';
-	return apiRequest(`/quick-meds${query}`);
+	const cacheKey = `quick_meds_${includeInactive ? 'all' : 'active'}`;
+
+	try {
+		const result = await apiRequest(`/quick-meds${query}`);
+
+		// Cache results
+		if (Array.isArray(result)) {
+			try {
+				const offline = await getOfflineModule();
+				await offline.cacheData(cacheKey, result);
+			} catch (e) {}
+		}
+
+		return result;
+	} catch (error) {
+		if (!checkOnline() || isNetworkError(error)) {
+			try {
+				const offline = await getOfflineModule();
+				const cached = await offline.getCachedData(cacheKey);
+				if (cached) return cached;
+			} catch (e) {}
+		}
+		throw error;
+	}
 }
 
 export async function getQuickMedsForRecipient(recipientId, includeInactive = false) {
@@ -290,7 +484,29 @@ export async function getQuickMedsForRecipient(recipientId, includeInactive = fa
 	if (includeInactive) params.append('include_inactive', 'true');
 	if (recipientId) params.append('recipient_id', recipientId);
 	const query = params.toString();
-	return apiRequest(`/quick-meds${query ? '?' + query : ''}`);
+	const cacheKey = `quick_meds_${recipientId || 'all'}_${includeInactive ? 'all' : 'active'}`;
+
+	try {
+		const result = await apiRequest(`/quick-meds${query ? '?' + query : ''}`);
+
+		if (Array.isArray(result)) {
+			try {
+				const offline = await getOfflineModule();
+				await offline.cacheData(cacheKey, result);
+			} catch (e) {}
+		}
+
+		return result;
+	} catch (error) {
+		if (!checkOnline() || isNetworkError(error)) {
+			try {
+				const offline = await getOfflineModule();
+				const cached = await offline.getCachedData(cacheKey);
+				if (cached) return cached;
+			} catch (e) {}
+		}
+		throw error;
+	}
 }
 
 export async function createQuickMed(data) {
@@ -315,7 +531,29 @@ export async function deleteQuickMed(medId) {
 
 export async function getQuickFeeds(includeInactive = false) {
 	const query = includeInactive ? '?include_inactive=true' : '';
-	return apiRequest(`/quick-feeds${query}`);
+	const cacheKey = `quick_feeds_${includeInactive ? 'all' : 'active'}`;
+
+	try {
+		const result = await apiRequest(`/quick-feeds${query}`);
+
+		if (Array.isArray(result)) {
+			try {
+				const offline = await getOfflineModule();
+				await offline.cacheData(cacheKey, result);
+			} catch (e) {}
+		}
+
+		return result;
+	} catch (error) {
+		if (!checkOnline() || isNetworkError(error)) {
+			try {
+				const offline = await getOfflineModule();
+				const cached = await offline.getCachedData(cacheKey);
+				if (cached) return cached;
+			} catch (e) {}
+		}
+		throw error;
+	}
 }
 
 export async function getQuickFeedsForRecipient(recipientId, includeInactive = false) {
@@ -323,7 +561,29 @@ export async function getQuickFeedsForRecipient(recipientId, includeInactive = f
 	if (includeInactive) params.append('include_inactive', 'true');
 	if (recipientId) params.append('recipient_id', recipientId);
 	const query = params.toString();
-	return apiRequest(`/quick-feeds${query ? '?' + query : ''}`);
+	const cacheKey = `quick_feeds_${recipientId || 'all'}_${includeInactive ? 'all' : 'active'}`;
+
+	try {
+		const result = await apiRequest(`/quick-feeds${query ? '?' + query : ''}`);
+
+		if (Array.isArray(result)) {
+			try {
+				const offline = await getOfflineModule();
+				await offline.cacheData(cacheKey, result);
+			} catch (e) {}
+		}
+
+		return result;
+	} catch (error) {
+		if (!checkOnline() || isNetworkError(error)) {
+			try {
+				const offline = await getOfflineModule();
+				const cached = await offline.getCachedData(cacheKey);
+				if (cached) return cached;
+			} catch (e) {}
+		}
+		throw error;
+	}
 }
 
 export async function createQuickFeed(data) {
@@ -385,12 +645,34 @@ export async function stopContinuousFeed(recipientId, pumpTotalMl) {
 }
 
 // ============================================================================
-// CARE RECIPIENTS
+// CARE RECIPIENTS (with offline caching)
 // ============================================================================
 
 export async function getRecipients(includeInactive = false) {
 	const query = includeInactive ? '?include_inactive=true' : '';
-	return apiRequest(`/recipients${query}`);
+	const cacheKey = `recipients_${includeInactive ? 'all' : 'active'}`;
+
+	try {
+		const result = await apiRequest(`/recipients${query}`);
+
+		if (Array.isArray(result)) {
+			try {
+				const offline = await getOfflineModule();
+				await offline.cacheData(cacheKey, result);
+			} catch (e) {}
+		}
+
+		return result;
+	} catch (error) {
+		if (!checkOnline() || isNetworkError(error)) {
+			try {
+				const offline = await getOfflineModule();
+				const cached = await offline.getCachedData(cacheKey);
+				if (cached) return cached;
+			} catch (e) {}
+		}
+		throw error;
+	}
 }
 
 export async function createRecipient(data) {
