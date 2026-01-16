@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute, Route } from 'workbox-routing';
-import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { NetworkFirst, NetworkOnly, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
@@ -44,6 +44,7 @@ const bgSyncPlugin = new BackgroundSyncPlugin('eventQueue', {
 // API Routes - NetworkFirst for most API calls
 registerRoute(
 	({ url }) => url.pathname.startsWith('/api/') &&
+		!url.pathname.includes('/stream') &&
 		!url.pathname.includes('/auth/login') &&
 		!url.pathname.includes('/auth/logout') &&
 		!url.pathname.includes('/auth/refresh'),
@@ -61,6 +62,13 @@ registerRoute(
 			})
 		]
 	}),
+	'GET'
+);
+
+// SSE stream should bypass caching and buffering
+registerRoute(
+	({ url }) => url.pathname.startsWith('/api/stream'),
+	new NetworkOnly(),
 	'GET'
 );
 
