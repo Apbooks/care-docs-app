@@ -617,7 +617,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-16 (Phase 7: Photo Attachments)
+**Last Updated:** 2026-01-17 (Phase 8: Medication Reminders + Library)
 
 ---
 
@@ -635,6 +635,21 @@ After completing work, always commit changes and push to the remote repository.
 ---
 
 ## Migration Notes (manual SQL)
+
+### Medication Library + Quick Meds
+
+```sql
+ALTER TABLE medications ADD COLUMN auto_start_reminder BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE medications ADD COLUMN is_quick_med BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE medications ADD COLUMN default_route VARCHAR(40);
+```
+
+Quick meds migration (one-time):
+
+```bash
+docker compose -f docker-compose.prod.yml exec backend \
+  sh -lc "PYTHONPATH=/app python /app/scripts/migrate_quick_meds_to_medications.py"
+```
 
 When adding care recipients:
 
@@ -743,6 +758,35 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 - `frontend/src/lib/components/EventList.svelte` - Added PhotoGallery integration
 
 ---
+
+### 2026-01-17 - Phase 8: Medication Reminders + Library (In Progress)
+
+#### Medication Library + Reminders
+- [x] Added Medication library model + admin UI (dose/unit/route, interval, early warning)
+- [x] Added Medication Reminder model + API endpoints
+- [x] Added dashboard reminder banner (top 3 with show more, log now, skip)
+- [x] Early-dose warning (±15 min window) in Quick Entry and reminder banner
+- [x] Auto-start reminder when a med is logged (optional toggle in Medication Library)
+- [x] Unified quick meds with Medication Library (quick-med flag)
+- [x] Quick med tap auto-logs event using med defaults + route
+- [x] Reminder cleanup on med deletion and event deletion
+- [x] Real-time reminder refresh on med deletion (SSE broadcast)
+
+#### Files Added
+- `backend/models/medication.py` - Medication library model
+- `backend/models/med_reminder.py` - Medication reminder model
+- `backend/routes/medications.py` - Medication library CRUD
+- `backend/routes/med_reminders.py` - Reminder CRUD + early check + next due
+- `backend/services/med_reminder_service.py` - Reminder calculations + updates
+- `backend/scripts/migrate_quick_meds_to_medications.py` - One-time migration
+
+#### Files Modified
+- `backend/routes/events.py` - Update reminders on med create/delete
+- `backend/main.py` - Registered medication routes
+- `frontend/src/routes/admin/+page.svelte` - Medication library + reminder UI
+- `frontend/src/routes/+page.svelte` - Reminder banner + early check
+- `frontend/src/lib/components/QuickEntry.svelte` - Med dropdown, quick med auto-log, early warning
+- `frontend/src/lib/services/api.js` - Medication/reminder API helpers
 
 ### 2026-01-16 - Consistent Navigation Across All Pages
 
