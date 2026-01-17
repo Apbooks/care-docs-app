@@ -284,8 +284,47 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getMe
 		}
 	}
 
-	async function logQuickMedication(template) {
-		applyMedicationSelection(template);
+	async function logQuickMedication(template, overrideEarlyCheck = false) {
+		if (loading || !$selectedRecipientId) return;
+		error = '';
+		loading = true;
+
+		try {
+			if (!template.default_route) {
+				throw new Error('Set a default route in the medication library to use quick add.');
+			}
+			const dose = template.default_dose || '';
+			const unit = template.dose_unit ? ` ${template.dose_unit}` : '';
+			const medDose = `${dose}${unit}`.trim();
+			const quickNotes = quickNoteEnabled ? (quickNote.trim() || null) : null;
+
+			if (!overrideEarlyCheck) {
+				const ok = await handleMedicationEarlyCheck(template.name, () => logQuickMedication(template, true));
+				if (!ok) {
+					loading = false;
+					return;
+				}
+			}
+
+			const newEvent = await createEvent({
+				type: 'medication',
+				timestamp: new Date().toISOString(),
+				recipient_id: $selectedRecipientId,
+				notes: quickNotes,
+				metadata: {
+					med_name: template.name,
+					dosage: medDose,
+					route: template.default_route
+				}
+			});
+
+			dispatch('eventCreated', newEvent);
+			close();
+		} catch (err) {
+			error = err.message || 'Failed to log quick medication';
+		} finally {
+			loading = false;
+		}
 	}
 
 	async function logQuickFeed(template) {
