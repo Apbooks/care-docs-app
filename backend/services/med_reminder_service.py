@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any
 
 from sqlalchemy.orm import Session
 
+from models.event import Event
 from models.medication import Medication
 from models.med_reminder import MedicationReminder
 
@@ -109,3 +110,44 @@ def check_early_status(
         "minutes_until_due": minutes_until_due,
         "warning_level": "too_early"
     }
+
+
+def update_reminder_after_event_delete(
+    db: Session,
+    recipient_id: str,
+    med_name: Optional[str],
+    deleted_event_id: Optional[str] = None
+) -> Optional[MedicationReminder]:
+    if not med_name:
+        return None
+
+    medication = get_medication_by_name(db, med_name, recipient_id)
+    if not medication:
+        return None
+
+    reminder = db.query(MedicationReminder).filter(
+        MedicationReminder.recipient_id == recipient_id,
+        MedicationReminder.medication_id == medication.id
+    ).first()
+    if not reminder:
+        return None
+
+    latest_event_query = db.query(Event).filter(
+        Event.type == "medication",
+        Event.recipient_id == recipient_id,
+        Event.event_data["med_name"].astext == med_name
+    )
+    if deleted_event_id:
+        latest_event_query = latest_event_query.filter(Event.id != deleted_event_id)
+
+    latest_event = latest_event_query.order_by(Event.timestamp.desc()).first()
+
+    if latest_event:
+        reminder.last_given_at = latest_event.timestamp
+        reminder.enabled = True
+    else:
+        reminder.last_given_at = None
+        reminder.enabled = False
+
+    db.add(reminder)
+    return reminder

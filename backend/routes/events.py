@@ -14,7 +14,7 @@ from models.event import Event
 from models.care_recipient import CareRecipient
 from routes.auth import get_current_user
 from routes.stream import broadcast_event
-from services.med_reminder_service import record_medication_dose
+from services.med_reminder_service import record_medication_dose, update_reminder_after_event_delete
 from services.utils import to_utc_iso
 
 router = APIRouter()
@@ -362,8 +362,19 @@ async def delete_event(
             detail="Event not found"
         )
 
+    med_name = None
+    recipient_id = None
+    if event.type == "medication":
+        med_name = (event.event_data or {}).get("med_name")
+        recipient_id = str(event.recipient_id) if event.recipient_id else None
+
     db.delete(event)
     db.commit()
+
+    if med_name and recipient_id:
+        reminder = update_reminder_after_event_delete(db, recipient_id, med_name, str(event_id))
+        if reminder:
+            db.commit()
     await broadcast_event({"type": "event.deleted", "id": str(event.id), "recipient_id": str(event.recipient_id) if event.recipient_id else None})
 
     return None
