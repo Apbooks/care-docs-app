@@ -622,6 +622,17 @@ export async function updateTimezone(timezone) {
 	});
 }
 
+export async function getNotificationSettings() {
+	return apiRequest('/settings/notifications');
+}
+
+export async function updateNotificationSettings(settings) {
+	return apiRequest('/settings/notifications', {
+		method: 'PUT',
+		body: JSON.stringify(settings)
+	});
+}
+
 // ============================================================================
 // CONTINUOUS FEED
 // ============================================================================

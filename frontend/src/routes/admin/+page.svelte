@@ -24,7 +24,7 @@
 	} from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import LogoMark from '$lib/components/LogoMark.svelte';
-	import { getTimezone, updateTimezone } from '$lib/services/api';
+	import { getTimezone, updateTimezone, getNotificationSettings, updateNotificationSettings } from '$lib/services/api';
 	import { timezone as timezoneStore, setTimezone as setTimezoneStore } from '$lib/stores/settings';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
 	import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipient } from '$lib/stores/recipients';
@@ -39,6 +39,13 @@
 	let timezoneValue = 'local';
 	let timezoneLoading = true;
 	let timezoneError = '';
+	let notificationsLoading = true;
+	let notificationsError = '';
+	let notificationsEnablePush = false;
+	let notificationsEnableInApp = true;
+	let notificationsDueSoonMinutes = '0';
+	let notificationsOverdueMinutes = '60';
+	let notificationsSnoozeMinutes = '15';
 
 	const timezones = [
 		'local',
@@ -158,7 +165,8 @@
 			loadQuickFeeds(),
 			loadMedications(),
 			loadMedReminders(),
-			loadTimezone()
+			loadTimezone(),
+			loadNotificationSettings()
 		]);
 	});
 
@@ -194,6 +202,40 @@
 			timezoneError = err.message || 'Failed to load timezone';
 		} finally {
 			timezoneLoading = false;
+		}
+	}
+
+	async function loadNotificationSettings() {
+		notificationsLoading = true;
+		notificationsError = '';
+
+		try {
+			const response = await getNotificationSettings();
+			notificationsEnablePush = !!response?.enable_push;
+			notificationsEnableInApp = response?.enable_in_app !== false;
+			notificationsDueSoonMinutes = (response?.due_soon_minutes ?? 0).toString();
+			notificationsOverdueMinutes = (response?.overdue_repeat_minutes ?? 60).toString();
+			notificationsSnoozeMinutes = (response?.snooze_minutes_default ?? 15).toString();
+		} catch (err) {
+			notificationsError = err.message || 'Failed to load notification settings';
+		} finally {
+			notificationsLoading = false;
+		}
+	}
+
+	async function handleSaveNotificationSettings() {
+		notificationsError = '';
+
+		try {
+			await updateNotificationSettings({
+				enable_push: notificationsEnablePush,
+				enable_in_app: notificationsEnableInApp,
+				due_soon_minutes: parseInt(notificationsDueSoonMinutes || '0'),
+				overdue_repeat_minutes: parseInt(notificationsOverdueMinutes || '60'),
+				snooze_minutes_default: parseInt(notificationsSnoozeMinutes || '15')
+			});
+		} catch (err) {
+			notificationsError = err.message || 'Failed to save notification settings';
 		}
 	}
 
@@ -1604,6 +1646,71 @@
 							{/if}
 						</div>
 					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Notification Settings -->
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Notifications</h2>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Adjust reminder and alert behavior.</p>
+		</div>
+		<div class="p-6 space-y-4">
+			{#if notificationsError}
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{notificationsError}</p>
+				</div>
+			{/if}
+			{#if notificationsLoading}
+				<p class="text-sm text-gray-600 dark:text-slate-300">Loading notification settings...</p>
+			{:else}
+				<div class="grid gap-4 sm:grid-cols-2">
+					<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+						<input type="checkbox" bind:checked={notificationsEnableInApp} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+						In-app notifications
+					</label>
+					<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+						<input type="checkbox" bind:checked={notificationsEnablePush} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+						Push notifications
+					</label>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Due soon window (min)</label>
+						<input
+							type="number"
+							min="0"
+							bind:value={notificationsDueSoonMinutes}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Overdue repeat (min)</label>
+						<input
+							type="number"
+							min="0"
+							bind:value={notificationsOverdueMinutes}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Default snooze (min)</label>
+						<input
+							type="number"
+							min="0"
+							bind:value={notificationsSnoozeMinutes}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						/>
+					</div>
+				</div>
+				<div>
+					<button
+						type="button"
+						on:click={handleSaveNotificationSettings}
+						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700"
+					>
+						Save Notification Settings
+					</button>
 				</div>
 			{/if}
 		</div>
