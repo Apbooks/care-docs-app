@@ -95,6 +95,9 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 							eventListComponent.refresh();
 						}
 					}
+					if (data.type?.startsWith('med.') && recipientMatch) {
+						loadMedReminders();
+					}
 				} catch (error) {
 					console.error('Stream parse error:', error);
 				}

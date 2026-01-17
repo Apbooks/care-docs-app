@@ -9,6 +9,7 @@ from database import get_db
 from models.medication import Medication
 from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
+from routes.stream import broadcast_event
 from models.med_reminder import MedicationReminder
 
 router = APIRouter()
@@ -165,4 +166,9 @@ async def delete_medication(
     db.query(MedicationReminder).filter(MedicationReminder.medication_id == med_id).delete(synchronize_session=False)
     db.delete(med)
     db.commit()
+    await broadcast_event({
+        "type": "med.deleted",
+        "id": str(med_id),
+        "recipient_id": str(med.recipient_id) if med.recipient_id else None
+    })
     return None
