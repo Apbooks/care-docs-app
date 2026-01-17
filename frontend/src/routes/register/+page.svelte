@@ -134,7 +134,12 @@
 	</header>
 
 	{#if menuOpen}
-		<div class="fixed inset-0 z-40 bg-black/40" on:click={closeMenu}></div>
+		<button
+			type="button"
+			class="fixed inset-0 z-40 bg-black/40"
+			on:click={closeMenu}
+			aria-label="Close menu"
+		></button>
 		<div class="fixed top-0 left-0 z-50 h-full w-64 bg-white dark:bg-slate-900 shadow-xl p-5">
 			<div class="flex items-center justify-between mb-6">
 				<div>
@@ -144,6 +149,7 @@
 				<button
 					on:click={closeMenu}
 					class="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+					aria-label="Close menu"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

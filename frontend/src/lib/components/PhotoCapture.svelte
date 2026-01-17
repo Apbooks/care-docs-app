@@ -263,7 +263,7 @@
 		<div class="relative">
 			<img
 				src={previewUrl}
-				alt="Selected photo"
+				alt="Selected preview"
 				class="w-full h-48 object-cover rounded-xl"
 			/>
 			<button

@@ -555,11 +555,12 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 
 {#if show}
 	<!-- Modal Backdrop -->
-	<div
+	<button
+		type="button"
 		class="fixed inset-0 bg-black bg-opacity-50 z-40"
 		on:click={close}
-		on:keydown={(e) => e.key === 'Escape' && close()}
-	></div>
+		aria-label="Close quick entry"
+	></button>
 
 	<!-- Modal -->
 	<div class="fixed inset-0 flex items-end sm:items-center justify-center z-50">
@@ -690,10 +691,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 					<!-- Medication Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="quick-medication-select" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Medication <span class="text-red-500">*</span>
 							</label>
 							<select
+								id="quick-medication-select"
 								bind:value={selectedMedicationId}
 								on:change={() => {
 									const med = medLibrary.find(item => item.id === selectedMedicationId);
@@ -718,10 +720,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 
 						{#if selectedMedicationId === 'other' || !selectedMedicationId}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<label for="quick-medication-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Medication Name <span class="text-red-500">*</span>
 								</label>
 								<input
+									id="quick-medication-name"
 									type="text"
 									bind:value={medName}
 									required
@@ -732,10 +735,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						{/if}
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="quick-medication-dosage" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Dosage <span class="text-red-500">*</span>
 							</label>
 							<input
+								id="quick-medication-dosage"
 								type="text"
 								bind:value={dosage}
 								required
@@ -745,10 +749,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="quick-medication-route" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Route
 							</label>
 							<select
+								id="quick-medication-route"
 								bind:value={route}
 								required
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-base"
@@ -762,10 +767,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="quick-medication-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Notes (Optional)
 							</label>
 							<textarea
+								id="quick-medication-notes"
 								bind:value={notes}
 								rows="3"
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-base"
@@ -827,9 +833,9 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 					<!-- Feeding Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Feeding Type
-							</label>
+							</p>
 							<div class="grid grid-cols-3 gap-2">
 								<button
 									type="button"
@@ -869,10 +875,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 
 							<div class="grid gap-3 sm:grid-cols-2">
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									<label for="quick-feed-rate" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 										Feed Rate (ml/hr)
 									</label>
 									<input
+										id="quick-feed-rate"
 										type="number"
 										min="0"
 										bind:value={feedRate}
@@ -881,10 +888,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 									/>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									<label for="quick-feed-dose" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 										Dose (ml) - leave blank for infinite
 									</label>
 									<input
+										id="quick-feed-dose"
 										type="number"
 										min="0"
 										bind:value={feedDose}
@@ -893,10 +901,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 									/>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									<label for="quick-feed-interval" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 										Feed Interval (hr)
 									</label>
 									<input
+										id="quick-feed-interval"
 										type="number"
 										min="0"
 										step="0.1"
@@ -906,10 +915,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 									/>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									<label for="quick-feed-formula" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 										Formula Type
 									</label>
 									<input
+										id="quick-feed-formula"
 										type="text"
 										bind:value={formulaType}
 										class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
@@ -919,10 +929,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 							</div>
 
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<label for="quick-feed-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Notes (Optional)
 								</label>
 								<textarea
+									id="quick-feed-notes"
 									bind:value={notes}
 									rows="2"
 									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
@@ -931,10 +942,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 							</div>
 							{#if activeContinuousFeed}
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									<label for="quick-feed-pump-total" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 										Pump Total (ml)
 									</label>
 									<input
+										id="quick-feed-pump-total"
 										type="number"
 										min="0"
 										bind:value={pumpTotal}
@@ -945,10 +957,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 							{/if}
 						{:else if feedingMode === 'bolus'}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<label for="quick-feed-amount" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Amount (ml)
 								</label>
 								<input
+									id="quick-feed-amount"
 									type="number"
 									bind:value={amountMl}
 									min="0"
@@ -958,10 +971,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 							</div>
 
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<label for="quick-feed-formula" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Formula Type
 								</label>
 								<input
+									id="quick-feed-formula"
 									type="text"
 									bind:value={formulaType}
 									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
@@ -969,10 +983,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 								/>
 							</div>
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<label for="quick-feed-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Notes (Optional)
 								</label>
 								<textarea
+									id="quick-feed-notes"
 									bind:value={notes}
 									rows="2"
 									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
@@ -981,10 +996,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 							</div>
 						{:else}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<label for="quick-feed-oral-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Oral Feeding Notes
 								</label>
 								<textarea
+									id="quick-feed-oral-notes"
 									bind:value={oralNotes}
 									rows="3"
 									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
@@ -1038,9 +1054,9 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<!-- Type Selection - Buttons -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Type
-							</label>
+							</p>
 							<div class="grid grid-cols-3 gap-2">
 								{#each [
 									{ value: 'wet', label: 'Wet', icon: '💧' },
@@ -1080,9 +1096,9 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						<!-- Size Selection - Show for wet or dirty (single size) -->
 						{#if condition === 'wet' || condition === 'dirty'}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Size
-								</label>
+								</p>
 								<div class="grid grid-cols-3 gap-2">
 									{#each ['small', 'medium', 'large'] as size}
 										<button
@@ -1103,9 +1119,9 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						<!-- Separate Wet and Dirty Size Selection - Show for both -->
 						{#if condition === 'both'}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									💧 Wet Size
-								</label>
+								</p>
 								<div class="grid grid-cols-3 gap-2">
 									{#each ['small', 'medium', 'large'] as size}
 										<button
@@ -1122,9 +1138,9 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 								</div>
 							</div>
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									💩 Dirty Size
-								</label>
+								</p>
 								<div class="grid grid-cols-3 gap-2">
 									{#each ['small', 'medium', 'large'] as size}
 										<button
@@ -1145,9 +1161,9 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						<!-- Consistency Selection - Show only for dirty or both -->
 						{#if condition === 'dirty' || condition === 'both'}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+								<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 									Consistency
-								</label>
+								</p>
 								<div class="grid grid-cols-2 gap-2">
 									{#each [
 										{ value: 'loose', label: 'Loose' },
@@ -1182,10 +1198,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="diaper-skin-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Skin Condition Notes
 							</label>
 							<textarea
+								id="diaper-skin-notes"
 								bind:value={skinNotes}
 								rows="2"
 								class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-yellow-500 text-base"
@@ -1194,10 +1211,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="diaper-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Additional Notes (Optional)
 							</label>
 							<textarea
+								id="diaper-notes"
 								bind:value={notes}
 								rows="2"
 								class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-yellow-500 text-base"
@@ -1207,9 +1225,9 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 
 						<!-- Photo Capture - useful for documenting rashes -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Add Photo (Optional)
-							</label>
+							</p>
 							<PhotoCapture
 								on:select={handlePhotoSelect}
 								on:remove={handlePhotoRemove}
@@ -1239,10 +1257,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 					<!-- Demeanor Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="demeanor-mood" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Mood
 							</label>
 							<select
+								id="demeanor-mood"
 								bind:value={mood}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 text-base"
 							>
@@ -1256,10 +1275,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="demeanor-activity" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Activity Level
 							</label>
 							<select
+								id="demeanor-activity"
 								bind:value={activityLevel}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 text-base"
 							>
@@ -1273,10 +1293,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="demeanor-concerns" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Concerns
 							</label>
 							<textarea
+								id="demeanor-concerns"
 								bind:value={concerns}
 								rows="2"
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 text-base"
@@ -1285,10 +1306,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 						</div>
 
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="demeanor-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Additional Notes (Optional)
 							</label>
 							<textarea
+								id="demeanor-notes"
 								bind:value={notes}
 								rows="2"
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 text-base"
@@ -1318,10 +1340,11 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 					<!-- General Observation Form -->
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<label for="observation-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Observation <span class="text-red-500">*</span>
 							</label>
 							<textarea
+								id="observation-notes"
 								bind:value={notes}
 								required
 								rows="6"
@@ -1332,9 +1355,9 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 
 						<!-- Photo Capture -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+							<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Add Photo (Optional)
-							</label>
+							</p>
 							<PhotoCapture
 								on:select={handlePhotoSelect}
 								on:remove={handlePhotoRemove}

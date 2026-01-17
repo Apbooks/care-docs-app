@@ -161,12 +161,19 @@
 
 <!-- Lightbox -->
 {#if lightboxOpen && photos[lightboxIndex]}
-	<div
-		class="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
-		on:click={closeLightbox}
-		role="dialog"
-		aria-modal="true"
-	>
+	<div class="fixed inset-0 z-50 flex items-center justify-center">
+		<button
+			type="button"
+			class="absolute inset-0 bg-black/95"
+			on:click={closeLightbox}
+			aria-label="Close lightbox"
+		></button>
+		<div
+			class="relative z-10 flex items-center justify-center w-full h-full"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+		>
 		<!-- Close button -->
 		<button
 			type="button"
@@ -209,7 +216,6 @@
 			src={getPhotoUrl(photos[lightboxIndex])}
 			alt="Event photo {lightboxIndex + 1}"
 			class="max-w-full max-h-full object-contain"
-			on:click|stopPropagation
 		/>
 
 		<!-- Photo info -->
@@ -221,19 +227,20 @@
 				{/if}
 			</span>
 		</div>
+		</div>
 	</div>
 {/if}
 
 <!-- Delete confirmation modal -->
 {#if confirmDelete}
-	<div
-		class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-		on:click={cancelDelete}
-	>
-		<div
-			class="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-xl"
-			on:click|stopPropagation
-		>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+		<button
+			type="button"
+			class="absolute inset-0 bg-black/50"
+			on:click={cancelDelete}
+			aria-label="Close delete confirmation"
+		></button>
+		<div class="relative z-10 bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-xl">
 			<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
 				Delete Photo?
 			</h3>

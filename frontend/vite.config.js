@@ -6,9 +6,7 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		SvelteKitPWA({
-			srcDir: 'src',
-			strategies: 'injectManifest',
-			filename: 'service-worker.js',
+			strategies: 'generateSW',
 			scope: '/',
 			base: '/',
 			manifest: {
@@ -40,7 +38,7 @@ export default defineConfig({
 					}
 				]
 			},
-			injectManifest: {
+			workbox: {
 				globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,woff,woff2,ico}'],
 				globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js']
 			},

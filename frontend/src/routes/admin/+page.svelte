@@ -738,7 +738,12 @@
 	</header>
 
 	{#if menuOpen}
-		<div class="fixed inset-0 z-40 bg-black/40" on:click={closeMenu}></div>
+		<button
+			type="button"
+			class="fixed inset-0 z-40 bg-black/40"
+			on:click={closeMenu}
+			aria-label="Close menu"
+		></button>
 		<div class="fixed top-0 left-0 z-50 h-full w-64 bg-white dark:bg-slate-900 shadow-xl p-5">
 			<div class="flex items-center justify-between mb-6">
 				<div>
@@ -748,6 +753,7 @@
 				<button
 					on:click={closeMenu}
 					class="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+					aria-label="Close menu"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -817,8 +823,9 @@
 			{/if}
 			<div class="grid gap-4 sm:grid-cols-2">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Display Name</label>
+					<label for="profile-display-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Display Name</label>
 					<input
+						id="profile-display-name"
 						type="text"
 						bind:value={profileName}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -826,8 +833,9 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Avatar</label>
+					<label for="profile-avatar" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Avatar</label>
 					<input
+						id="profile-avatar"
 						type="file"
 						accept="image/*"
 						on:change={handleAvatarChange}
@@ -838,7 +846,7 @@
 					{/if}
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Theme</label>
+					<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Theme</p>
 					<ThemeToggle />
 				</div>
 			</div>
@@ -1054,8 +1062,9 @@
 
 			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateRecipient}>
 				<div class="sm:col-span-3">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Recipient Name</label>
+					<label for="new-recipient-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Recipient Name</label>
 					<input
+						id="new-recipient-name"
 						type="text"
 						bind:value={newRecipientName}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1070,7 +1079,7 @@
 					</label>
 				</div>
 				<div class="sm:col-span-4">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Enabled categories</label>
+					<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Enabled categories</p>
 					<div class="flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-slate-300">
 						{#each CARE_CATEGORIES as category}
 							<label class="flex items-center gap-2">
@@ -1197,8 +1206,9 @@
 
 			<form class="grid gap-4 sm:grid-cols-6" on:submit|preventDefault={handleCreateMedication}>
 				<div class="sm:col-span-2">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication Name</label>
+					<label for="new-med-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication Name</label>
 					<input
+						id="new-med-name"
 						type="text"
 						bind:value={newMedicationName}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1207,8 +1217,9 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose</label>
+					<label for="new-med-dose" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose</label>
 					<input
+						id="new-med-dose"
 						type="text"
 						bind:value={newMedicationDose}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1216,8 +1227,9 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Unit</label>
+					<label for="new-med-unit" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Unit</label>
 					<input
+						id="new-med-unit"
 						type="text"
 						bind:value={newMedicationUnit}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1225,8 +1237,9 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
+					<label for="new-med-route" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
 					<select
+						id="new-med-route"
 						bind:value={newMedicationRoute}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 						required
@@ -1239,8 +1252,9 @@
 					</select>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hrs)</label>
+					<label for="new-med-interval" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hrs)</label>
 					<input
+						id="new-med-interval"
 						type="number"
 						min="1"
 						bind:value={newMedicationInterval}
@@ -1248,8 +1262,9 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Early Warning (min)</label>
+					<label for="new-med-warning" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Early Warning (min)</label>
 					<input
+						id="new-med-warning"
 						type="number"
 						min="0"
 						bind:value={newMedicationWarning}
@@ -1257,8 +1272,9 @@
 					/>
 				</div>
 				<div class="sm:col-span-6">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
+					<label for="new-med-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
 					<textarea
+						id="new-med-notes"
 						bind:value={newMedicationNotes}
 						rows="2"
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1302,8 +1318,9 @@
 							{#if editMedicationId === med.id}
 								<div class="space-y-3">
 									<div>
-										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Name</label>
+										<label for="edit-med-name" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Name</label>
 										<input
+											id="edit-med-name"
 											type="text"
 											bind:value={editMedicationName}
 											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
@@ -1311,16 +1328,18 @@
 									</div>
 									<div class="grid gap-3 sm:grid-cols-2">
 										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Dose</label>
+											<label for="edit-med-dose" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Dose</label>
 											<input
+												id="edit-med-dose"
 												type="text"
 												bind:value={editMedicationDose}
 												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
 											/>
 										</div>
 										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Unit</label>
+											<label for="edit-med-unit" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Unit</label>
 											<input
+												id="edit-med-unit"
 												type="text"
 												bind:value={editMedicationUnit}
 												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
@@ -1328,8 +1347,9 @@
 										</div>
 									</div>
 									<div>
-										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Route</label>
+										<label for="edit-med-route" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Route</label>
 										<select
+											id="edit-med-route"
 											bind:value={editMedicationRoute}
 											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
 											required
@@ -1343,8 +1363,9 @@
 									</div>
 									<div class="grid gap-3 sm:grid-cols-2">
 										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Interval (hrs)</label>
+											<label for="edit-med-interval" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Interval (hrs)</label>
 											<input
+												id="edit-med-interval"
 												type="number"
 												min="1"
 												bind:value={editMedicationInterval}
@@ -1352,8 +1373,9 @@
 											/>
 										</div>
 										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Early Warning (min)</label>
+											<label for="edit-med-warning" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Early Warning (min)</label>
 											<input
+												id="edit-med-warning"
 												type="number"
 												min="0"
 												bind:value={editMedicationWarning}
@@ -1362,8 +1384,9 @@
 										</div>
 									</div>
 									<div>
-										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Notes</label>
+										<label for="edit-med-notes" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Notes</label>
 										<textarea
+											id="edit-med-notes"
 											bind:value={editMedicationNotes}
 											rows="2"
 											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
@@ -1437,8 +1460,9 @@
 
 			<form class="grid gap-4 sm:grid-cols-3" on:submit|preventDefault={handleCreateReminder}>
 				<div class="sm:col-span-2">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication</label>
+					<label for="new-reminder-medication" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication</label>
 					<select
+						id="new-reminder-medication"
 						bind:value={newReminderMedicationId}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 						required
@@ -1450,8 +1474,9 @@
 					</select>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hrs)</label>
+					<label for="new-reminder-interval" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hrs)</label>
 					<input
+						id="new-reminder-interval"
 						type="number"
 						min="1"
 						bind:value={newReminderInterval}
@@ -1460,8 +1485,9 @@
 					/>
 				</div>
 				<div class="sm:col-span-2">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Start Time</label>
+					<label for="new-reminder-start" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Start Time</label>
 					<input
+						id="new-reminder-start"
 						type="datetime-local"
 						bind:value={newReminderStartTime}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1537,7 +1563,7 @@
 
 			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateQuickFeed}>
 				<div class="sm:col-span-4">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feeding Type</label>
+					<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feeding Type</p>
 					<div class="grid grid-cols-3 gap-2">
 						<button
 							type="button"
@@ -1565,8 +1591,9 @@
 
 				{#if newFeedMode === 'continuous'}
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Rate (ml/hr)</label>
+						<label for="new-feed-rate" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Rate (ml/hr)</label>
 						<input
+							id="new-feed-rate"
 							type="number"
 							min="0"
 							bind:value={newFeedRate}
@@ -1575,8 +1602,9 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose (ml)</label>
+						<label for="new-feed-dose" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose (ml)</label>
 						<input
+							id="new-feed-dose"
 							type="number"
 							min="0"
 							bind:value={newFeedDose}
@@ -1585,8 +1613,9 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hr)</label>
+						<label for="new-feed-interval" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hr)</label>
 						<input
+							id="new-feed-interval"
 							type="number"
 							min="0"
 							step="0.1"
@@ -1596,8 +1625,9 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+						<label for="new-feed-formula" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
 						<input
+							id="new-feed-formula"
 							type="text"
 							bind:value={newFeedFormula}
 							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1606,8 +1636,9 @@
 					</div>
 				{:else if newFeedMode === 'oral'}
 					<div class="sm:col-span-4">
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Oral Notes</label>
+						<label for="new-feed-oral-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Oral Notes</label>
 						<textarea
+							id="new-feed-oral-notes"
 							rows="2"
 							bind:value={newFeedOralNotes}
 							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1616,8 +1647,9 @@
 					</div>
 				{:else}
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
+						<label for="new-feed-amount" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
 						<input
+							id="new-feed-amount"
 							type="number"
 							min="0"
 							bind:value={newFeedAmount}
@@ -1626,8 +1658,9 @@
 						/>
 					</div>
 					<div class="sm:col-span-3">
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+						<label for="new-feed-formula" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
 						<input
+							id="new-feed-formula"
 							type="text"
 							bind:value={newFeedFormula}
 							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -1661,8 +1694,9 @@
 							{#if editFeedId === feed.id}
 								<div class="space-y-3">
 									<div>
-										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Feeding Type</label>
+										<label for="edit-feed-mode" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Feeding Type</label>
 										<select
+											id="edit-feed-mode"
 											bind:value={editFeedMode}
 											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
 										>
@@ -1675,8 +1709,9 @@
 									{#if editFeedMode === 'continuous'}
 										<div class="grid gap-3 sm:grid-cols-2">
 											<div>
-												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Rate (ml/hr)</label>
+												<label for="edit-feed-rate" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Rate (ml/hr)</label>
 												<input
+													id="edit-feed-rate"
 													type="number"
 													min="0"
 													bind:value={editFeedRate}
@@ -1684,8 +1719,9 @@
 												/>
 											</div>
 											<div>
-												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Dose (ml)</label>
+												<label for="edit-feed-dose" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Dose (ml)</label>
 												<input
+													id="edit-feed-dose"
 													type="number"
 													min="0"
 													bind:value={editFeedDose}
@@ -1693,8 +1729,9 @@
 												/>
 											</div>
 											<div>
-												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Interval (hr)</label>
+												<label for="edit-feed-interval" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Interval (hr)</label>
 												<input
+													id="edit-feed-interval"
 													type="number"
 													min="0"
 													step="0.1"
@@ -1703,8 +1740,9 @@
 												/>
 											</div>
 											<div>
-												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Formula</label>
+												<label for="edit-feed-formula" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Formula</label>
 												<input
+													id="edit-feed-formula"
 													type="text"
 													bind:value={editFeedFormula}
 													class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
@@ -1713,8 +1751,9 @@
 										</div>
 									{:else if editFeedMode === 'oral'}
 										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Oral Notes</label>
+											<label for="edit-feed-oral-notes" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Oral Notes</label>
 											<textarea
+												id="edit-feed-oral-notes"
 												rows="2"
 												bind:value={editFeedOralNotes}
 												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
@@ -1723,8 +1762,9 @@
 									{:else}
 										<div class="grid gap-3 sm:grid-cols-2">
 											<div>
-												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Amount (ml)</label>
+												<label for="edit-feed-amount" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Amount (ml)</label>
 												<input
+													id="edit-feed-amount"
 													type="number"
 													min="0"
 													bind:value={editFeedAmount}
@@ -1732,8 +1772,9 @@
 												/>
 											</div>
 											<div>
-												<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Formula</label>
+												<label for="edit-feed-formula" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Formula</label>
 												<input
+													id="edit-feed-formula"
 													type="text"
 													bind:value={editFeedFormula}
 													class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
@@ -1844,8 +1885,9 @@
 						Push notifications
 					</label>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Due soon window (min)</label>
+						<label for="notifications-due-soon" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Due soon window (min)</label>
 						<input
+							id="notifications-due-soon"
 							type="number"
 							min="0"
 							bind:value={notificationsDueSoonMinutes}
@@ -1853,8 +1895,9 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Overdue repeat (min)</label>
+						<label for="notifications-overdue-repeat" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Overdue repeat (min)</label>
 						<input
+							id="notifications-overdue-repeat"
 							type="number"
 							min="0"
 							bind:value={notificationsOverdueMinutes}
@@ -1862,8 +1905,9 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Default snooze (min)</label>
+						<label for="notifications-snooze-default" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Default snooze (min)</label>
 						<input
+							id="notifications-snooze-default"
 							type="number"
 							min="0"
 							bind:value={notificationsSnoozeMinutes}

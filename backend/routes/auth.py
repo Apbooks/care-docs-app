@@ -149,9 +149,9 @@ async def get_current_active_admin(
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
     user_data: UserCreate,
+    request: Request,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_active_admin),
-    request: Request
+    current_admin: User = Depends(get_current_active_admin)
 ):
     """
     Register a new user (admin only)
@@ -209,8 +209,8 @@ async def register_user(
 async def login(
     response: Response,
     login_data: LoginRequest,
-    db: Session = Depends(get_db),
-    request: Request
+    request: Request,
+    db: Session = Depends(get_db)
 ):
     """
     Authenticate user and return JWT tokens
@@ -292,8 +292,8 @@ async def logout(response: Response):
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user),
-    request: Request
+    request: Request,
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get current authenticated user's information
@@ -313,9 +313,9 @@ async def get_current_user_info(
 @router.patch("/me", response_model=UserResponse)
 async def update_current_user(
     payload: UserProfileUpdate,
+    request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    request: Request
+    current_user: User = Depends(get_current_user)
 ):
     if payload.display_name is not None:
         current_user.display_name = payload.display_name.strip() or None
@@ -338,10 +338,10 @@ async def update_current_user(
 
 @router.post("/me/avatar", response_model=UserResponse)
 async def upload_avatar(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    request: Request
+    current_user: User = Depends(get_current_user)
 ):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image file")
@@ -376,8 +376,8 @@ async def upload_avatar(
 async def refresh_access_token(
     response: Response,
     request_body: RefreshRequest,
-    db: Session = Depends(get_db),
-    request: Request
+    request: Request,
+    db: Session = Depends(get_db)
 ):
     """
     Generate a new access token using a valid refresh token
@@ -457,9 +457,9 @@ class UserUpdate(BaseModel):
 
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
+    request: Request,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_active_admin),
-    request: Request
+    current_admin: User = Depends(get_current_active_admin)
 ):
     """
     List all users (admin only)
@@ -485,9 +485,9 @@ async def list_users(
 async def update_user(
     user_id: str,
     user_update: UserUpdate,
+    request: Request,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_active_admin),
-    request: Request
+    current_admin: User = Depends(get_current_active_admin)
 ):
     """
     Update user (admin only)

@@ -386,9 +386,14 @@
 </div>
 
 {#if editEvent}
-	<div class="fixed inset-0 bg-black/60 z-50" on:click={closeEdit}></div>
+	<button
+		type="button"
+		class="fixed inset-0 bg-black/60 z-50"
+		on:click={closeEdit}
+		aria-label="Close event editor"
+	></button>
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-		<div class="w-full max-w-lg max-h-[90vh] bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex flex-col" on:click|stopPropagation>
+		<div class="w-full max-w-lg max-h-[90vh] bg-white dark:bg-slate-900 rounded-2xl shadow-xl flex flex-col">
 			<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 				<h3 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Event Details</h3>
 				<p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Update time, type, and details.</p>
@@ -401,8 +406,9 @@
 				{/if}
 
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Event Type</label>
+					<label for="edit-event-type" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Event Type</label>
 					<select
+						id="edit-event-type"
 						bind:value={editEvent.type}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 					>
@@ -415,8 +421,9 @@
 				</div>
 
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Time</label>
+					<label for="edit-event-time" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Time</label>
 					<input
+						id="edit-event-time"
 						type="datetime-local"
 						bind:value={editEvent.timestamp}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -424,8 +431,9 @@
 				</div>
 				{#if $recipients.length > 0}
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Recipient</label>
+						<label for="edit-event-recipient" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Recipient</label>
 						<select
+							id="edit-event-recipient"
 							bind:value={editEvent.recipient_id}
 							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 						>
@@ -439,24 +447,27 @@
 				{#if editEvent.type === 'medication'}
 					<div class="grid gap-3 sm:grid-cols-2">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication</label>
+							<label for="edit-medication-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication</label>
 							<input
+								id="edit-medication-name"
 								type="text"
 								bind:value={editEvent.metadata.med_name}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 							/>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dosage</label>
+							<label for="edit-medication-dosage" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dosage</label>
 							<input
+								id="edit-medication-dosage"
 								type="text"
 								bind:value={editEvent.metadata.dosage}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 							/>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
+							<label for="edit-medication-route" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
 							<input
+								id="edit-medication-route"
 								type="text"
 								bind:value={editEvent.metadata.route}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -466,8 +477,9 @@
 				{:else if editEvent.type === 'feeding'}
 					<div class="space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feeding Type</label>
+							<label for="edit-feeding-type" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feeding Type</label>
 							<select
+								id="edit-feeding-type"
 								bind:value={editEvent.metadata.mode}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 							>
@@ -480,8 +492,9 @@
 						{#if editEvent.metadata.mode === 'continuous'}
 							<div class="grid gap-3 sm:grid-cols-2">
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Status</label>
+									<label for="edit-feeding-status" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Status</label>
 									<select
+										id="edit-feeding-status"
 										bind:value={editEvent.metadata.status}
 										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 									>
@@ -490,8 +503,9 @@
 									</select>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Rate (ml/hr)</label>
+									<label for="edit-feeding-rate" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Rate (ml/hr)</label>
 									<input
+										id="edit-feeding-rate"
 										type="number"
 										min="0"
 										bind:value={editEvent.metadata.rate_ml_hr}
@@ -499,8 +513,9 @@
 									/>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose (ml)</label>
+									<label for="edit-feeding-dose" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose (ml)</label>
 									<input
+										id="edit-feeding-dose"
 										type="number"
 										min="0"
 										bind:value={editEvent.metadata.dose_ml}
@@ -508,8 +523,9 @@
 									/>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hr)</label>
+									<label for="edit-feeding-interval" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hr)</label>
 									<input
+										id="edit-feeding-interval"
 										type="number"
 										min="0"
 										step="0.1"
@@ -518,8 +534,9 @@
 									/>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
+									<label for="edit-feeding-amount" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
 									<input
+										id="edit-feeding-amount"
 										type="number"
 										min="0"
 										bind:value={editEvent.metadata.amount_ml}
@@ -527,8 +544,9 @@
 									/>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Duration (min)</label>
+									<label for="edit-feeding-duration" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Duration (min)</label>
 									<input
+										id="edit-feeding-duration"
 										type="number"
 										min="0"
 										bind:value={editEvent.metadata.duration_min}
@@ -537,8 +555,9 @@
 								</div>
 							</div>
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+								<label for="edit-feeding-formula" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
 								<input
+									id="edit-feeding-formula"
 									type="text"
 									bind:value={editEvent.metadata.formula_type}
 									class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -546,8 +565,9 @@
 							</div>
 						{:else if editEvent.metadata.mode === 'oral'}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Oral Notes</label>
+								<label for="edit-feeding-oral-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Oral Notes</label>
 								<textarea
+									id="edit-feeding-oral-notes"
 									rows="3"
 									bind:value={editEvent.metadata.oral_notes}
 									class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -556,8 +576,9 @@
 						{:else}
 							<div class="grid gap-3 sm:grid-cols-2">
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
+									<label for="edit-feeding-amount" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Amount (ml)</label>
 									<input
+										id="edit-feeding-amount"
 										type="number"
 										min="0"
 										bind:value={editEvent.metadata.amount_ml}
@@ -565,8 +586,9 @@
 									/>
 								</div>
 								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
+									<label for="edit-feeding-formula" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Formula Type</label>
 									<input
+										id="edit-feeding-formula"
 										type="text"
 										bind:value={editEvent.metadata.formula_type}
 										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -579,7 +601,7 @@
 					<div class="space-y-4">
 						<!-- Condition Buttons -->
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Type</label>
+							<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Type</p>
 							<div class="grid grid-cols-3 gap-2">
 								{#each [
 									{ value: 'wet', label: '💧 Wet' },
@@ -619,7 +641,7 @@
 						<!-- Size Buttons - show for wet or dirty (single size) -->
 						{#if ['wet', 'dirty'].includes(editEvent.metadata.condition)}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Size</label>
+								<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Size</p>
 								<div class="grid grid-cols-3 gap-2">
 									{#each ['small', 'medium', 'large'] as size}
 										<button
@@ -640,7 +662,7 @@
 						<!-- Separate Wet and Dirty Size - show for both -->
 						{#if editEvent.metadata.condition === 'both'}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">💧 Wet Size</label>
+								<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">💧 Wet Size</p>
 								<div class="grid grid-cols-3 gap-2">
 									{#each ['small', 'medium', 'large'] as size}
 										<button
@@ -657,7 +679,7 @@
 								</div>
 							</div>
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">💩 Dirty Size</label>
+								<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">💩 Dirty Size</p>
 								<div class="grid grid-cols-3 gap-2">
 									{#each ['small', 'medium', 'large'] as size}
 										<button
@@ -678,7 +700,7 @@
 						<!-- Consistency Buttons - show for dirty, both -->
 						{#if ['dirty', 'both'].includes(editEvent.metadata.condition)}
 							<div>
-								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Consistency</label>
+								<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Consistency</p>
 								<div class="grid grid-cols-2 gap-2">
 									{#each [
 										{ value: 'loose', label: 'Loose' },
@@ -703,16 +725,19 @@
 
 						<!-- Rash and Skin Notes -->
 						<div class="flex items-center gap-3">
-							<input
-								type="checkbox"
-								bind:checked={editEvent.metadata.rash}
-								class="w-6 h-6 text-yellow-600 border-gray-300 rounded"
-							/>
-							<label class="text-sm font-medium text-gray-700 dark:text-slate-300">Rash present</label>
+							<label class="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-slate-300">
+								<input
+									type="checkbox"
+									bind:checked={editEvent.metadata.rash}
+									class="w-6 h-6 text-yellow-600 border-gray-300 rounded"
+								/>
+								Rash present
+							</label>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Skin Notes</label>
+							<label for="edit-diaper-skin-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Skin Notes</label>
 							<input
+								id="edit-diaper-skin-notes"
 								type="text"
 								bind:value={editEvent.metadata.skin_notes}
 								class="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 rounded-xl text-base"
@@ -722,24 +747,27 @@
 				{:else if editEvent.type === 'demeanor'}
 					<div class="grid gap-3 sm:grid-cols-2">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Mood</label>
+							<label for="edit-demeanor-mood" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Mood</label>
 							<input
+								id="edit-demeanor-mood"
 								type="text"
 								bind:value={editEvent.metadata.mood}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 							/>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Activity Level</label>
+							<label for="edit-demeanor-activity" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Activity Level</label>
 							<input
+								id="edit-demeanor-activity"
 								type="text"
 								bind:value={editEvent.metadata.activity_level}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 							/>
 						</div>
 						<div class="sm:col-span-2">
-							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Concerns</label>
+							<label for="edit-demeanor-concerns" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Concerns</label>
 							<input
+								id="edit-demeanor-concerns"
 								type="text"
 								bind:value={editEvent.metadata.concerns}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -749,8 +777,9 @@
 				{/if}
 
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
+					<label for="edit-event-notes" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
 					<textarea
+						id="edit-event-notes"
 						rows="3"
 						bind:value={editEvent.notes}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
@@ -759,7 +788,7 @@
 
 				<!-- Photos Section -->
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Photos</label>
+					<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Photos</p>
 					{#if loadingPhotos}
 						<div class="flex items-center justify-center py-4">
 							<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
