@@ -17,6 +17,7 @@ class MedicationCreate(BaseModel):
     name: str
     default_dose: Optional[str] = None
     dose_unit: Optional[str] = None
+    default_route: Optional[str] = None
     interval_hours: int = 4
     early_warning_minutes: int = 15
     notes: Optional[str] = None
@@ -31,6 +32,7 @@ class MedicationUpdate(BaseModel):
     name: Optional[str] = None
     default_dose: Optional[str] = None
     dose_unit: Optional[str] = None
+    default_route: Optional[str] = None
     interval_hours: Optional[int] = None
     early_warning_minutes: Optional[int] = None
     notes: Optional[str] = None
@@ -46,6 +48,7 @@ class MedicationResponse(BaseModel):
     name: str
     default_dose: Optional[str]
     dose_unit: Optional[str]
+    default_route: Optional[str]
     interval_hours: int
     early_warning_minutes: int
     notes: Optional[str]
@@ -67,6 +70,7 @@ def _to_response(med: Medication) -> MedicationResponse:
         name=med.name,
         default_dose=med.default_dose,
         dose_unit=med.dose_unit,
+        default_route=med.default_route,
         interval_hours=med.interval_hours,
         early_warning_minutes=med.early_warning_minutes,
         notes=med.notes,
@@ -111,6 +115,7 @@ async def create_medication(
         name=payload.name.strip(),
         default_dose=payload.default_dose,
         dose_unit=payload.dose_unit,
+        default_route=payload.default_route,
         interval_hours=payload.interval_hours,
         early_warning_minutes=payload.early_warning_minutes,
         notes=payload.notes,

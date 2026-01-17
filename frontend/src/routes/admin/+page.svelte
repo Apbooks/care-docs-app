@@ -90,6 +90,7 @@
 	let newMedicationName = '';
 	let newMedicationDose = '';
 	let newMedicationUnit = '';
+	let newMedicationRoute = '';
 	let newMedicationInterval = '4';
 	let newMedicationWarning = '15';
 	let newMedicationNotes = '';
@@ -100,6 +101,7 @@
 	let editMedicationName = '';
 	let editMedicationDose = '';
 	let editMedicationUnit = '';
+	let editMedicationRoute = '';
 	let editMedicationInterval = '';
 	let editMedicationWarning = '';
 	let editMedicationNotes = '';
@@ -345,6 +347,7 @@
 				name: newMedicationName,
 				default_dose: newMedicationDose || null,
 				dose_unit: newMedicationUnit || null,
+				default_route: newMedicationRoute || null,
 				interval_hours: parseInt(newMedicationInterval || '4'),
 				early_warning_minutes: parseInt(newMedicationWarning || '15'),
 				notes: newMedicationNotes || null,
@@ -357,6 +360,7 @@
 			newMedicationName = '';
 			newMedicationDose = '';
 			newMedicationUnit = '';
+			newMedicationRoute = '';
 			newMedicationInterval = '4';
 			newMedicationWarning = '15';
 			newMedicationNotes = '';
@@ -373,6 +377,7 @@
 		editMedicationName = med.name;
 		editMedicationDose = med.default_dose || '';
 		editMedicationUnit = med.dose_unit || '';
+		editMedicationRoute = med.default_route || '';
 		editMedicationInterval = med.interval_hours?.toString() || '';
 		editMedicationWarning = med.early_warning_minutes?.toString() || '';
 		editMedicationNotes = med.notes || '';
@@ -386,6 +391,7 @@
 		editMedicationName = '';
 		editMedicationDose = '';
 		editMedicationUnit = '';
+		editMedicationRoute = '';
 		editMedicationInterval = '';
 		editMedicationWarning = '';
 		editMedicationNotes = '';
@@ -402,6 +408,7 @@
 				name: editMedicationName,
 				default_dose: editMedicationDose || null,
 				dose_unit: editMedicationUnit || null,
+				default_route: editMedicationRoute || null,
 				interval_hours: editMedicationInterval ? parseInt(editMedicationInterval) : null,
 				early_warning_minutes: editMedicationWarning ? parseInt(editMedicationWarning) : null,
 				notes: editMedicationNotes || null,
@@ -1012,6 +1019,20 @@
 					/>
 				</div>
 				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
+					<select
+						bind:value={newMedicationRoute}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						required
+					>
+						<option value="" disabled>Select route</option>
+						<option value="oral">Oral</option>
+						<option value="tube">Tube Fed</option>
+						<option value="topical">Topical</option>
+						<option value="injection">Injection</option>
+					</select>
+				</div>
+				<div>
 					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hrs)</label>
 					<input
 						type="number"
@@ -1100,6 +1121,20 @@
 											/>
 										</div>
 									</div>
+									<div>
+										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Route</label>
+										<select
+											bind:value={editMedicationRoute}
+											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											required
+										>
+											<option value="" disabled>Select route</option>
+											<option value="oral">Oral</option>
+											<option value="tube">Tube Fed</option>
+											<option value="topical">Topical</option>
+											<option value="injection">Injection</option>
+										</select>
+									</div>
 									<div class="grid gap-3 sm:grid-cols-2">
 										<div>
 											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Interval (hrs)</label>
@@ -1150,7 +1185,7 @@
 									<div>
 										<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{med.name}</p>
 										<p class="text-sm text-slate-500 dark:text-slate-400">
-											{med.default_dose ? `${med.default_dose}${med.dose_unit ? ` ${med.dose_unit}` : ''}` : 'No dose'} · Every {med.interval_hours} hrs
+											{med.default_dose ? `${med.default_dose}${med.dose_unit ? ` ${med.dose_unit}` : ''}` : 'No dose'} · {med.default_route || 'Route not set'} · Every {med.interval_hours} hrs
 										</p>
 										<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
 											{med.is_active ? 'Active' : 'Inactive'} · Warn {med.early_warning_minutes} min early

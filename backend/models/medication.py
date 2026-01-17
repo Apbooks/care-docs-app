@@ -13,6 +13,7 @@ class Medication(Base):
     name = Column(String(120), nullable=False, index=True)
     default_dose = Column(String(80), nullable=True)
     dose_unit = Column(String(40), nullable=True)
+    default_route = Column(String(40), nullable=True)
     interval_hours = Column(Integer, nullable=False, default=4)
     early_warning_minutes = Column(Integer, nullable=False, default=15)
     notes = Column(Text, nullable=True)

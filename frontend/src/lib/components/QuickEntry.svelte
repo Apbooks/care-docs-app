@@ -1,6 +1,6 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed, uploadPhoto, checkMedEarly } from '$lib/services/api';
+import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getMedications, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed, uploadPhoto, checkMedEarly } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
 	import { selectedRecipientId } from '$lib/stores/recipients';
 	import { isOnline, queuePhoto } from '$lib/stores/offline';
@@ -27,6 +27,8 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 	let quickLoadedFor = null;
 	let quickMeds = [];
 	let quickFeeds = [];
+	let medLibrary = [];
+	let medLibraryLoading = false;
 	let quickNoteEnabled = false;
 	let quickNote = '';
 
@@ -38,6 +40,7 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 	let medName = '';
 	let dosage = '';
 	let route = '';
+	let selectedMedicationId = '';
 
 	// Feeding specific
 	let feedingMode = 'bolus';
@@ -124,12 +127,14 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 		quickError = '';
 
 		try {
-			const [meds, feeds] = await Promise.all([
+			const [meds, feeds, medList] = await Promise.all([
 				getQuickMedsForRecipient($selectedRecipientId),
-				getQuickFeedsForRecipient($selectedRecipientId)
+				getQuickFeedsForRecipient($selectedRecipientId),
+				getMedications({ recipient_id: $selectedRecipientId })
 			]);
 			quickMeds = meds;
 			quickFeeds = feeds;
+			medLibrary = medList;
 			quickLoaded = true;
 		} catch (err) {
 			quickError = err.message || 'Failed to load quick templates';
@@ -181,7 +186,8 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 		// Reset type-specific fields
 		medName = '';
 		dosage = '';
-		route = 'oral';
+		route = '';
+		selectedMedicationId = '';
 		amountMl = '';
 		durationMin = '';
 		formulaType = '';
@@ -203,6 +209,16 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 		concerns = '';
 		resetQuickNote();
 		resetPhoto();
+	}
+
+	function applyMedicationSelection(medication) {
+		if (!medication) return;
+		selectedMedicationId = medication.id;
+		medName = medication.name || '';
+		const dose = medication.default_dose || '';
+		const unit = medication.dose_unit ? ` ${medication.dose_unit}` : '';
+		dosage = `${dose}${unit}`.trim();
+		route = medication.default_route || '';
 	}
 
 	function formatRunningTime(value) {
@@ -269,11 +285,7 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 	}
 
 	async function logQuickMedication(template) {
-		medName = template.name || '';
-		const dose = template.default_dose || '';
-		const unit = template.dose_unit ? ` ${template.dose_unit}` : '';
-		dosage = `${dose}${unit}`.trim();
-		route = '';
+		applyMedicationSelection(template);
 	}
 
 	async function logQuickFeed(template) {
@@ -633,16 +645,45 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 					<form on:submit|preventDefault={submitEvent} class="space-y-4">
 						<div>
 							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-								Medication Name <span class="text-red-500">*</span>
+								Medication <span class="text-red-500">*</span>
 							</label>
-							<input
-								type="text"
-								bind:value={medName}
-								required
+							<select
+								bind:value={selectedMedicationId}
+								on:change={() => {
+									const med = medLibrary.find(item => item.id === selectedMedicationId);
+									if (med) {
+										applyMedicationSelection(med);
+									} else {
+										medName = '';
+										dosage = '';
+										route = '';
+									}
+								}}
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-base"
-								placeholder="e.g., Tylenol"
-							/>
+								required
+							>
+								<option value="" disabled>Select a medication</option>
+								{#each medLibrary as med}
+									<option value={med.id}>{med.name}</option>
+								{/each}
+								<option value="other">Other</option>
+							</select>
 						</div>
+
+						{#if selectedMedicationId === 'other' || !selectedMedicationId}
+							<div>
+								<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+									Medication Name <span class="text-red-500">*</span>
+								</label>
+								<input
+									type="text"
+									bind:value={medName}
+									required
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-base"
+									placeholder="e.g., Tylenol"
+								/>
+							</div>
+						{/if}
 
 						<div>
 							<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
