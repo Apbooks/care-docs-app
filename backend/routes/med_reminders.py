@@ -261,7 +261,7 @@ async def check_early(
         MedicationReminder.recipient_id == payload.recipient_id,
         MedicationReminder.medication_id == medication.id
     ).first()
-    if not reminder:
+    if not reminder or not reminder.enabled or not reminder.last_given_at:
         return MedEarlyCheckResponse(status="unknown")
 
     status = check_early_status(reminder, _ensure_utc(payload.timestamp))
