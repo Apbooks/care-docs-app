@@ -49,7 +49,8 @@ async def publish(payload: Dict[str, Any]) -> None:
         if len(message) > 7500:
             logger.warning("Pub/sub message truncated due to size")
             message = json.dumps({"type": payload.get("type"), "id": payload.get("id")})
-        await conn.execute(f"NOTIFY {CHANNEL_NAME}, $1", message)
+        # Use pg_notify to safely pass payload as a parameter.
+        await conn.execute("SELECT pg_notify($1, $2)", CHANNEL_NAME, message)
     except Exception as e:
         logger.error(f"Failed to publish to pub/sub: {e}")
         # Reset connection on error
