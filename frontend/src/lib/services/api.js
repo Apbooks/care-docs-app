@@ -263,6 +263,36 @@ export async function getCurrentUser() {
 	return apiRequest('/auth/me');
 }
 
+export async function updateCurrentUserProfile(data) {
+	return apiRequest('/auth/me', {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function uploadAvatar(file) {
+	const url = `${API_BASE}/auth/me/avatar`;
+	const token = getStoredToken('access_token');
+	const formData = new FormData();
+	formData.append('file', file);
+
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			...(token ? { 'Authorization': `Bearer ${token}` } : {})
+		},
+		credentials: 'include',
+		body: formData
+	});
+
+	if (!response.ok) {
+		const data = await response.json().catch(() => ({}));
+		throw new Error(data.detail || `HTTP ${response.status}`);
+	}
+
+	return response.json();
+}
+
 /**
  * Register a new user (admin only)
  * @param {object} userData - { username, email, password, role }

@@ -24,10 +24,11 @@
 	} from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import LogoMark from '$lib/components/LogoMark.svelte';
-	import { getTimezone, updateTimezone, getNotificationSettings, updateNotificationSettings } from '$lib/services/api';
+	import { getTimezone, updateTimezone, getNotificationSettings, updateNotificationSettings, updateCurrentUserProfile, uploadAvatar } from '$lib/services/api';
 	import { timezone as timezoneStore, setTimezone as setTimezoneStore } from '$lib/stores/settings';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
-import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
+	import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -39,6 +40,19 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 	let timezoneValue = 'local';
 	let timezoneLoading = true;
 	let timezoneError = '';
+	let profileName = '';
+	let profileSaving = false;
+	let profileError = '';
+	let avatarUploading = false;
+	let adminTab = 'meds';
+	const adminTabs = [
+		{ id: 'profile', label: 'Profile' },
+		{ id: 'recipients', label: 'Recipients' },
+		{ id: 'meds', label: 'Medications' },
+		{ id: 'feeding', label: 'Feeding' },
+		{ id: 'notifications', label: 'Notifications' },
+		{ id: 'users', label: 'Users' }
+	];
 	let notificationsLoading = true;
 	let notificationsError = '';
 	let notificationsEnablePush = false;
@@ -130,6 +144,10 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 		userIsAdmin = value;
 	});
 
+	$: if (user) {
+		profileName = user.display_name || user.username || '';
+	}
+
 	function toggleMenu() {
 		menuOpen = !menuOpen;
 	}
@@ -150,6 +168,35 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 			localStorage.removeItem('access_token');
 			localStorage.removeItem('refresh_token');
 			goto('/login');
+		}
+	}
+
+	async function handleProfileSave() {
+		if (!user) return;
+		profileError = '';
+		profileSaving = true;
+		try {
+			const updated = await updateCurrentUserProfile({ display_name: profileName });
+			await authStore.updateUser(updated);
+		} catch (err) {
+			profileError = err.message || 'Failed to update profile';
+		} finally {
+			profileSaving = false;
+		}
+	}
+
+	async function handleAvatarChange(event) {
+		const file = event?.target?.files?.[0];
+		if (!file) return;
+		profileError = '';
+		avatarUploading = true;
+		try {
+			const updated = await uploadAvatar(file);
+			await authStore.updateUser(updated);
+		} catch (err) {
+			profileError = err.message || 'Failed to upload avatar';
+		} finally {
+			avatarUploading = false;
 		}
 	}
 
@@ -673,15 +720,13 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 	<header class="bg-white dark:bg-slate-900 shadow sticky top-0 z-30">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 			<div class="flex items-center justify-between">
-				<button
-					on:click={toggleMenu}
-					class="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-					aria-label="Open menu"
-				>
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-					</svg>
-				</button>
+					<button
+						on:click={toggleMenu}
+						class="rounded-full border border-slate-200 p-1 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+						aria-label="Open menu"
+					>
+						<UserAvatar user={user} size={40} />
+					</button>
 
 				<LogoMark size={48} showLabel={true} href="/" />
 
@@ -749,12 +794,73 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage users and system settings</p>
 		</div>
 
-		<!-- Error Display -->
-	{#if error}
-		<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
-			<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
+		<div class="mb-6 flex flex-wrap gap-2">
+			{#each adminTabs as tab}
+				<button
+					type="button"
+					on:click={() => adminTab = tab.id}
+					class={`px-4 py-2 rounded-xl text-sm font-semibold border ${adminTab === tab.id ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'}`}
+				>
+					{tab.label}
+				</button>
+			{/each}
+		</div>
+
+	{#if adminTab === 'profile'}
+		<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-6">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-2">Profile Settings</h2>
+			<p class="text-sm text-gray-600 dark:text-slate-300 mb-4">Update your name, avatar, and theme.</p>
+			{#if profileError}
+				<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-sm">{profileError}</p>
+				</div>
+			{/if}
+			<div class="grid gap-4 sm:grid-cols-2">
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Display Name</label>
+					<input
+						type="text"
+						bind:value={profileName}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="Your name"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Avatar</label>
+					<input
+						type="file"
+						accept="image/*"
+						on:change={handleAvatarChange}
+						class="w-full text-sm text-gray-700 dark:text-slate-300"
+					/>
+					{#if avatarUploading}
+						<p class="text-xs text-gray-500 mt-2">Uploading...</p>
+					{/if}
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Theme</label>
+					<ThemeToggle />
+				</div>
+			</div>
+			<div class="mt-4">
+				<button
+					type="button"
+					on:click={handleProfileSave}
+					disabled={profileSaving}
+					class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-400"
+				>
+					{profileSaving ? 'Saving...' : 'Save Profile'}
+				</button>
+			</div>
 		</div>
 	{/if}
+
+	{#if adminTab === 'users'}
+		{#if error}
+			<div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+				<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
+			</div>
+		{/if}
 
 	<!-- User Management Section -->
 	<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
@@ -930,9 +1036,11 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 			{/if}
 		</div>
 	</div>
+	{/if}
 
+	{#if adminTab === 'recipients'}
 	<!-- Care Recipients -->
-	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+	<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
 		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Care Recipients</h2>
 			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage profiles for each person you track.</p>
@@ -1070,9 +1178,11 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 			{/if}
 		</div>
 	</div>
+	{/if}
 
+	{#if adminTab === 'meds'}
 	<!-- Medication Library -->
-	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+	<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
 		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Medication Library</h2>
 			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Define medications with schedules and warnings.</p>
@@ -1403,9 +1513,11 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 			{/if}
 		</div>
 	</div>
+	{/if}
 
+	{#if adminTab === 'feeding'}
 	<!-- Quick Feeds -->
-	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+	<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
 		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Quick Feeds</h2>
 			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage one-tap feeding templates (per recipient).</p>
@@ -1704,9 +1816,11 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 			{/if}
 		</div>
 	</div>
+	{/if}
 
+	{#if adminTab === 'notifications'}
 	<!-- Notification Settings -->
-	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+	<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
 		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
 			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Notifications</h2>
 			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Adjust reminder and alert behavior.</p>
@@ -1769,7 +1883,9 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 			{/if}
 		</div>
 	</div>
+	{/if}
 
+	{#if adminTab === 'users'}
 	<!-- System Information -->
 	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow p-6">
 		<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-4">System Information</h2>
@@ -1830,5 +1946,6 @@ import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipien
 			</button>
 		</div>
 	</div>
+	{/if}
 	</main>
 </div>

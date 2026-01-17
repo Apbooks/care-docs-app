@@ -236,6 +236,21 @@
 
 ---
 
+### 2026-01-12 - Phase 5: Med Reminders + Recipient Customization (In Progress)
+
+#### Completed
+- [x] Added medication library enhancements (default route, quick med flag, auto-start reminder)
+- [x] Added medication reminders (API, next due lookup, early warning checks, skip reminders)
+- [x] Unified quick meds with the medication library and auto-log quick meds
+- [x] Added per-recipient enabled categories and filtering across dashboard/history/quick entry
+- [x] Added admin controls for recipient categories and notification settings
+- [x] Added user profile updates (display name) and avatar upload storage served from /avatars
+- [x] Replaced hamburger navigation with a user avatar button in headers
+- [x] Fixed SSE pub/sub publishing errors for live updates
+
+#### Pending
+- [ ] Run migrations for new columns: users.display_name, users.avatar_filename, care_recipients.enabled_categories, medications.default_route, medications.is_quick_med, medications.auto_start_reminder
+
 ## Architecture Decisions
 
 ### Why SvelteKit?
@@ -617,7 +632,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-17 (Phase 8: Medication Reminders + Library)
+**Last Updated:** 2026-01-18 (Phase 5: Med Reminders + Recipient Customization)
 
 ---
 
@@ -642,6 +657,14 @@ After completing work, always commit changes and push to the remote repository.
 ALTER TABLE medications ADD COLUMN auto_start_reminder BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE medications ADD COLUMN is_quick_med BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE medications ADD COLUMN default_route VARCHAR(40);
+```
+
+### Recipient Categories + User Profile
+
+```sql
+ALTER TABLE care_recipients ADD COLUMN enabled_categories JSONB NOT NULL DEFAULT '["medication","feeding","diaper","demeanor","observation"]';
+ALTER TABLE users ADD COLUMN display_name VARCHAR(100);
+ALTER TABLE users ADD COLUMN avatar_filename VARCHAR(255);
 ```
 
 Quick meds migration (one-time):

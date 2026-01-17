@@ -32,11 +32,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create photos directory if it doesn't exist
+# Create uploads directories if they don't exist
 os.makedirs("photos", exist_ok=True)
+os.makedirs(settings.AVATAR_UPLOAD_DIR, exist_ok=True)
 
 # Mount static files for photos
 app.mount("/photos", StaticFiles(directory="photos"), name="photos")
+# Mount static files for avatars
+app.mount("/avatars", StaticFiles(directory=settings.AVATAR_UPLOAD_DIR), name="avatars")
 
 # Initialize database tables and start pub/sub listener
 @app.on_event("startup")

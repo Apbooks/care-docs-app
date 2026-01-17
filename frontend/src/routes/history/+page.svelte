@@ -7,7 +7,8 @@
 	import LogoMark from '$lib/components/LogoMark.svelte';
 	import { timezone } from '$lib/stores/settings';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
-import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
+	import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -261,12 +262,10 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 				<div class="flex items-center justify-between">
 					<button
 						on:click={toggleMenu}
-						class="w-12 h-12 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+						class="rounded-full border border-slate-200 p-1 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
 						aria-label="Open menu"
 					>
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-						</svg>
+						<UserAvatar user={user} size={40} />
 					</button>
 
 					<LogoMark size={48} showLabel={true} href="/" />
@@ -335,7 +334,6 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 				</div>
 				<RecipientSwitcher />
 			</section>
-			{/if}
 
 			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
 				<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Filters</h2>
@@ -402,6 +400,7 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 					</div>
 				{/if}
 			</section>
+			{/if}
 
 			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
 				<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -489,6 +488,7 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 					</div>
 				{/if}
 			</section>
+			{/if}
 
 			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
 				<div class="flex items-center justify-between gap-3 mb-4">

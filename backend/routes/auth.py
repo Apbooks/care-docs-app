@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, status, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import timedelta
+import os
+import uuid
 
 from database import get_db
 from models.user import User
@@ -53,6 +55,8 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: str
+    display_name: Optional[str]
+    avatar_url: Optional[str]
     role: str
     is_active: bool
     created_at: str
@@ -75,6 +79,19 @@ class LoginRequest(BaseModel):
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class UserProfileUpdate(BaseModel):
+    display_name: Optional[str] = None
+
+
+def _avatar_url(filename: Optional[str], request: Optional[Request] = None) -> Optional[str]:
+    if not filename:
+        return None
+    if request:
+        base_url = str(request.base_url).rstrip("/")
+        return f"{base_url}/avatars/{filename}"
+    return f"/avatars/{filename}"
 
 
 # Helper function to get current user from token
@@ -133,7 +150,8 @@ async def get_current_active_admin(
 async def register_user(
     user_data: UserCreate,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_active_admin)
+    current_admin: User = Depends(get_current_active_admin),
+    request: Request
 ):
     """
     Register a new user (admin only)
@@ -179,6 +197,8 @@ async def register_user(
         id=str(new_user.id),
         username=new_user.username,
         email=new_user.email,
+        display_name=new_user.display_name,
+        avatar_url=_avatar_url(new_user.avatar_filename, request),
         role=new_user.role,
         is_active=new_user.is_active,
         created_at=new_user.created_at.isoformat()
@@ -189,7 +209,8 @@ async def register_user(
 async def login(
     response: Response,
     login_data: LoginRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request
 ):
     """
     Authenticate user and return JWT tokens
@@ -249,6 +270,8 @@ async def login(
             id=str(user.id),
             username=user.username,
             email=user.email,
+            display_name=user.display_name,
+            avatar_url=_avatar_url(user.avatar_filename, request),
             role=user.role,
             is_active=user.is_active,
             created_at=user.created_at.isoformat()
@@ -268,7 +291,10 @@ async def logout(response: Response):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
+async def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+    request: Request
+):
     """
     Get current authenticated user's information
     """
@@ -276,6 +302,70 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         id=str(current_user.id),
         username=current_user.username,
         email=current_user.email,
+        display_name=current_user.display_name,
+        avatar_url=_avatar_url(current_user.avatar_filename, request),
+        role=current_user.role,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at.isoformat()
+    )
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_current_user(
+    payload: UserProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    request: Request
+):
+    if payload.display_name is not None:
+        current_user.display_name = payload.display_name.strip() or None
+
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    return UserResponse(
+        id=str(current_user.id),
+        username=current_user.username,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        avatar_url=_avatar_url(current_user.avatar_filename, request),
+        role=current_user.role,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at.isoformat()
+    )
+
+
+@router.post("/me/avatar", response_model=UserResponse)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    request: Request
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image file")
+
+    ext = os.path.splitext(file.filename or "")[1].lower() or ".jpg"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    upload_dir = settings.AVATAR_UPLOAD_DIR
+    os.makedirs(upload_dir, exist_ok=True)
+    filepath = os.path.join(upload_dir, filename)
+
+    with open(filepath, "wb") as out_file:
+        out_file.write(await file.read())
+
+    current_user.avatar_filename = filename
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    return UserResponse(
+        id=str(current_user.id),
+        username=current_user.username,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        avatar_url=_avatar_url(current_user.avatar_filename, request),
         role=current_user.role,
         is_active=current_user.is_active,
         created_at=current_user.created_at.isoformat()
@@ -286,7 +376,8 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 async def refresh_access_token(
     response: Response,
     request_body: RefreshRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request
 ):
     """
     Generate a new access token using a valid refresh token
@@ -347,6 +438,8 @@ async def refresh_access_token(
             id=str(user.id),
             username=user.username,
             email=user.email,
+            display_name=user.display_name,
+            avatar_url=_avatar_url(user.avatar_filename, request),
             role=user.role,
             is_active=user.is_active,
             created_at=user.created_at.isoformat()
@@ -365,7 +458,8 @@ class UserUpdate(BaseModel):
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_active_admin)
+    current_admin: User = Depends(get_current_active_admin),
+    request: Request
 ):
     """
     List all users (admin only)
@@ -377,6 +471,8 @@ async def list_users(
             id=str(user.id),
             username=user.username,
             email=user.email,
+            display_name=user.display_name,
+            avatar_url=_avatar_url(user.avatar_filename, request),
             role=user.role,
             is_active=user.is_active,
             created_at=user.created_at.isoformat()
@@ -390,7 +486,8 @@ async def update_user(
     user_id: str,
     user_update: UserUpdate,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_active_admin)
+    current_admin: User = Depends(get_current_active_admin),
+    request: Request
 ):
     """
     Update user (admin only)
@@ -421,6 +518,8 @@ async def update_user(
         id=str(user.id),
         username=user.username,
         email=user.email,
+        display_name=user.display_name,
+        avatar_url=_avatar_url(user.avatar_filename, request),
         role=user.role,
         is_active=user.is_active,
         created_at=user.created_at.isoformat()

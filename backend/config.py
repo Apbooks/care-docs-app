@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # File Upload
     MAX_PHOTO_SIZE_MB: int = 10
     PHOTO_UPLOAD_DIR: str = "photos"
+    AVATAR_UPLOAD_DIR: str = "avatars"
 
     # Push Notifications
     VAPID_PUBLIC_KEY: str = ""
