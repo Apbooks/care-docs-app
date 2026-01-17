@@ -1,6 +1,6 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed, uploadPhoto } from '$lib/services/api';
+import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed, uploadPhoto, checkMedEarly } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
 	import { selectedRecipientId } from '$lib/stores/recipients';
 	import { isOnline, queuePhoto } from '$lib/stores/offline';
@@ -13,6 +13,8 @@
 	let step = 'select'; // 'select' or event type
 	let loading = false;
 	let error = '';
+	let earlyWarning = null;
+	let pendingMedicationAction = null;
 
 	// Photo state
 	let selectedPhoto = null;
@@ -266,13 +268,21 @@
 		}
 	}
 
-	async function logQuickMedication(template) {
+	async function logQuickMedication(template, overrideEarlyCheck = false) {
 		if (loading || !$selectedRecipientId) return;
 		error = '';
 		loading = true;
 
 		try {
 			const quickNotes = quickNoteEnabled ? (quickNote.trim() || null) : null;
+
+			if (!overrideEarlyCheck) {
+				const ok = await handleMedicationEarlyCheck(template.name, () => logQuickMedication(template, true));
+				if (!ok) {
+					loading = false;
+					return;
+				}
+			}
 
 			const newEvent = await createEvent({
 				type: 'medication',
@@ -344,7 +354,8 @@
 		}
 	}
 
-	async function submitEvent() {
+	async function submitEvent(arg) {
+		const overrideEarlyCheck = arg === true;
 		if (!$selectedRecipientId) {
 			error = 'Select a care recipient first.';
 			return;
@@ -419,6 +430,14 @@
 					break;
 			}
 
+			if (selectedType === 'medication' && !overrideEarlyCheck) {
+				const ok = await handleMedicationEarlyCheck(medName, submitEventWithOverride);
+				if (!ok) {
+					loading = false;
+					return;
+				}
+			}
+
 			// Create the event
 			const newEvent = await createEvent({
 				type: selectedType,
@@ -459,6 +478,50 @@
 			loading = false;
 		}
 	}
+
+	async function submitEventWithOverride() {
+		if (loading) return;
+		await submitEvent(true);
+	}
+
+	async function handleMedicationEarlyCheck(medNameValue, continueAction) {
+		if (!medNameValue || !$selectedRecipientId) {
+			return true;
+		}
+		try {
+			const result = await checkMedEarly({
+				recipient_id: $selectedRecipientId,
+				med_name: medNameValue,
+				timestamp: new Date().toISOString()
+			});
+			if (result?.status === 'early') {
+				earlyWarning = {
+					medName: medNameValue,
+					minutesUntilDue: result.minutes_until_due,
+					warningLevel: result.warning_level,
+					nextDue: result.next_due
+				};
+				pendingMedicationAction = continueAction;
+				return false;
+			}
+		} catch (err) {
+			// If check fails, allow the event to proceed.
+		}
+		return true;
+	}
+
+	function confirmEarlyWarning() {
+		if (!pendingMedicationAction) return;
+		const action = pendingMedicationAction;
+		pendingMedicationAction = null;
+		earlyWarning = null;
+		action();
+	}
+
+	function cancelEarlyWarning() {
+		earlyWarning = null;
+		pendingMedicationAction = null;
+	}
 </script>
 
 {#if show}
@@ -497,6 +560,30 @@
 				{#if error}
 					<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-900">
 						<p class="text-red-800 dark:text-red-200 text-base">{error}</p>
+					</div>
+				{/if}
+				{#if earlyWarning}
+					<div class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950 dark:border-amber-900">
+						<p class="text-amber-900 dark:text-amber-100 text-base font-semibold">Medication due soon</p>
+						<p class="text-amber-800 dark:text-amber-200 text-sm mt-1">
+							{earlyWarning.medName} is due in {earlyWarning.minutesUntilDue} minutes.
+						</p>
+						<div class="mt-3 flex flex-wrap gap-2">
+							<button
+								type="button"
+								on:click={confirmEarlyWarning}
+								class="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700"
+							>
+								Log anyway
+							</button>
+							<button
+								type="button"
+								on:click={cancelEarlyWarning}
+								class="px-4 py-2 rounded-lg bg-white text-amber-800 border border-amber-300 text-sm font-semibold hover:bg-amber-100"
+							>
+								Cancel
+							</button>
+						</div>
 					</div>
 				{/if}
 				{#if !$selectedRecipientId}

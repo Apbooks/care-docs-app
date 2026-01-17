@@ -4,7 +4,7 @@
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-	import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession } from '$lib/services/api';
+import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession, getNextMedReminders, skipMedReminder, createEvent } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -22,6 +22,10 @@
 	let activeContinuousFeed = null;
 	let feedActionError = '';
 	let feedActionLoading = false;
+	let medReminders = [];
+	let medRemindersLoading = false;
+	let medRemindersError = '';
+	let medRemindersExpanded = false;
 	let stream;
 	let menuOpen = false;
 	let lastRecipientId = null;
@@ -44,6 +48,7 @@
 		}
 
 		loadActiveFeed();
+		loadMedReminders();
 		const eventId = get(page).url.searchParams.get('eventId');
 		if (eventId) {
 			tick().then(() => {
@@ -82,6 +87,7 @@
 							eventListComponent.refresh();
 						}
 						loadActiveFeed();
+						loadMedReminders();
 					}
 					if (data.type?.startsWith('feed.') && recipientMatch) {
 						loadActiveFeed();
@@ -119,8 +125,68 @@
 	$: if ($selectedRecipientId !== lastRecipientId) {
 		lastRecipientId = $selectedRecipientId;
 		loadActiveFeed();
+		loadMedReminders();
 		if (eventListComponent) {
 			eventListComponent.refresh();
+		}
+	}
+
+	async function loadMedReminders() {
+		if (!$selectedRecipientId) {
+			medReminders = [];
+			return;
+		}
+		medRemindersLoading = true;
+		medRemindersError = '';
+		try {
+			medReminders = await getNextMedReminders($selectedRecipientId, 10);
+		} catch (err) {
+			medRemindersError = err.message || 'Failed to load medication reminders';
+		} finally {
+			medRemindersLoading = false;
+		}
+	}
+
+	function formatDueTime(value) {
+		if (!value) return 'No schedule';
+		const date = new Date(value);
+		const options = { timeZone: $timezone };
+		return date.toLocaleTimeString('en-US', {
+			hour: 'numeric',
+			minute: '2-digit',
+			...($timezone === 'local' ? {} : options)
+		});
+	}
+
+	async function handleSkipReminder(reminderId) {
+		try {
+			await skipMedReminder(reminderId);
+			loadMedReminders();
+		} catch (err) {
+			medRemindersError = err.message || 'Failed to skip reminder';
+		}
+	}
+
+	async function handleLogMedNow(reminder) {
+		if (!$selectedRecipientId) return;
+		try {
+			await createEvent({
+				type: 'medication',
+				timestamp: new Date().toISOString(),
+				recipient_id: $selectedRecipientId,
+				notes: null,
+				metadata: {
+					med_name: reminder.medication_name,
+					dosage: reminder.default_dose ? `${reminder.default_dose}${reminder.dose_unit ? ` ${reminder.dose_unit}` : ''}` : null,
+					route: 'oral'
+				}
+			});
+			loadMedReminders();
+			if (eventListComponent) {
+				eventListComponent.refresh();
+			}
+		} catch (err) {
+			medRemindersError = err.message || 'Failed to log medication';
 		}
 	}
 
@@ -186,6 +252,7 @@
 		if (eventListComponent) {
 			eventListComponent.refresh();
 		}
+		loadMedReminders();
 	}
 
 	function toggleMenu() {
@@ -317,6 +384,63 @@
 					</div>
 					{#if feedActionError}
 						<p class="mt-3 text-sm text-red-700 dark:text-red-200">{feedActionError}</p>
+					{/if}
+				</div>
+			{/if}
+
+			{#if $selectedRecipientId}
+				<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-6 mb-6">
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Medication reminders</h2>
+							<p class="text-sm text-gray-600 dark:text-slate-400">Next doses due</p>
+						</div>
+						{#if medReminders.length > 3}
+							<button
+								type="button"
+								on:click={() => { medRemindersExpanded = !medRemindersExpanded; }}
+								class="text-sm font-semibold text-blue-600 hover:text-blue-700"
+							>
+								{medRemindersExpanded ? 'Show less' : 'Show more'}
+							</button>
+						{/if}
+					</div>
+
+					{#if medRemindersLoading}
+						<p class="text-sm text-gray-500 dark:text-slate-400 mt-4">Loading reminders...</p>
+					{:else if medRemindersError}
+						<p class="text-sm text-red-600 dark:text-red-400 mt-4">{medRemindersError}</p>
+					{:else if medReminders.length === 0}
+						<p class="text-sm text-gray-500 dark:text-slate-400 mt-4">No active reminders.</p>
+					{:else}
+						<div class="mt-4 space-y-3">
+							{#each (medRemindersExpanded ? medReminders : medReminders.slice(0, 3)) as reminder}
+								<div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-3">
+									<div>
+										<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{reminder.medication_name}</p>
+										<p class="text-sm text-slate-600 dark:text-slate-400">
+											{reminder.minutes_until_due <= 0 ? 'Due now' : `Due at ${formatDueTime(reminder.next_due)}`}
+										</p>
+									</div>
+									<div class="flex flex-wrap items-center gap-2">
+										<button
+											type="button"
+											on:click={() => handleLogMedNow(reminder)}
+											class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+										>
+											Log dose now
+										</button>
+										<button
+											type="button"
+											on:click={() => handleSkipReminder(reminder.id)}
+											class="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+										>
+											Skip this med
+										</button>
+									</div>
+								</div>
+							{/each}
+						</div>
 					{/if}
 				</div>
 			{/if}

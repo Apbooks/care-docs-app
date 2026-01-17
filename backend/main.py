@@ -7,7 +7,7 @@ import os
 from database import init_db
 
 # Import routes
-from routes import auth, events, setup, quick_templates, settings as settings_routes, feeds, stream, recipients, photos
+from routes import auth, events, setup, quick_templates, settings as settings_routes, feeds, stream, recipients, photos, medications, med_reminders
 
 # Import pub/sub service
 from services import pubsub
@@ -88,6 +88,8 @@ app.include_router(feeds.router, prefix="/api", tags=["feeds"])
 app.include_router(stream.router, prefix="/api", tags=["stream"])
 app.include_router(recipients.router, prefix="/api", tags=["recipients"])
 app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
+app.include_router(medications.router, prefix="/api/medications", tags=["medications"])
+app.include_router(med_reminders.router, prefix="/api/med-reminders", tags=["med-reminders"])
 
 if __name__ == "__main__":
     import uvicorn

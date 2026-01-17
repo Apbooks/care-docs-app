@@ -6,6 +6,18 @@ from .quick_feed import QuickFeed
 from .app_setting import AppSetting
 from .care_recipient import CareRecipient
 from .photo import Photo
+from .medication import Medication
+from .med_reminder import MedicationReminder
 # from .reminder import Reminder
 
-__all__ = ["User", "Event", "QuickMedication", "QuickFeed", "AppSetting", "CareRecipient", "Photo"]
+__all__ = [
+    "User",
+    "Event",
+    "QuickMedication",
+    "QuickFeed",
+    "AppSetting",
+    "CareRecipient",
+    "Photo",
+    "Medication",
+    "MedicationReminder",
+]

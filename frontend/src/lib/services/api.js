@@ -758,3 +758,83 @@ export async function deletePhoto(photoId) {
 		method: 'DELETE'
 	});
 }
+
+// ============================================================================
+// MEDICATIONS + REMINDERS
+// ============================================================================
+
+export async function getMedications(params = {}) {
+	const queryParams = new URLSearchParams();
+	if (params.recipient_id) queryParams.append('recipient_id', params.recipient_id);
+	if (params.include_inactive) queryParams.append('include_inactive', 'true');
+	const query = queryParams.toString();
+	return apiRequest(`/medications${query ? '?' + query : ''}`);
+}
+
+export async function createMedication(data) {
+	return apiRequest('/medications', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function updateMedication(medId, data) {
+	return apiRequest(`/medications/${medId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function deleteMedication(medId) {
+	return apiRequest(`/medications/${medId}`, {
+		method: 'DELETE'
+	});
+}
+
+export async function getMedReminders(params = {}) {
+	const queryParams = new URLSearchParams();
+	if (params.recipient_id) queryParams.append('recipient_id', params.recipient_id);
+	if (params.include_disabled) queryParams.append('include_disabled', 'true');
+	const query = queryParams.toString();
+	return apiRequest(`/med-reminders${query ? '?' + query : ''}`);
+}
+
+export async function createMedReminder(data) {
+	return apiRequest('/med-reminders', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function updateMedReminder(reminderId, data) {
+	return apiRequest(`/med-reminders/${reminderId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function skipMedReminder(reminderId) {
+	return apiRequest(`/med-reminders/${reminderId}/skip`, {
+		method: 'POST'
+	});
+}
+
+export async function logMedReminder(reminderId) {
+	return apiRequest(`/med-reminders/${reminderId}/log`, {
+		method: 'POST'
+	});
+}
+
+export async function getNextMedReminders(recipientId, limit = 10) {
+	const queryParams = new URLSearchParams();
+	queryParams.append('recipient_id', recipientId);
+	queryParams.append('limit', limit.toString());
+	return apiRequest(`/med-reminders/next?${queryParams.toString()}`);
+}
+
+export async function checkMedEarly(data) {
+	return apiRequest('/med-reminders/check-early', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}

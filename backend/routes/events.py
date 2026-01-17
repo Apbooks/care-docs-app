@@ -14,6 +14,7 @@ from models.event import Event
 from models.care_recipient import CareRecipient
 from routes.auth import get_current_user
 from routes.stream import broadcast_event
+from services.med_reminder_service import record_medication_dose
 from services.utils import to_utc_iso
 
 router = APIRouter()
@@ -141,6 +142,12 @@ async def create_event(
     db.add(new_event)
     db.commit()
     db.refresh(new_event)
+
+    if new_event.type == "medication":
+        med_name = (event_data.metadata or {}).get("med_name")
+        reminder = record_medication_dose(db, recipient.id, med_name, new_event.timestamp)
+        if reminder:
+            db.commit()
     await broadcast_event({"type": "event.created", "id": str(new_event.id), "recipient_id": str(recipient.id)})
 
     return EventResponse(

@@ -13,6 +13,13 @@
 		createQuickFeed,
 		updateQuickFeed,
 		deleteQuickFeed,
+		getMedications,
+		createMedication,
+		updateMedication,
+		deleteMedication,
+		getMedReminders,
+		createMedReminder,
+		updateMedReminder,
 		getRecipients,
 		createRecipient,
 		updateRecipient,
@@ -53,6 +60,12 @@
 	let quickFeedsLoading = true;
 	let quickMedsError = '';
 	let quickFeedsError = '';
+	let medications = [];
+	let medicationsLoading = true;
+	let medicationsError = '';
+	let medReminders = [];
+	let medRemindersLoading = true;
+	let medRemindersError = '';
 	let recipientsList = [];
 	let recipientsLoading = true;
 	let recipientsError = '';
@@ -88,6 +101,26 @@
 	let editFeedInterval = '';
 	let editFeedOralNotes = '';
 	let lastTemplateRecipientId = null;
+
+	let newMedicationName = '';
+	let newMedicationDose = '';
+	let newMedicationUnit = '';
+	let newMedicationInterval = '4';
+	let newMedicationWarning = '15';
+	let newMedicationNotes = '';
+	let newMedicationActive = true;
+	let editMedicationId = null;
+	let editMedicationName = '';
+	let editMedicationDose = '';
+	let editMedicationUnit = '';
+	let editMedicationInterval = '';
+	let editMedicationWarning = '';
+	let editMedicationNotes = '';
+	let editMedicationActive = true;
+
+	let newReminderMedicationId = '';
+	let newReminderStartTime = '';
+	let newReminderInterval = '';
 
 	authStore.subscribe(value => {
 		user = value;
@@ -128,13 +161,23 @@
 			return;
 		}
 
-		await Promise.all([loadUsers(), loadRecipients(), loadQuickMeds(), loadQuickFeeds(), loadTimezone()]);
+		await Promise.all([
+			loadUsers(),
+			loadRecipients(),
+			loadQuickMeds(),
+			loadQuickFeeds(),
+			loadMedications(),
+			loadMedReminders(),
+			loadTimezone()
+		]);
 	});
 
 	$: if ($selectedRecipientId && $selectedRecipientId !== lastTemplateRecipientId) {
 		lastTemplateRecipientId = $selectedRecipientId;
 		loadQuickMeds();
 		loadQuickFeeds();
+		loadMedications();
+		loadMedReminders();
 	}
 
 	async function loadUsers() {
@@ -290,6 +333,149 @@
 			quickFeedsError = err.message || 'Failed to load quick feeds';
 		} finally {
 			quickFeedsLoading = false;
+		}
+	}
+
+	async function loadMedications() {
+		medicationsLoading = true;
+		medicationsError = '';
+
+		try {
+			const params = $selectedRecipientId ? { recipient_id: $selectedRecipientId, include_inactive: true } : { include_inactive: true };
+			medications = await getMedications(params);
+		} catch (err) {
+			medicationsError = err.message || 'Failed to load medications';
+		} finally {
+			medicationsLoading = false;
+		}
+	}
+
+	async function loadMedReminders() {
+		medRemindersLoading = true;
+		medRemindersError = '';
+
+		try {
+			if (!$selectedRecipientId) {
+				medReminders = [];
+				return;
+			}
+			medReminders = await getMedReminders({ recipient_id: $selectedRecipientId, include_disabled: true });
+		} catch (err) {
+			medRemindersError = err.message || 'Failed to load reminders';
+		} finally {
+			medRemindersLoading = false;
+		}
+	}
+
+	async function handleCreateMedication() {
+		medicationsError = '';
+
+		try {
+			const created = await createMedication({
+				name: newMedicationName,
+				default_dose: newMedicationDose || null,
+				dose_unit: newMedicationUnit || null,
+				interval_hours: parseInt(newMedicationInterval || '4'),
+				early_warning_minutes: parseInt(newMedicationWarning || '15'),
+				notes: newMedicationNotes || null,
+				is_active: newMedicationActive,
+				recipient_id: $selectedRecipientId || null
+			});
+			medications = [created, ...medications];
+			newMedicationName = '';
+			newMedicationDose = '';
+			newMedicationUnit = '';
+			newMedicationInterval = '4';
+			newMedicationWarning = '15';
+			newMedicationNotes = '';
+			newMedicationActive = true;
+		} catch (err) {
+			medicationsError = err.message || 'Failed to create medication';
+		}
+	}
+
+	function startEditMedication(med) {
+		editMedicationId = med.id;
+		editMedicationName = med.name;
+		editMedicationDose = med.default_dose || '';
+		editMedicationUnit = med.dose_unit || '';
+		editMedicationInterval = med.interval_hours?.toString() || '';
+		editMedicationWarning = med.early_warning_minutes?.toString() || '';
+		editMedicationNotes = med.notes || '';
+		editMedicationActive = med.is_active;
+	}
+
+	function cancelEditMedication() {
+		editMedicationId = null;
+		editMedicationName = '';
+		editMedicationDose = '';
+		editMedicationUnit = '';
+		editMedicationInterval = '';
+		editMedicationWarning = '';
+		editMedicationNotes = '';
+		editMedicationActive = true;
+	}
+
+	async function handleSaveMedication() {
+		medicationsError = '';
+
+		try {
+			const updated = await updateMedication(editMedicationId, {
+				name: editMedicationName,
+				default_dose: editMedicationDose || null,
+				dose_unit: editMedicationUnit || null,
+				interval_hours: editMedicationInterval ? parseInt(editMedicationInterval) : null,
+				early_warning_minutes: editMedicationWarning ? parseInt(editMedicationWarning) : null,
+				notes: editMedicationNotes || null,
+				is_active: editMedicationActive,
+				recipient_id: $selectedRecipientId || null
+			});
+			medications = medications.map(item => item.id === updated.id ? updated : item);
+			cancelEditMedication();
+		} catch (err) {
+			medicationsError = err.message || 'Failed to update medication';
+		}
+	}
+
+	async function handleDeleteMedication(medId) {
+		medicationsError = '';
+
+		try {
+			await deleteMedication(medId);
+			medications = medications.filter(item => item.id !== medId);
+		} catch (err) {
+			medicationsError = err.message || 'Failed to delete medication';
+		}
+	}
+
+	async function handleCreateReminder() {
+		medRemindersError = '';
+
+		try {
+			const created = await createMedReminder({
+				recipient_id: $selectedRecipientId,
+				medication_id: newReminderMedicationId,
+				start_time: newReminderStartTime ? new Date(newReminderStartTime).toISOString() : null,
+				interval_hours: newReminderInterval ? parseInt(newReminderInterval) : null,
+				enabled: true
+			});
+			medReminders = [created, ...medReminders];
+			newReminderMedicationId = '';
+			newReminderStartTime = '';
+			newReminderInterval = '';
+		} catch (err) {
+			medRemindersError = err.message || 'Failed to create reminder';
+		}
+	}
+
+	async function handleToggleReminder(reminder) {
+		medRemindersError = '';
+
+		try {
+			const updated = await updateMedReminder(reminder.id, { enabled: !reminder.enabled });
+			medReminders = medReminders.map(item => item.id === updated.id ? updated : item);
+		} catch (err) {
+			medRemindersError = err.message || 'Failed to update reminder';
 		}
 	}
 
@@ -1028,6 +1214,293 @@
 									</button>
 								</div>
 							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Medication Library -->
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Medication Library</h2>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Define medications with schedules and warnings.</p>
+		</div>
+		<div class="p-6 space-y-6">
+			<RecipientSwitcher label="Medications for" />
+			{#if medicationsError}
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{medicationsError}</p>
+				</div>
+			{/if}
+
+			<form class="grid gap-4 sm:grid-cols-6" on:submit|preventDefault={handleCreateMedication}>
+				<div class="sm:col-span-2">
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication Name</label>
+					<input
+						type="text"
+						bind:value={newMedicationName}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="e.g., Tylenol"
+						required
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dose</label>
+					<input
+						type="text"
+						bind:value={newMedicationDose}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="5"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Unit</label>
+					<input
+						type="text"
+						bind:value={newMedicationUnit}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="ml"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hrs)</label>
+					<input
+						type="number"
+						min="1"
+						bind:value={newMedicationInterval}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Early Warning (min)</label>
+					<input
+						type="number"
+						min="0"
+						bind:value={newMedicationWarning}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+					/>
+				</div>
+				<div class="sm:col-span-6">
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Notes</label>
+					<textarea
+						bind:value={newMedicationNotes}
+						rows="2"
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="Optional notes"
+					></textarea>
+				</div>
+				<div class="sm:col-span-6 flex flex-wrap items-center gap-3">
+					<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+						<input type="checkbox" bind:checked={newMedicationActive} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+						Active
+					</label>
+					<button
+						type="submit"
+						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
+						disabled={!newMedicationName || !$selectedRecipientId}
+					>
+						Add Medication
+					</button>
+				</div>
+			</form>
+
+			{#if medicationsLoading}
+				<div class="text-center py-6">
+					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+					<p class="mt-2 text-gray-600 dark:text-slate-300 text-base">Loading medications...</p>
+				</div>
+			{:else if medications.length === 0}
+				<p class="text-gray-600 dark:text-slate-300 text-base">No medications yet.</p>
+			{:else}
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each medications as med (med.id)}
+						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
+							{#if editMedicationId === med.id}
+								<div class="space-y-3">
+									<div>
+										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Name</label>
+										<input
+											type="text"
+											bind:value={editMedicationName}
+											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+										/>
+									</div>
+									<div class="grid gap-3 sm:grid-cols-2">
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Dose</label>
+											<input
+												type="text"
+												bind:value={editMedicationDose}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											/>
+										</div>
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Unit</label>
+											<input
+												type="text"
+												bind:value={editMedicationUnit}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											/>
+										</div>
+									</div>
+									<div class="grid gap-3 sm:grid-cols-2">
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Interval (hrs)</label>
+											<input
+												type="number"
+												min="1"
+												bind:value={editMedicationInterval}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											/>
+										</div>
+										<div>
+											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Early Warning (min)</label>
+											<input
+												type="number"
+												min="0"
+												bind:value={editMedicationWarning}
+												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+											/>
+										</div>
+									</div>
+									<div>
+										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Notes</label>
+										<textarea
+											bind:value={editMedicationNotes}
+											rows="2"
+											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+										></textarea>
+									</div>
+									<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+										<input type="checkbox" bind:checked={editMedicationActive} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+										Active
+									</label>
+									<div class="flex items-center gap-2">
+										<button on:click={handleSaveMedication} class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">Save</button>
+										<button on:click={cancelEditMedication} class="px-3 py-2 border border-slate-200 rounded-lg text-sm">Cancel</button>
+									</div>
+								</div>
+							{:else}
+								<div class="flex items-start justify-between gap-3">
+									<div>
+										<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{med.name}</p>
+										<p class="text-sm text-slate-500 dark:text-slate-400">
+											{med.default_dose ? `${med.default_dose}${med.dose_unit ? ` ${med.dose_unit}` : ''}` : 'No dose'} · Every {med.interval_hours} hrs
+										</p>
+										<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+											{med.is_active ? 'Active' : 'Inactive'} · Warn {med.early_warning_minutes} min early
+										</p>
+									</div>
+									<div class="flex items-center gap-2">
+										<button on:click={() => startEditMedication(med)} class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+											Edit
+										</button>
+										<button on:click={() => handleDeleteMedication(med.id)} class="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm">
+											Delete
+										</button>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Medication Reminders -->
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Medication Reminders</h2>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Set which medications should trigger reminders.</p>
+		</div>
+		<div class="p-6 space-y-6">
+			<RecipientSwitcher label="Reminders for" />
+			{#if !$selectedRecipientId}
+				<div class="p-4 bg-yellow-50 border border-yellow-200 rounded-xl dark:bg-yellow-950 dark:border-yellow-900">
+					<p class="text-yellow-800 dark:text-yellow-200 text-base">Select a recipient to manage reminders.</p>
+				</div>
+			{/if}
+			{#if medRemindersError}
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{medRemindersError}</p>
+				</div>
+			{/if}
+
+			<form class="grid gap-4 sm:grid-cols-3" on:submit|preventDefault={handleCreateReminder}>
+				<div class="sm:col-span-2">
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication</label>
+					<select
+						bind:value={newReminderMedicationId}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						required
+					>
+						<option value="" disabled>Select a medication</option>
+						{#each medications as med}
+							<option value={med.id}>{med.name}</option>
+						{/each}
+					</select>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hrs)</label>
+					<input
+						type="number"
+						min="1"
+						bind:value={newReminderInterval}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+						placeholder="Use med default"
+					/>
+				</div>
+				<div class="sm:col-span-2">
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Start Time</label>
+					<input
+						type="datetime-local"
+						bind:value={newReminderStartTime}
+						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+					/>
+				</div>
+				<div class="sm:col-span-3">
+					<button
+						type="submit"
+						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
+						disabled={!$selectedRecipientId || !newReminderMedicationId}
+					>
+						Add Reminder
+					</button>
+				</div>
+			</form>
+
+			{#if medRemindersLoading}
+				<div class="text-center py-6">
+					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+					<p class="mt-2 text-gray-600 dark:text-slate-300 text-base">Loading reminders...</p>
+				</div>
+			{:else if medReminders.length === 0}
+				<p class="text-gray-600 dark:text-slate-300 text-base">No reminders yet.</p>
+			{:else}
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each medReminders as reminder (reminder.id)}
+						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
+							<div class="flex items-start justify-between gap-3">
+								<div>
+									<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{reminder.medication_name}</p>
+									<p class="text-sm text-slate-500 dark:text-slate-400">
+										Every {reminder.interval_hours} hrs · Warn {reminder.early_warning_minutes} min early
+									</p>
+									<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+										{reminder.enabled ? 'Enabled' : 'Disabled'}
+									</p>
+								</div>
+								<button
+									type="button"
+									on:click={() => handleToggleReminder(reminder)}
+									class="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+								>
+									{reminder.enabled ? 'Disable' : 'Enable'}
+								</button>
+							</div>
 						</div>
 					{/each}
 				</div>
