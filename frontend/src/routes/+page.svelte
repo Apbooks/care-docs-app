@@ -11,7 +11,7 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 	import { timezone } from '$lib/stores/settings';
 	import LogoMark from '$lib/components/LogoMark.svelte';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
-	import { selectedRecipientId } from '$lib/stores/recipients';
+import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
 	import SyncStatus from '$lib/components/SyncStatus.svelte';
 	import { isOnline } from '$lib/stores/offline';
 
@@ -31,6 +31,7 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 	let lastRecipientId = null;
 	let reconnectAttempts = 0;
 	let reconnectTimeout = null;
+	let enabledCategories = CARE_CATEGORIES;
 
 	authStore.subscribe(value => {
 		user = value;
@@ -134,8 +135,10 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 		}
 	}
 
+	$: enabledCategories = $selectedRecipient?.enabled_categories || CARE_CATEGORIES;
+
 	async function loadMedReminders() {
-		if (!$selectedRecipientId) {
+		if (!$selectedRecipientId || !enabledCategories.includes('medication')) {
 			medReminders = [];
 			return;
 		}
@@ -378,7 +381,7 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 					</p>
 				</div>
 			{/if}
-			{#if activeContinuousFeed}
+			{#if activeContinuousFeed && enabledCategories.includes('feeding')}
 				<div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-6 dark:bg-emerald-950 dark:border-emerald-800">
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<div>
@@ -403,7 +406,7 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 				</div>
 			{/if}
 
-			{#if $selectedRecipientId}
+			{#if $selectedRecipientId && enabledCategories.includes('medication')}
 				<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-6 mb-6">
 					<div class="flex items-start justify-between gap-4">
 						<div>
@@ -463,7 +466,7 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 			<!-- Recent Events -->
 			<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-6">
 				<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-4">Recent Events</h2>
-				<EventList bind:this={eventListComponent} limit={20} recipientId={$selectedRecipientId} />
+				<EventList bind:this={eventListComponent} limit={20} recipientId={$selectedRecipientId} allowedTypes={enabledCategories} />
 			</div>
 		</main>
 

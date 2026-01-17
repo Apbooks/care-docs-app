@@ -12,20 +12,26 @@ from routes.auth import get_current_user, get_current_active_admin
 router = APIRouter()
 
 
+ALLOWED_CATEGORIES = ["medication", "feeding", "diaper", "demeanor", "observation"]
+
+
 class RecipientCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     is_active: bool = True
+    enabled_categories: Optional[List[str]] = None
 
 
 class RecipientUpdate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=100)
     is_active: Optional[bool] = None
+    enabled_categories: Optional[List[str]] = None
 
 
 class RecipientResponse(BaseModel):
     id: str
     name: str
     is_active: bool
+    enabled_categories: List[str]
     created_by_user_id: str
     created_by_name: Optional[str]
     created_at: str
@@ -58,6 +64,7 @@ async def list_recipients(
             id=str(recipient.id),
             name=recipient.name,
             is_active=recipient.is_active,
+            enabled_categories=recipient.enabled_categories or ALLOWED_CATEGORIES,
             created_by_user_id=str(recipient.created_by_user_id),
             created_by_name=recipient.created_by.username if recipient.created_by else None,
             created_at=recipient.created_at.isoformat(),
@@ -73,9 +80,18 @@ async def create_recipient(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_active_admin)
 ):
+    categories = data.enabled_categories or ALLOWED_CATEGORIES
+    invalid = [cat for cat in categories if cat not in ALLOWED_CATEGORIES]
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid categories: {', '.join(invalid)}"
+        )
+
     new_recipient = CareRecipient(
         name=data.name.strip(),
         is_active=data.is_active,
+        enabled_categories=categories,
         created_by_user_id=current_admin.id
     )
 
@@ -87,6 +103,7 @@ async def create_recipient(
         id=str(new_recipient.id),
         name=new_recipient.name,
         is_active=new_recipient.is_active,
+        enabled_categories=new_recipient.enabled_categories or ALLOWED_CATEGORIES,
         created_by_user_id=str(new_recipient.created_by_user_id),
         created_by_name=current_admin.username,
         created_at=new_recipient.created_at.isoformat(),
@@ -112,6 +129,14 @@ async def update_recipient(
         recipient.name = updates.name.strip()
     if updates.is_active is not None:
         recipient.is_active = updates.is_active
+    if updates.enabled_categories is not None:
+        invalid = [cat for cat in updates.enabled_categories if cat not in ALLOWED_CATEGORIES]
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid categories: {', '.join(invalid)}"
+            )
+        recipient.enabled_categories = updates.enabled_categories
 
     recipient.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -121,6 +146,7 @@ async def update_recipient(
         id=str(recipient.id),
         name=recipient.name,
         is_active=recipient.is_active,
+        enabled_categories=recipient.enabled_categories or ALLOWED_CATEGORIES,
         created_by_user_id=str(recipient.created_by_user_id),
         created_by_name=recipient.created_by.username if recipient.created_by else None,
         created_at=recipient.created_at.isoformat(),

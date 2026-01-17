@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getMedications, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed, uploadPhoto, checkMedEarly } from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
-	import { selectedRecipientId } from '$lib/stores/recipients';
+import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
 	import { isOnline, queuePhoto } from '$lib/stores/offline';
 	import PhotoCapture from './PhotoCapture.svelte';
 
@@ -35,6 +35,7 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getMe
 	// Event type forms
 	let selectedType = '';
 	let notes = '';
+	let enabledCategories = CARE_CATEGORIES;
 
 	// Medication specific
 	let medName = '';
@@ -100,6 +101,12 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getMe
 			cardClass: 'border-gray-200 dark:border-slate-800 bg-gray-50 hover:border-gray-400 hover:bg-gray-100'
 		}
 	];
+
+	$: enabledCategories = $selectedRecipient?.enabled_categories || CARE_CATEGORIES;
+	$: if (selectedType && !enabledCategories.includes(selectedType)) {
+		selectedType = '';
+		step = 'select';
+	}
 
 	$: if (show && $selectedRecipientId && quickLoadedFor !== $selectedRecipientId) {
 		quickLoadedFor = $selectedRecipientId;
@@ -630,7 +637,7 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getMe
 					<!-- Event Type Selection -->
 					<p class="text-gray-600 dark:text-slate-300 text-base mb-4">Select the type of event to log:</p>
 					<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-						{#each eventTypes as type}
+						{#each eventTypes.filter((type) => enabledCategories.includes(type.id)) as type}
 							<button
 								on:click={() => selectType(type.id)}
 								class={`p-4 min-h-[88px] border-2 rounded-xl transition-all text-center text-gray-900 dark:text-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700 ${type.cardClass}`}

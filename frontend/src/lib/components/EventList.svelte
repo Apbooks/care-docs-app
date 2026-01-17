@@ -8,6 +8,7 @@
 	export let limit = 10;
 	export let type = null;
 	export let recipientId = null;
+	export let allowedTypes = null;
 
 	let events = [];
 	let loading = true;
@@ -54,7 +55,10 @@
 			if (type) params.type = type;
 			if (recipientId) params.recipient_id = recipientId;
 
-			const result = await getEvents(params);
+			let result = await getEvents(params);
+			if (Array.isArray(allowedTypes) && allowedTypes.length > 0) {
+				result = result.filter((item) => allowedTypes.includes(item.type));
+			}
 			events = result;
 			hasMore = result.length === limit;
 		} catch (err) {
@@ -75,7 +79,10 @@
 			if (type) params.type = type;
 			if (recipientId) params.recipient_id = recipientId;
 
-			const moreEvents = await getEvents(params);
+			let moreEvents = await getEvents(params);
+			if (Array.isArray(allowedTypes) && allowedTypes.length > 0) {
+				moreEvents = moreEvents.filter((item) => allowedTypes.includes(item.type));
+			}
 			events = [...events, ...moreEvents];
 			hasMore = moreEvents.length === limit;
 		} catch (err) {

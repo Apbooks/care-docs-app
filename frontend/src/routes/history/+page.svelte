@@ -7,7 +7,7 @@
 	import LogoMark from '$lib/components/LogoMark.svelte';
 	import { timezone } from '$lib/stores/settings';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
-	import { selectedRecipientId } from '$lib/stores/recipients';
+import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -37,6 +37,7 @@
 	let feedingTotals = [];
 	let feedingTotalMl = 0;
 	let feedingMax = 1;
+	let enabledCategories = CARE_CATEGORIES;
 
 	authStore.subscribe(value => {
 		user = value;
@@ -80,6 +81,11 @@
 
 	$: if ($selectedRecipientId && user) {
 		loadHistory();
+	}
+
+	$: enabledCategories = $selectedRecipient?.enabled_categories || CARE_CATEGORIES;
+	$: if (typeFilter !== 'all' && !enabledCategories.includes(typeFilter)) {
+		typeFilter = 'all';
 	}
 
 	function applyDefaultRange() {
@@ -127,7 +133,8 @@
 			if (endIso) params.end = endIso;
 			if ($selectedRecipientId) params.recipient_id = $selectedRecipientId;
 
-			events = await getEvents(params);
+			const rawEvents = await getEvents(params);
+			events = rawEvents.filter((event) => enabledCategories.includes(event.type));
 			buildSummary();
 			buildMedRows();
 			buildDailyCounts();
@@ -328,6 +335,7 @@
 				</div>
 				<RecipientSwitcher />
 			</section>
+			{/if}
 
 			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
 				<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Filters</h2>
@@ -336,11 +344,21 @@
 						<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Type</label>
 						<select bind:value={typeFilter} class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base">
 							<option value="all">All</option>
-							<option value="medication">Medication</option>
-							<option value="feeding">Feeding</option>
-							<option value="diaper">Diaper</option>
-							<option value="demeanor">Demeanor</option>
-							<option value="observation">Observation</option>
+							{#if enabledCategories.includes('medication')}
+								<option value="medication">Medication</option>
+							{/if}
+							{#if enabledCategories.includes('feeding')}
+								<option value="feeding">Feeding</option>
+							{/if}
+							{#if enabledCategories.includes('diaper')}
+								<option value="diaper">Diaper</option>
+							{/if}
+							{#if enabledCategories.includes('demeanor')}
+								<option value="demeanor">Demeanor</option>
+							{/if}
+							{#if enabledCategories.includes('observation')}
+								<option value="observation">Observation</option>
+							{/if}
 						</select>
 					</div>
 					<div>
@@ -371,14 +389,18 @@
 					<p class="text-sm text-gray-500 dark:text-slate-400">Total Events</p>
 					<p class="text-3xl font-semibold text-gray-900 dark:text-slate-100">{summary.total}</p>
 				</div>
-				<div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5">
-					<p class="text-sm text-gray-500 dark:text-slate-400">Medications</p>
-					<p class="text-3xl font-semibold text-gray-900 dark:text-slate-100">{summary.medication}</p>
-				</div>
-				<div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5">
-					<p class="text-sm text-gray-500 dark:text-slate-400">Feedings</p>
-					<p class="text-3xl font-semibold text-gray-900 dark:text-slate-100">{summary.feeding}</p>
-				</div>
+				{#if enabledCategories.includes('medication')}
+					<div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5">
+						<p class="text-sm text-gray-500 dark:text-slate-400">Medications</p>
+						<p class="text-3xl font-semibold text-gray-900 dark:text-slate-100">{summary.medication}</p>
+					</div>
+				{/if}
+				{#if enabledCategories.includes('feeding')}
+					<div class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5">
+						<p class="text-sm text-gray-500 dark:text-slate-400">Feedings</p>
+						<p class="text-3xl font-semibold text-gray-900 dark:text-slate-100">{summary.feeding}</p>
+					</div>
+				{/if}
 			</section>
 
 			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
@@ -403,44 +425,47 @@
 				{/if}
 			</section>
 
-			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
-				<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-					<div>
-						<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Feeding Totals</h2>
-						<p class="text-sm text-gray-500 dark:text-slate-400">Total {feedingTotalMl} ml in range</p>
+			{#if enabledCategories.includes('feeding')}
+				<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
+					<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+						<div>
+							<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Feeding Totals</h2>
+							<p class="text-sm text-gray-500 dark:text-slate-400">Total {feedingTotalMl} ml in range</p>
+						</div>
+						<p class="text-sm text-gray-500 dark:text-slate-400">Uses pump total when provided</p>
 					</div>
-					<p class="text-sm text-gray-500 dark:text-slate-400">Uses pump total when provided</p>
-				</div>
-				{#if feedingTotals.length === 0}
-					<p class="text-sm text-gray-600 dark:text-slate-300">No feeding totals in this range.</p>
-				{:else}
-					<div class="space-y-2">
-						{#each feedingTotals as row}
-							<div class="flex items-center gap-3">
-								<div class="w-24 text-xs text-gray-500 dark:text-slate-400">{row.date}</div>
-								<div class="flex-1 bg-emerald-100 dark:bg-emerald-900 rounded-full h-3">
-									<div class="bg-emerald-600 h-3 rounded-full" style={`width: ${Math.min(100, (row.totalMl / feedingMax) * 100)}%`}></div>
+					{#if feedingTotals.length === 0}
+						<p class="text-sm text-gray-600 dark:text-slate-300">No feeding totals in this range.</p>
+					{:else}
+						<div class="space-y-2">
+							{#each feedingTotals as row}
+								<div class="flex items-center gap-3">
+									<div class="w-24 text-xs text-gray-500 dark:text-slate-400">{row.date}</div>
+									<div class="flex-1 bg-emerald-100 dark:bg-emerald-900 rounded-full h-3">
+										<div class="bg-emerald-600 h-3 rounded-full" style={`width: ${Math.min(100, (row.totalMl / feedingMax) * 100)}%`}></div>
+									</div>
+									<div class="w-16 text-xs text-gray-500 dark:text-slate-400">{row.totalMl} ml</div>
 								</div>
-								<div class="w-16 text-xs text-gray-500 dark:text-slate-400">{row.totalMl} ml</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</section>
+							{/each}
+						</div>
+					{/if}
+				</section>
+			{/if}
 
-			<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
-				<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-					<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Medication Log</h2>
-					<button on:click={exportMedications} class="px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
-						Export CSV
-					</button>
-				</div>
-				{#if medRows.length === 0}
-					<p class="text-sm text-gray-600 dark:text-slate-300">No medication events found.</p>
-				{:else}
-					<div class="overflow-x-auto">
-						<table class="min-w-full text-sm">
-							<thead class="text-left text-xs text-gray-500 dark:text-slate-400">
+			{#if enabledCategories.includes('medication')}
+				<section class="bg-white dark:bg-slate-900 rounded-2xl shadow p-5 sm:p-6">
+					<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+						<h2 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Medication Log</h2>
+						<button on:click={exportMedications} class="px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+							Export CSV
+						</button>
+					</div>
+					{#if medRows.length === 0}
+						<p class="text-sm text-gray-600 dark:text-slate-300">No medication events found.</p>
+					{:else}
+						<div class="overflow-x-auto">
+							<table class="min-w-full text-sm">
+								<thead class="text-left text-xs text-gray-500 dark:text-slate-400">
 								<tr>
 									<th class="py-2">Time</th>
 									<th class="py-2">Medication</th>

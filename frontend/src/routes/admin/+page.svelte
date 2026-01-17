@@ -27,7 +27,7 @@
 	import { getTimezone, updateTimezone, getNotificationSettings, updateNotificationSettings } from '$lib/services/api';
 	import { timezone as timezoneStore, setTimezone as setTimezoneStore } from '$lib/stores/settings';
 	import RecipientSwitcher from '$lib/components/RecipientSwitcher.svelte';
-	import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipient } from '$lib/stores/recipients';
+import { recipients as recipientsStore, selectedRecipientId, setSelectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
 
 	let user = null;
 	let userIsAdmin = false;
@@ -71,9 +71,11 @@
 	let recipientsError = '';
 	let newRecipientName = '';
 	let newRecipientActive = true;
+	let newRecipientCategories = [...CARE_CATEGORIES];
 	let editRecipientId = null;
 	let editRecipientName = '';
 	let editRecipientActive = true;
+	let editRecipientCategories = [...CARE_CATEGORIES];
 
 	let newFeedAmount = '';
 	let newFeedDuration = '';
@@ -278,11 +280,13 @@
 		try {
 			const created = await createRecipient({
 				name: newRecipientName,
-				is_active: newRecipientActive
+				is_active: newRecipientActive,
+				enabled_categories: newRecipientCategories
 			});
 			recipientsList = [...recipientsList, created];
 			newRecipientName = '';
 			newRecipientActive = true;
+			newRecipientCategories = [...CARE_CATEGORIES];
 			syncRecipientStore();
 		} catch (err) {
 			recipientsError = err.message || 'Failed to create recipient';
@@ -293,12 +297,14 @@
 		editRecipientId = recipient.id;
 		editRecipientName = recipient.name;
 		editRecipientActive = recipient.is_active;
+		editRecipientCategories = recipient.enabled_categories || [...CARE_CATEGORIES];
 	}
 
 	function cancelEditRecipient() {
 		editRecipientId = null;
 		editRecipientName = '';
 		editRecipientActive = true;
+		editRecipientCategories = [...CARE_CATEGORIES];
 	}
 
 	async function handleSaveRecipient() {
@@ -307,7 +313,8 @@
 		try {
 			const updated = await updateRecipient(editRecipientId, {
 				name: editRecipientName,
-				is_active: editRecipientActive
+				is_active: editRecipientActive,
+				enabled_categories: editRecipientCategories
 			});
 			recipientsList = recipientsList.map((item) => (item.id === updated.id ? updated : item));
 			syncRecipientStore();
@@ -955,6 +962,29 @@
 					</label>
 				</div>
 				<div class="sm:col-span-4">
+					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Enabled categories</label>
+					<div class="flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-slate-300">
+						{#each CARE_CATEGORIES as category}
+							<label class="flex items-center gap-2">
+								<input
+									type="checkbox"
+									value={category}
+									checked={newRecipientCategories.includes(category)}
+									on:change={(event) => {
+										if (event.target.checked) {
+											newRecipientCategories = [...newRecipientCategories, category];
+										} else {
+											newRecipientCategories = newRecipientCategories.filter((item) => item !== category);
+										}
+									}}
+									class="w-4 h-4 text-blue-600 border-gray-300 rounded"
+								/>
+								<span class="capitalize">{category}</span>
+							</label>
+						{/each}
+					</div>
+				</div>
+				<div class="sm:col-span-4">
 					<button
 						type="submit"
 						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
@@ -987,6 +1017,27 @@
 										<input type="checkbox" bind:checked={editRecipientActive} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
 										Active
 									</label>
+									<div class="flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-slate-300">
+										<span class="font-medium">Enabled categories:</span>
+										{#each CARE_CATEGORIES as category}
+											<label class="flex items-center gap-2">
+												<input
+													type="checkbox"
+													value={category}
+													checked={editRecipientCategories.includes(category)}
+													on:change={(event) => {
+														if (event.target.checked) {
+															editRecipientCategories = [...editRecipientCategories, category];
+														} else {
+															editRecipientCategories = editRecipientCategories.filter((item) => item !== category);
+														}
+													}}
+													class="w-4 h-4 text-blue-600 border-gray-300 rounded"
+												/>
+												<span class="capitalize">{category}</span>
+											</label>
+										{/each}
+									</div>
 									<div class="flex items-center gap-2">
 										<button on:click={handleSaveRecipient} class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">Save</button>
 										<button on:click={cancelEditRecipient} class="px-3 py-2 border border-slate-200 rounded-lg text-sm">Cancel</button>
@@ -998,6 +1049,9 @@
 										<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{recipient.name}</p>
 										<p class="text-xs text-slate-500 dark:text-slate-400">
 											{recipient.is_active ? 'Active' : 'Inactive'}
+										</p>
+										<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+											{(recipient.enabled_categories || []).map((cat) => cat.replace('_', ' ')).join(', ') || 'No categories'}
 										</p>
 									</div>
 									<div class="flex items-center gap-2">

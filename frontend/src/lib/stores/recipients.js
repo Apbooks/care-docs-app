@@ -11,6 +11,31 @@ function loadStoredRecipient() {
 export const recipients = writable([]);
 export const selectedRecipientId = writable(loadStoredRecipient());
 
+export const CARE_CATEGORIES = ['medication', 'feeding', 'diaper', 'demeanor', 'observation'];
+
+export const selectedRecipient = {
+	subscribe: (callback) => {
+		let currentList = [];
+		let currentId = loadStoredRecipient();
+		const notify = () => {
+			const match = currentList.find((recipient) => recipient.id === currentId) || null;
+			callback(match);
+		};
+		const unsubscribeList = recipients.subscribe((list) => {
+			currentList = list;
+			notify();
+		});
+		const unsubscribeId = selectedRecipientId.subscribe((id) => {
+			currentId = id;
+			notify();
+		});
+		return () => {
+			unsubscribeList();
+			unsubscribeId();
+		};
+	}
+};
+
 export function setSelectedRecipient(id) {
 	selectedRecipientId.set(id);
 	if (typeof localStorage !== 'undefined') {
