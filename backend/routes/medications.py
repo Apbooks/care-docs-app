@@ -9,6 +9,7 @@ from database import get_db
 from models.medication import Medication
 from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
+from models.med_reminder import MedicationReminder
 
 router = APIRouter()
 
@@ -161,6 +162,7 @@ async def delete_medication(
     med = db.query(Medication).filter(Medication.id == med_id).first()
     if not med:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")
+    db.query(MedicationReminder).filter(MedicationReminder.medication_id == med_id).delete(synchronize_session=False)
     db.delete(med)
     db.commit()
     return None
