@@ -4,7 +4,7 @@
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession, getNextMedReminders, skipMedReminder, createEvent } from '$lib/services/api';
+import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession, getNextMedReminders, skipMedReminder, createEvent, checkMedEarly } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -170,6 +170,18 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 	async function handleLogMedNow(reminder) {
 		if (!$selectedRecipientId) return;
 		try {
+			const earlyCheck = await checkMedEarly({
+				recipient_id: $selectedRecipientId,
+				med_name: reminder.medication_name,
+				timestamp: new Date().toISOString()
+			});
+			if (earlyCheck?.status === 'early') {
+				const minutes = earlyCheck.minutes_until_due ?? 0;
+				const confirmEarly = confirm(`${reminder.medication_name} is due in ${minutes} minutes. Log anyway?`);
+				if (!confirmEarly) {
+					return;
+				}
+			}
 			await createEvent({
 				type: 'medication',
 				timestamp: new Date().toISOString(),
