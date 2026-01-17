@@ -19,6 +19,7 @@ class Medication(Base):
     is_prn = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     auto_start_reminder = Column(Boolean, default=False, nullable=False)
+    is_quick_med = Column(Boolean, default=False, nullable=False)
 
     recipient_id = Column(UUID(as_uuid=True), ForeignKey("care_recipients.id"), nullable=True, index=True)
     recipient = relationship("CareRecipient")

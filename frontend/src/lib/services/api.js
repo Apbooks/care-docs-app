@@ -483,11 +483,12 @@ export async function getQuickMedsForRecipient(recipientId, includeInactive = fa
 	const params = new URLSearchParams();
 	if (includeInactive) params.append('include_inactive', 'true');
 	if (recipientId) params.append('recipient_id', recipientId);
+	params.append('quick_only', 'true');
 	const query = params.toString();
 	const cacheKey = `quick_meds_${recipientId || 'all'}_${includeInactive ? 'all' : 'active'}`;
 
 	try {
-		const result = await apiRequest(`/quick-meds${query ? '?' + query : ''}`);
+		const result = await apiRequest(`/medications${query ? '?' + query : ''}`);
 
 		if (Array.isArray(result)) {
 			try {

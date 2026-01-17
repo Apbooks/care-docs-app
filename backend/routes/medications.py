@@ -23,6 +23,7 @@ class MedicationCreate(BaseModel):
     is_prn: bool = False
     is_active: bool = True
     auto_start_reminder: bool = False
+    is_quick_med: bool = False
     recipient_id: Optional[str] = None
 
 
@@ -36,6 +37,7 @@ class MedicationUpdate(BaseModel):
     is_prn: Optional[bool] = None
     is_active: Optional[bool] = None
     auto_start_reminder: Optional[bool] = None
+    is_quick_med: Optional[bool] = None
     recipient_id: Optional[str] = None
 
 
@@ -50,6 +52,7 @@ class MedicationResponse(BaseModel):
     is_prn: bool
     is_active: bool
     auto_start_reminder: bool
+    is_quick_med: bool
     recipient_id: Optional[str]
     created_at: str
     updated_at: str
@@ -70,6 +73,7 @@ def _to_response(med: Medication) -> MedicationResponse:
         is_prn=med.is_prn,
         is_active=med.is_active,
         auto_start_reminder=med.auto_start_reminder,
+        is_quick_med=med.is_quick_med,
         recipient_id=str(med.recipient_id) if med.recipient_id else None,
         created_at=med.created_at.isoformat(),
         updated_at=med.updated_at.isoformat()
@@ -79,6 +83,7 @@ def _to_response(med: Medication) -> MedicationResponse:
 @router.get("/", response_model=List[MedicationResponse])
 async def list_medications(
     recipient_id: Optional[str] = Query(None),
+    quick_only: bool = Query(False),
     include_inactive: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -86,6 +91,8 @@ async def list_medications(
     query = db.query(Medication)
     if not include_inactive:
         query = query.filter(Medication.is_active.is_(True))
+    if quick_only:
+        query = query.filter(Medication.is_quick_med.is_(True))
     if recipient_id:
         query = query.filter(
             (Medication.recipient_id == recipient_id) | (Medication.recipient_id.is_(None))
@@ -110,6 +117,7 @@ async def create_medication(
         is_prn=payload.is_prn,
         is_active=payload.is_active,
         auto_start_reminder=payload.auto_start_reminder,
+        is_quick_med=payload.is_quick_med,
         recipient_id=payload.recipient_id,
         created_by_user_id=current_user.id
     )

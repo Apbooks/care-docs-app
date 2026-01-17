@@ -37,7 +37,7 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 	// Medication specific
 	let medName = '';
 	let dosage = '';
-	let route = 'oral';
+	let route = '';
 
 	// Feeding specific
 	let feedingMode = 'bolus';
@@ -268,41 +268,12 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 		}
 	}
 
-	async function logQuickMedication(template, overrideEarlyCheck = false) {
-		if (loading || !$selectedRecipientId) return;
-		error = '';
-		loading = true;
-
-		try {
-			const quickNotes = quickNoteEnabled ? (quickNote.trim() || null) : null;
-
-			if (!overrideEarlyCheck) {
-				const ok = await handleMedicationEarlyCheck(template.name, () => logQuickMedication(template, true));
-				if (!ok) {
-					loading = false;
-					return;
-				}
-			}
-
-			const newEvent = await createEvent({
-				type: 'medication',
-				timestamp: new Date().toISOString(),
-				recipient_id: $selectedRecipientId,
-				notes: quickNotes,
-				metadata: {
-					med_name: template.name,
-					dosage: template.dosage,
-					route: template.route
-				}
-			});
-
-			dispatch('eventCreated', newEvent);
-			close();
-		} catch (err) {
-			error = err.message || 'Failed to log quick medication';
-		} finally {
-			loading = false;
-		}
+	async function logQuickMedication(template) {
+		medName = template.name || '';
+		const dose = template.default_dose || '';
+		const unit = template.dose_unit ? ` ${template.dose_unit}` : '';
+		dosage = `${dose}${unit}`.trim();
+		route = '';
 	}
 
 	async function logQuickFeed(template) {
@@ -649,8 +620,9 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 										disabled={loading}
 									>
 										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm">{med.name}</div>
-										<div class="text-xs text-gray-700 mt-1">{med.dosage}</div>
-										<div class="text-xs text-gray-500 dark:text-slate-400 capitalize">{med.route}</div>
+										<div class="text-xs text-gray-700 mt-1">
+											{med.default_dose ? `${med.default_dose}${med.dose_unit ? ` ${med.dose_unit}` : ''}` : 'Select dose'}
+										</div>
 									</button>
 								{/each}
 							</div>
@@ -691,8 +663,10 @@ import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getAc
 							</label>
 							<select
 								bind:value={route}
+								required
 								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-base"
 							>
+								<option value="" disabled>Select route</option>
 								<option value="oral">Oral</option>
 								<option value="tube">Tube Fed</option>
 								<option value="topical">Topical</option>

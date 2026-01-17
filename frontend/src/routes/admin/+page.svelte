@@ -5,10 +5,6 @@
 	import { authStore, isAdmin } from '$lib/stores/auth';
 	import {
 		apiRequest,
-		getQuickMedsForRecipient,
-		createQuickMed,
-		updateQuickMed,
-		deleteQuickMed,
 		getQuickFeedsForRecipient,
 		createQuickFeed,
 		updateQuickFeed,
@@ -54,11 +50,8 @@
 		'America/Anchorage',
 		'Pacific/Honolulu'
 	];
-	let quickMeds = [];
 	let quickFeeds = [];
-	let quickMedsLoading = true;
 	let quickFeedsLoading = true;
-	let quickMedsError = '';
 	let quickFeedsError = '';
 	let medications = [];
 	let medicationsLoading = true;
@@ -74,14 +67,6 @@
 	let editRecipientId = null;
 	let editRecipientName = '';
 	let editRecipientActive = true;
-
-	let newMedName = '';
-	let newMedDosage = '';
-	let newMedRoute = 'oral';
-	let editMedId = null;
-	let editMedName = '';
-	let editMedDosage = '';
-	let editMedRoute = 'oral';
 
 	let newFeedAmount = '';
 	let newFeedDuration = '';
@@ -110,6 +95,7 @@
 	let newMedicationNotes = '';
 	let newMedicationActive = true;
 	let newMedicationAutoStart = false;
+	let newMedicationQuick = false;
 	let editMedicationId = null;
 	let editMedicationName = '';
 	let editMedicationDose = '';
@@ -119,6 +105,7 @@
 	let editMedicationNotes = '';
 	let editMedicationActive = true;
 	let editMedicationAutoStart = false;
+	let editMedicationQuick = false;
 
 	let newReminderMedicationId = '';
 	let newReminderStartTime = '';
@@ -166,7 +153,6 @@
 		await Promise.all([
 			loadUsers(),
 			loadRecipients(),
-			loadQuickMeds(),
 			loadQuickFeeds(),
 			loadMedications(),
 			loadMedReminders(),
@@ -176,7 +162,6 @@
 
 	$: if ($selectedRecipientId && $selectedRecipientId !== lastTemplateRecipientId) {
 		lastTemplateRecipientId = $selectedRecipientId;
-		loadQuickMeds();
 		loadQuickFeeds();
 		loadMedications();
 		loadMedReminders();
@@ -304,23 +289,6 @@
 		}
 	}
 
-	async function loadQuickMeds() {
-		quickMedsLoading = true;
-		quickMedsError = '';
-
-		try {
-			if (!$selectedRecipientId) {
-				quickMeds = [];
-				return;
-			}
-			quickMeds = await getQuickMedsForRecipient($selectedRecipientId, true);
-		} catch (err) {
-			quickMedsError = err.message || 'Failed to load quick medications';
-		} finally {
-			quickMedsLoading = false;
-		}
-	}
-
 	async function loadQuickFeeds() {
 		quickFeedsLoading = true;
 		quickFeedsError = '';
@@ -382,6 +350,7 @@
 				notes: newMedicationNotes || null,
 				is_active: newMedicationActive,
 				auto_start_reminder: newMedicationAutoStart,
+				is_quick_med: newMedicationQuick,
 				recipient_id: $selectedRecipientId || null
 			});
 			medications = [created, ...medications];
@@ -393,6 +362,7 @@
 			newMedicationNotes = '';
 			newMedicationActive = true;
 			newMedicationAutoStart = false;
+			newMedicationQuick = false;
 		} catch (err) {
 			medicationsError = err.message || 'Failed to create medication';
 		}
@@ -408,6 +378,7 @@
 		editMedicationNotes = med.notes || '';
 		editMedicationActive = med.is_active;
 		editMedicationAutoStart = med.auto_start_reminder || false;
+		editMedicationQuick = med.is_quick_med || false;
 	}
 
 	function cancelEditMedication() {
@@ -420,6 +391,7 @@
 		editMedicationNotes = '';
 		editMedicationActive = true;
 		editMedicationAutoStart = false;
+		editMedicationQuick = false;
 	}
 
 	async function handleSaveMedication() {
@@ -435,6 +407,7 @@
 				notes: editMedicationNotes || null,
 				is_active: editMedicationActive,
 				auto_start_reminder: editMedicationAutoStart,
+				is_quick_med: editMedicationQuick,
 				recipient_id: $selectedRecipientId || null
 			});
 			medications = medications.map(item => item.id === updated.id ? updated : item);
@@ -483,77 +456,6 @@
 			medReminders = medReminders.map(item => item.id === updated.id ? updated : item);
 		} catch (err) {
 			medRemindersError = err.message || 'Failed to update reminder';
-		}
-	}
-
-	async function handleCreateQuickMed() {
-		quickMedsError = '';
-
-		try {
-			const created = await createQuickMed({
-				name: newMedName,
-				dosage: newMedDosage,
-				route: newMedRoute,
-				recipient_id: $selectedRecipientId
-			});
-			quickMeds = [created, ...quickMeds];
-			newMedName = '';
-			newMedDosage = '';
-			newMedRoute = 'oral';
-		} catch (err) {
-			quickMedsError = err.message || 'Failed to create quick medication';
-		}
-	}
-
-	async function handleToggleQuickMed(med) {
-		quickMedsError = '';
-
-		try {
-			const updated = await updateQuickMed(med.id, { is_active: !med.is_active });
-			quickMeds = quickMeds.map(item => item.id === med.id ? updated : item);
-		} catch (err) {
-			quickMedsError = err.message || 'Failed to update quick medication';
-		}
-	}
-
-	async function handleDeleteQuickMed(medId) {
-		quickMedsError = '';
-
-		try {
-			await deleteQuickMed(medId);
-			quickMeds = quickMeds.filter(item => item.id !== medId);
-		} catch (err) {
-			quickMedsError = err.message || 'Failed to delete quick medication';
-		}
-	}
-
-	function startEditQuickMed(med) {
-		editMedId = med.id;
-		editMedName = med.name;
-		editMedDosage = med.dosage;
-		editMedRoute = med.route;
-	}
-
-	function cancelEditQuickMed() {
-		editMedId = null;
-		editMedName = '';
-		editMedDosage = '';
-		editMedRoute = 'oral';
-	}
-
-	async function handleSaveQuickMed() {
-		quickMedsError = '';
-
-		try {
-			const updated = await updateQuickMed(editMedId, {
-				name: editMedName,
-				dosage: editMedDosage,
-				route: editMedRoute
-			});
-			quickMeds = quickMeds.map(item => item.id === updated.id ? updated : item);
-			cancelEditQuickMed();
-		} catch (err) {
-			quickMedsError = err.message || 'Failed to update quick medication';
 		}
 	}
 
@@ -1066,168 +968,6 @@
 		</div>
 	</div>
 
-	<!-- Quick Medications -->
-	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
-		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
-			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Quick Medications</h2>
-			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage one-tap medication templates (per recipient).</p>
-		</div>
-		<div class="p-6 space-y-6">
-			<RecipientSwitcher label="Templates for" />
-			{#if !$selectedRecipientId}
-				<div class="p-4 bg-yellow-50 border border-yellow-200 rounded-xl dark:bg-yellow-950 dark:border-yellow-900">
-					<p class="text-yellow-800 dark:text-yellow-200 text-base">Select a recipient to manage templates.</p>
-				</div>
-			{/if}
-			{#if quickMedsError}
-				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
-					<p class="text-red-800 dark:text-red-200 text-base">{quickMedsError}</p>
-				</div>
-			{/if}
-
-			<form class="grid gap-4 sm:grid-cols-4" on:submit|preventDefault={handleCreateQuickMed}>
-				<div class="sm:col-span-2">
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Medication Name</label>
-					<input
-						type="text"
-						bind:value={newMedName}
-						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-						placeholder="e.g., Tylenol"
-						required
-					/>
-				</div>
-				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Dosage</label>
-					<input
-						type="text"
-						bind:value={newMedDosage}
-						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-						placeholder="5ml"
-						required
-					/>
-				</div>
-				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
-					<select
-						bind:value={newMedRoute}
-						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-					>
-						<option value="oral">Oral</option>
-						<option value="tube">Tube Fed</option>
-						<option value="topical">Topical</option>
-						<option value="injection">Injection</option>
-					</select>
-				</div>
-				<div class="sm:col-span-4">
-					<button
-						type="submit"
-						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
-						disabled={!newMedName || !newMedDosage || !$selectedRecipientId}
-					>
-						Add Quick Medication
-					</button>
-				</div>
-			</form>
-
-			{#if quickMedsLoading}
-				<div class="text-center py-6">
-					<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-					<p class="mt-2 text-gray-600 dark:text-slate-300 text-base">Loading quick medications...</p>
-				</div>
-			{:else if quickMeds.length === 0}
-				<p class="text-gray-600 dark:text-slate-300 text-base">No quick medications yet.</p>
-			{:else}
-				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-					{#each quickMeds as med (med.id)}
-						<div class="border border-gray-200 dark:border-slate-800 rounded-xl p-4">
-							{#if editMedId === med.id}
-								<div class="space-y-3">
-									<div>
-										<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Name</label>
-										<input
-											type="text"
-											bind:value={editMedName}
-											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-										/>
-									</div>
-									<div class="grid gap-3 sm:grid-cols-2">
-										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Dosage</label>
-											<input
-												type="text"
-												bind:value={editMedDosage}
-												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-											/>
-										</div>
-										<div>
-											<label class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Route</label>
-											<select
-												bind:value={editMedRoute}
-												class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-											>
-												<option value="oral">Oral</option>
-												<option value="tube">Tube Fed</option>
-												<option value="topical">Topical</option>
-												<option value="injection">Injection</option>
-											</select>
-										</div>
-									</div>
-									<div class="flex items-center gap-3">
-										<button
-											on:click={handleSaveQuickMed}
-											class="px-3 py-2 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700"
-										>
-											Save
-										</button>
-										<button
-											on:click={cancelEditQuickMed}
-											class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-										>
-											Cancel
-										</button>
-									</div>
-								</div>
-							{:else}
-								<div class="flex items-start justify-between gap-3">
-									<div>
-										<div class="text-base font-semibold text-gray-900 dark:text-slate-100">{med.name}</div>
-										<div class="text-sm text-gray-600 dark:text-slate-300">{med.dosage} · {med.route}</div>
-										{#if med.created_by_name}
-											<div class="text-xs text-gray-500 dark:text-slate-400 mt-1">Added by {med.created_by_name}</div>
-										{/if}
-									</div>
-									<span class={`px-2 py-1 text-xs font-semibold rounded-full ${med.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
-										{med.is_active ? 'Active' : 'Inactive'}
-									</span>
-								</div>
-								<div class="mt-4 flex items-center gap-3">
-									<button
-										on:click={() => startEditQuickMed(med)}
-										class="px-3 py-2 text-xs font-semibold rounded-full border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-									>
-										Edit
-									</button>
-									<button
-										on:click={() => handleToggleQuickMed(med)}
-										class="px-3 py-2 text-xs font-semibold rounded-full border border-blue-200 text-blue-700 hover:bg-blue-50"
-									>
-										{med.is_active ? 'Deactivate' : 'Activate'}
-									</button>
-									<button
-										on:click={() => handleDeleteQuickMed(med.id)}
-										class="text-red-600 text-xs font-semibold"
-									>
-										Delete
-									</button>
-								</div>
-							{/if}
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</div>
-
 	<!-- Medication Library -->
 	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
 		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
@@ -1306,6 +1046,10 @@
 					<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
 						<input type="checkbox" bind:checked={newMedicationAutoStart} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
 						Start reminder when logged
+					</label>
+					<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+						<input type="checkbox" bind:checked={newMedicationQuick} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+						Show as quick med
 					</label>
 					<button
 						type="submit"
@@ -1392,6 +1136,10 @@
 										<input type="checkbox" bind:checked={editMedicationAutoStart} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
 										Start reminder when logged
 									</label>
+									<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+										<input type="checkbox" bind:checked={editMedicationQuick} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+										Show as quick med
+									</label>
 									<div class="flex items-center gap-2">
 										<button on:click={handleSaveMedication} class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">Save</button>
 										<button on:click={cancelEditMedication} class="px-3 py-2 border border-slate-200 rounded-lg text-sm">Cancel</button>
@@ -1407,6 +1155,7 @@
 										<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
 											{med.is_active ? 'Active' : 'Inactive'} · Warn {med.early_warning_minutes} min early
 											{med.auto_start_reminder ? ' · Auto reminder' : ''}
+											{med.is_quick_med ? ' · Quick med' : ''}
 										</p>
 									</div>
 									<div class="flex items-center gap-2">
