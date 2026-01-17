@@ -22,6 +22,7 @@ class MedicationCreate(BaseModel):
     notes: Optional[str] = None
     is_prn: bool = False
     is_active: bool = True
+    auto_start_reminder: bool = False
     recipient_id: Optional[str] = None
 
 
@@ -34,6 +35,7 @@ class MedicationUpdate(BaseModel):
     notes: Optional[str] = None
     is_prn: Optional[bool] = None
     is_active: Optional[bool] = None
+    auto_start_reminder: Optional[bool] = None
     recipient_id: Optional[str] = None
 
 
@@ -47,6 +49,7 @@ class MedicationResponse(BaseModel):
     notes: Optional[str]
     is_prn: bool
     is_active: bool
+    auto_start_reminder: bool
     recipient_id: Optional[str]
     created_at: str
     updated_at: str
@@ -66,6 +69,7 @@ def _to_response(med: Medication) -> MedicationResponse:
         notes=med.notes,
         is_prn=med.is_prn,
         is_active=med.is_active,
+        auto_start_reminder=med.auto_start_reminder,
         recipient_id=str(med.recipient_id) if med.recipient_id else None,
         created_at=med.created_at.isoformat(),
         updated_at=med.updated_at.isoformat()
@@ -105,6 +109,7 @@ async def create_medication(
         notes=payload.notes,
         is_prn=payload.is_prn,
         is_active=payload.is_active,
+        auto_start_reminder=payload.auto_start_reminder,
         recipient_id=payload.recipient_id,
         created_by_user_id=current_user.id
     )

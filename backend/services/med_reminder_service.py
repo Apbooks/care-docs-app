@@ -43,7 +43,8 @@ def record_medication_dose(
     db: Session,
     recipient_id: str,
     med_name: Optional[str],
-    timestamp: Optional[datetime] = None
+    timestamp: Optional[datetime] = None,
+    user_id: Optional[str] = None
 ) -> Optional[MedicationReminder]:
     if not med_name:
         return None
@@ -56,7 +57,17 @@ def record_medication_dose(
         MedicationReminder.medication_id == medication.id
     ).first()
     if not reminder:
-        return None
+        if not medication.auto_start_reminder or not user_id:
+            return None
+        reminder = MedicationReminder(
+            recipient_id=recipient_id,
+            medication_id=medication.id,
+            start_time=timestamp or datetime.now(timezone.utc),
+            interval_hours=None,
+            enabled=True,
+            created_by_user_id=user_id
+        )
+        db.add(reminder)
 
     reminder.last_given_at = timestamp or datetime.now(timezone.utc)
     reminder.enabled = True

@@ -145,7 +145,7 @@ async def create_event(
 
     if new_event.type == "medication":
         med_name = (event_data.metadata or {}).get("med_name")
-        reminder = record_medication_dose(db, recipient.id, med_name, new_event.timestamp)
+        reminder = record_medication_dose(db, recipient.id, med_name, new_event.timestamp, current_user.id)
         if reminder:
             db.commit()
     await broadcast_event({"type": "event.created", "id": str(new_event.id), "recipient_id": str(recipient.id)})

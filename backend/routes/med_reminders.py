@@ -119,6 +119,20 @@ async def create_reminder(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_admin)
 ):
+    existing = db.query(MedicationReminder).filter(
+        MedicationReminder.recipient_id == payload.recipient_id,
+        MedicationReminder.medication_id == payload.medication_id
+    ).first()
+    if existing:
+        existing.start_time = _ensure_utc(payload.start_time) or existing.start_time
+        if payload.interval_hours is not None:
+            existing.interval_hours = payload.interval_hours
+        existing.enabled = payload.enabled
+        db.add(existing)
+        db.commit()
+        existing = db.query(MedicationReminder).options(joinedload(MedicationReminder.medication)).get(existing.id)
+        return _to_response(existing)
+
     med = db.query(Medication).filter(Medication.id == payload.medication_id).first()
     if not med:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")

@@ -109,6 +109,7 @@
 	let newMedicationWarning = '15';
 	let newMedicationNotes = '';
 	let newMedicationActive = true;
+	let newMedicationAutoStart = false;
 	let editMedicationId = null;
 	let editMedicationName = '';
 	let editMedicationDose = '';
@@ -117,6 +118,7 @@
 	let editMedicationWarning = '';
 	let editMedicationNotes = '';
 	let editMedicationActive = true;
+	let editMedicationAutoStart = false;
 
 	let newReminderMedicationId = '';
 	let newReminderStartTime = '';
@@ -379,6 +381,7 @@
 				early_warning_minutes: parseInt(newMedicationWarning || '15'),
 				notes: newMedicationNotes || null,
 				is_active: newMedicationActive,
+				auto_start_reminder: newMedicationAutoStart,
 				recipient_id: $selectedRecipientId || null
 			});
 			medications = [created, ...medications];
@@ -389,6 +392,7 @@
 			newMedicationWarning = '15';
 			newMedicationNotes = '';
 			newMedicationActive = true;
+			newMedicationAutoStart = false;
 		} catch (err) {
 			medicationsError = err.message || 'Failed to create medication';
 		}
@@ -403,6 +407,7 @@
 		editMedicationWarning = med.early_warning_minutes?.toString() || '';
 		editMedicationNotes = med.notes || '';
 		editMedicationActive = med.is_active;
+		editMedicationAutoStart = med.auto_start_reminder || false;
 	}
 
 	function cancelEditMedication() {
@@ -414,6 +419,7 @@
 		editMedicationWarning = '';
 		editMedicationNotes = '';
 		editMedicationActive = true;
+		editMedicationAutoStart = false;
 	}
 
 	async function handleSaveMedication() {
@@ -428,6 +434,7 @@
 				early_warning_minutes: editMedicationWarning ? parseInt(editMedicationWarning) : null,
 				notes: editMedicationNotes || null,
 				is_active: editMedicationActive,
+				auto_start_reminder: editMedicationAutoStart,
 				recipient_id: $selectedRecipientId || null
 			});
 			medications = medications.map(item => item.id === updated.id ? updated : item);
@@ -1296,6 +1303,10 @@
 						<input type="checkbox" bind:checked={newMedicationActive} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
 						Active
 					</label>
+					<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+						<input type="checkbox" bind:checked={newMedicationAutoStart} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+						Start reminder when logged
+					</label>
 					<button
 						type="submit"
 						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
@@ -1377,6 +1388,10 @@
 										<input type="checkbox" bind:checked={editMedicationActive} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
 										Active
 									</label>
+									<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+										<input type="checkbox" bind:checked={editMedicationAutoStart} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+										Start reminder when logged
+									</label>
 									<div class="flex items-center gap-2">
 										<button on:click={handleSaveMedication} class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">Save</button>
 										<button on:click={cancelEditMedication} class="px-3 py-2 border border-slate-200 rounded-lg text-sm">Cancel</button>
@@ -1391,6 +1406,7 @@
 										</p>
 										<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
 											{med.is_active ? 'Active' : 'Inactive'} · Warn {med.early_warning_minutes} min early
+											{med.auto_start_reminder ? ' · Auto reminder' : ''}
 										</p>
 									</div>
 									<div class="flex items-center gap-2">
