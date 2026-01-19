@@ -251,6 +251,12 @@
 #### Pending
 - [ ] Run migrations for new columns: users.display_name, users.avatar_filename, care_recipients.enabled_categories, medications.default_route, medications.is_quick_med, medications.auto_start_reminder
 
+### 2026-01-19 - Status Check (No code changes)
+
+#### Current Focus
+- Pending migrations for new columns (see list above)
+- Web Push notifications and reminder UI still not implemented (Phase 6 "Reminders & Notifications")
+
 ## Architecture Decisions
 
 ### Why SvelteKit?
@@ -632,7 +638,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-18 (Phase 5: Med Reminders + Recipient Customization)
+**Last Updated:** 2026-01-19 (Cache version bump)
 
 ---
 
@@ -810,6 +816,16 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 - `frontend/src/routes/+page.svelte` - Reminder banner + early check
 - `frontend/src/lib/components/QuickEntry.svelte` - Med dropdown, quick med auto-log, early warning
 - `frontend/src/lib/services/api.js` - Medication/reminder API helpers
+
+### 2026-01-19 - Bug Fix: Reminder Disable Respected
+
+#### Fixed
+- [x] Stop re-enabling disabled medication reminders when logging meds
+- [x] Stop flipping reminder enabled state during event delete reconciliation
+- [x] Disabling "Start reminder when logged" turns off existing reminders for that medication
+- [x] Auto-start off now always disables reminders (even if previously off)
+- [x] Prevent caching `/api/med-reminders/next` to avoid stale reminder banners
+- [x] Bump service worker cache versions to force refresh
 
 ### 2026-01-16 - Consistent Navigation Across All Pages
 

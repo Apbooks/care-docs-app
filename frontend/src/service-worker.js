@@ -17,9 +17,9 @@ cleanupOutdatedCaches();
 
 // Cache names
 const CACHE_NAMES = {
-	api: 'api-cache-v1',
-	images: 'image-cache-v1',
-	static: 'static-cache-v1'
+	api: 'api-cache-v2',
+	images: 'image-cache-v2',
+	static: 'static-cache-v2'
 };
 
 // Background sync queue for offline event creation
@@ -40,6 +40,13 @@ const bgSyncPlugin = new BackgroundSyncPlugin('eventQueue', {
 		}
 	}
 });
+
+// Reminder next-due should not be cached to avoid stale banners
+registerRoute(
+	({ url }) => url.pathname.startsWith('/api/med-reminders/next'),
+	new NetworkOnly(),
+	'GET'
+);
 
 // API Routes - NetworkFirst for most API calls
 registerRoute(

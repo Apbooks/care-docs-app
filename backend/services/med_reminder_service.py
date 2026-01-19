@@ -71,7 +71,6 @@ def record_medication_dose(
         db.add(reminder)
 
     reminder.last_given_at = timestamp or datetime.now(timezone.utc)
-    reminder.enabled = True
     db.add(reminder)
     return reminder
 
@@ -144,10 +143,8 @@ def update_reminder_after_event_delete(
 
     if latest_event:
         reminder.last_given_at = latest_event.timestamp
-        reminder.enabled = True
     else:
         reminder.last_given_at = None
-        reminder.enabled = False
 
     db.add(reminder)
     return reminder

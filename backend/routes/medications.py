@@ -145,10 +145,19 @@ async def update_medication(
     if not med:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")
 
-    for key, value in updates.model_dump(exclude_unset=True).items():
+    data = updates.model_dump(exclude_unset=True)
+    prev_auto_start = med.auto_start_reminder
+    for key, value in data.items():
         setattr(med, key, value)
 
     db.add(med)
+    if data.get("auto_start_reminder") is False:
+        db.query(MedicationReminder).filter(
+            MedicationReminder.medication_id == med_id
+        ).update(
+            {MedicationReminder.enabled: False},
+            synchronize_session=False
+        )
     db.commit()
     db.refresh(med)
     return _to_response(med)
