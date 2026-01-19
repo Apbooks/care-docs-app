@@ -436,7 +436,7 @@ _To be measured after deployment_
 - ✓ PWA icons (now using SVG - icon.svg, favicon.svg)
 - No testing infrastructure (pytest, Vitest)
 - No rate limiting on authentication endpoints
-- No database migration system (using create_all instead of Alembic)
+- Alembic added; need baseline revision and plan to disable create_all in production
 - Insufficient logging configuration
 - Dynamic Tailwind classes causing bundle bloat
 - No input validation length limits on text fields
@@ -638,7 +638,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-19 (DB migrations applied)
+**Last Updated:** 2026-01-19 (Alembic setup)
 
 ---
 
@@ -656,6 +656,16 @@ After completing work, always commit changes and push to the remote repository.
 ---
 
 ## Migration Notes (manual SQL)
+
+### Alembic (schema tracking)
+
+```bash
+# Create a new migration (run from /app inside the backend container)
+alembic -c /app/alembic.ini revision --autogenerate -m "describe change"
+
+# Apply latest migrations
+alembic -c /app/alembic.ini upgrade head
+```
 
 ### Medication Library + Quick Meds
 
@@ -827,6 +837,12 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 - [x] Prevent caching `/api/med-reminders/next` to avoid stale reminder banners
 - [x] Bump service worker cache versions to force refresh
 - [x] Applied pending DB migrations for profile/recipient/med fields
+
+### 2026-01-19 - Alembic Migrations Added
+
+#### Completed
+- [x] Added Alembic configuration in `backend/alembic` and `backend/alembic.ini`
+- [x] Added Alembic dependency to backend requirements
 
 ### 2026-01-16 - Consistent Navigation Across All Pages
 
