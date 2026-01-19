@@ -252,8 +252,8 @@ sw.addEventListener('push', (event) => {
 		const data = event.data.json();
 		const options = {
 			body: data.body || 'Care reminder',
-			icon: '/icon-192.png',
-			badge: '/icon-192.png',
+			icon: '/icon.svg',
+			badge: '/icon.svg',
 			vibrate: [100, 50, 100],
 			data: {
 				url: data.url || '/'

@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "admin@example.com"
 
+    # Reminder Scheduler
+    SCHEDULER_ENABLED: bool = True
+    REMINDER_SCAN_INTERVAL_SECONDS: int = 60
+
     @field_validator('JWT_SECRET_KEY')
     @classmethod
     def validate_jwt_secret(cls, v: str) -> str:

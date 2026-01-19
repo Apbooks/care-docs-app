@@ -20,6 +20,10 @@
 		createRecipient,
 		updateRecipient,
 		deleteRecipient,
+		getVapidPublicKey,
+		subscribePush,
+		unsubscribePush,
+		sendTestNotification,
 		logout as logoutApi
 	} from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -60,6 +64,12 @@
 	let notificationsDueSoonMinutes = '0';
 	let notificationsOverdueMinutes = '60';
 	let notificationsSnoozeMinutes = '15';
+	let pushSupported = false;
+	let pushPermission = 'default';
+	let pushSubscriptionActive = false;
+	let pushActionLoading = false;
+	let pushActionError = '';
+	let pushTestStatus = '';
 
 	const timezones = [
 		'local',
@@ -156,6 +166,31 @@
 		menuOpen = false;
 	}
 
+	function urlBase64ToUint8Array(base64String) {
+		const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+		const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+		const rawData = atob(base64);
+		const outputArray = new Uint8Array(rawData.length);
+		for (let i = 0; i < rawData.length; i += 1) {
+			outputArray[i] = rawData.charCodeAt(i);
+		}
+		return outputArray;
+	}
+
+	async function initializePushState() {
+		if (typeof window === 'undefined') return;
+		pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+		pushPermission = typeof Notification !== 'undefined' ? Notification.permission : 'default';
+		if (!pushSupported) return;
+		try {
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.getSubscription();
+			pushSubscriptionActive = !!subscription;
+		} catch (err) {
+			pushActionError = err.message || 'Unable to read push subscription status';
+		}
+	}
+
 	async function handleLogout() {
 		try {
 			await logoutApi();
@@ -168,6 +203,79 @@
 			localStorage.removeItem('access_token');
 			localStorage.removeItem('refresh_token');
 			goto('/login');
+		}
+	}
+
+	async function handleEnableDevicePush() {
+		pushActionError = '';
+		pushTestStatus = '';
+		pushActionLoading = true;
+		try {
+			if (!pushSupported) {
+				throw new Error('Push notifications are not supported on this device');
+			}
+			if (typeof Notification === 'undefined') {
+				throw new Error('Notification API not available');
+			}
+			const permission = await Notification.requestPermission();
+			pushPermission = permission;
+			if (permission !== 'granted') {
+				throw new Error('Permission not granted for notifications');
+			}
+			const { public_key } = await getVapidPublicKey();
+			if (!public_key) {
+				throw new Error('Missing VAPID public key');
+			}
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.subscribe({
+				userVisibleOnly: true,
+				applicationServerKey: urlBase64ToUint8Array(public_key)
+			});
+			await subscribePush(subscription.toJSON());
+			pushSubscriptionActive = true;
+		} catch (err) {
+			pushActionError = err.message || 'Failed to enable push notifications';
+		} finally {
+			pushActionLoading = false;
+		}
+	}
+
+	async function handleDisableDevicePush() {
+		pushActionError = '';
+		pushTestStatus = '';
+		pushActionLoading = true;
+		try {
+			if (!pushSupported) {
+				throw new Error('Push notifications are not supported on this device');
+			}
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.getSubscription();
+			if (subscription) {
+				await unsubscribePush(subscription.toJSON());
+				await subscription.unsubscribe();
+			}
+			pushSubscriptionActive = false;
+		} catch (err) {
+			pushActionError = err.message || 'Failed to disable push notifications';
+		} finally {
+			pushActionLoading = false;
+		}
+	}
+
+	async function handleSendTestNotification() {
+		pushActionError = '';
+		pushTestStatus = '';
+		pushActionLoading = true;
+		try {
+			await sendTestNotification({
+				title: 'Care Docs Reminder',
+				body: 'This is a test notification from Care Docs.'
+			});
+			pushTestStatus = 'Test notification sent.';
+		} catch (err) {
+			pushActionError = err.message || 'Failed to send test notification';
+		} finally {
+			pushActionLoading = false;
 		}
 	}
 
@@ -217,6 +325,7 @@
 			loadTimezone(),
 			loadNotificationSettings()
 		]);
+		await initializePushState();
 	});
 
 	$: if ($selectedRecipientId && $selectedRecipientId !== lastTemplateRecipientId) {
@@ -1913,6 +2022,49 @@
 							bind:value={notificationsSnoozeMinutes}
 							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 						/>
+					</div>
+				</div>
+				<div class="mt-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4 space-y-3">
+					<div>
+						<h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">Device push status</h3>
+						<p class="text-sm text-slate-600 dark:text-slate-300">Enable push notifications on this device after turning on push in settings.</p>
+					</div>
+					<div class="text-sm text-slate-700 dark:text-slate-200 space-y-1">
+						<div>Supported: {pushSupported ? 'Yes' : 'No'}</div>
+						<div>Permission: {pushPermission}</div>
+						<div>Subscribed: {pushSubscriptionActive ? 'Yes' : 'No'}</div>
+					</div>
+					{#if pushActionError}
+						<p class="text-sm text-red-700 dark:text-red-200">{pushActionError}</p>
+					{/if}
+					{#if pushTestStatus}
+						<p class="text-sm text-emerald-700 dark:text-emerald-200">{pushTestStatus}</p>
+					{/if}
+					<div class="flex flex-wrap gap-3">
+						<button
+							type="button"
+							on:click={handleEnableDevicePush}
+							disabled={pushActionLoading || !pushSupported}
+							class="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white disabled:opacity-50"
+						>
+							Enable on this device
+						</button>
+						<button
+							type="button"
+							on:click={handleDisableDevicePush}
+							disabled={pushActionLoading || !pushSupported}
+							class="px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
+						>
+							Disable on this device
+						</button>
+						<button
+							type="button"
+							on:click={handleSendTestNotification}
+							disabled={pushActionLoading || !pushSubscriptionActive}
+							class="px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
+						>
+							Send test notification
+						</button>
 					</div>
 				</div>
 				<div>

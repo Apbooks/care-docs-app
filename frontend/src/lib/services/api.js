@@ -664,6 +664,39 @@ export async function updateNotificationSettings(settings) {
 }
 
 // ============================================================================
+// PUSH NOTIFICATIONS
+// ============================================================================
+
+export async function getVapidPublicKey() {
+	return apiRequest('/notifications/vapid-public-key');
+}
+
+export async function listPushSubscriptions() {
+	return apiRequest('/notifications/subscriptions');
+}
+
+export async function subscribePush(subscription) {
+	return apiRequest('/notifications/subscribe', {
+		method: 'POST',
+		body: JSON.stringify(subscription)
+	});
+}
+
+export async function unsubscribePush(subscription) {
+	return apiRequest('/notifications/unsubscribe', {
+		method: 'POST',
+		body: JSON.stringify(subscription)
+	});
+}
+
+export async function sendTestNotification(data) {
+	return apiRequest('/notifications/test', {
+		method: 'POST',
+		body: JSON.stringify(data || {})
+	});
+}
+
+// ============================================================================
 // CONTINUOUS FEED
 // ============================================================================
 

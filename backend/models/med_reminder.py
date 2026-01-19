@@ -22,6 +22,7 @@ class MedicationReminder(Base):
     enabled = Column(Boolean, default=True, nullable=False)
     last_given_at = Column(DateTime, nullable=True)
     last_skipped_at = Column(DateTime, nullable=True)
+    last_notified_at = Column(DateTime, nullable=True)
 
     created_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_by = relationship("User")

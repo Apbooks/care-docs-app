@@ -257,6 +257,31 @@
 - Pending migrations for new columns (see list above)
 - Web Push notifications and reminder UI still not implemented (Phase 6 "Reminders & Notifications")
 
+### 2026-01-19 - Next Steps Identified (No code changes)
+
+#### Next Up
+- Implement Reminders & Notifications (Web Push API setup, permission flow, reminder management UI, notification service, APScheduler integration)
+- Add testing infrastructure (pytest, Vitest) and cover core auth/event/reminder flows
+- Address deployment gaps: HTTPS, automated backups, performance optimization
+
+### 2026-01-19 - Reminder Scheduler + Notification Endpoints (Backend Complete)
+
+#### Completed
+- [x] Added APScheduler-based reminder scanner with SSE/pubsub broadcasts for due reminders
+- [x] Added push subscription model + API endpoints (subscribe/unsubscribe/list/test)
+- [x] Added reminder last_notified_at tracking to prevent duplicate alerts
+- [x] Added notification service wrapper for Web Push delivery
+- [x] Added scheduler configuration settings (SCHEDULER_ENABLED, REMINDER_SCAN_INTERVAL_SECONDS)
+
+### 2026-01-19 - Push Subscription UI + VAPID Endpoint (Complete)
+
+#### Completed
+- [x] Added VAPID public key endpoint for frontend subscription flow
+- [x] Added device push enable/disable + test controls in Admin Notifications tab
+- [x] Switched PWA build to injectManifest to ensure custom service worker handles push events
+- [x] Added frontend API helpers for push subscription management
+- [x] Applied DB migrations for push_subscriptions + medication_reminders.last_notified_at
+
 ## Architecture Decisions
 
 ### Why SvelteKit?
@@ -336,13 +361,14 @@
 - [x] Feeding totals summary (daily + range)
 
 #### 6. Reminders & Notifications
-- [ ] Web Push API setup
-- [ ] Permission request
+- [x] Web Push API setup
+- [x] Permission request
 - [ ] Reminder management UI
-- [ ] Notification service
-- [ ] APScheduler integration
+- [x] Notification service
+- [x] APScheduler integration
 - [ ] Snooze/dismiss
 - [ ] Notification clicks
+- [x] Backend scheduler + push subscription endpoints
 
 ---
 
@@ -356,7 +382,7 @@
 - [x] care_recipients
 - [x] photos
 - [ ] reminders
-- [ ] push_subscriptions
+- [x] push_subscriptions
 
 ---
 
@@ -681,6 +707,23 @@ ALTER TABLE medications ADD COLUMN default_route VARCHAR(40);
 ALTER TABLE care_recipients ADD COLUMN enabled_categories JSONB NOT NULL DEFAULT '["medication","feeding","diaper","demeanor","observation"]';
 ALTER TABLE users ADD COLUMN display_name VARCHAR(100);
 ALTER TABLE users ADD COLUMN avatar_filename VARCHAR(255);
+```
+
+### Reminder Notifications (Backend)
+
+```sql
+ALTER TABLE medication_reminders ADD COLUMN last_notified_at timestamp;
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id),
+  endpoint varchar(2048) NOT NULL UNIQUE,
+  p256dh varchar(255) NOT NULL,
+  auth varchar(255) NOT NULL,
+  expiration_time timestamp NULL,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
 ```
 
 Quick meds migration (one-time):
