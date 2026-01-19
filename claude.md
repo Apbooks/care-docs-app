@@ -843,6 +843,7 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 #### Completed
 - [x] Added Alembic configuration in `backend/alembic` and `backend/alembic.ini`
 - [x] Added Alembic dependency to backend requirements
+- [x] Created baseline Alembic revision and stamped DB head
 
 ### 2026-01-16 - Consistent Navigation Across All Pages
 
