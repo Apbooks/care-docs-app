@@ -249,7 +249,7 @@
 - [x] Fixed SSE pub/sub publishing errors for live updates
 
 #### Pending
-- [ ] Run migrations for new columns: users.display_name, users.avatar_filename, care_recipients.enabled_categories, medications.default_route, medications.is_quick_med, medications.auto_start_reminder
+- [x] Run migrations for new columns: users.display_name, users.avatar_filename, care_recipients.enabled_categories, medications.default_route, medications.is_quick_med, medications.auto_start_reminder
 
 ### 2026-01-19 - Status Check (No code changes)
 
@@ -638,7 +638,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-19 (Cache version bump)
+**Last Updated:** 2026-01-19 (DB migrations applied)
 
 ---
 
@@ -826,6 +826,7 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 - [x] Auto-start off now always disables reminders (even if previously off)
 - [x] Prevent caching `/api/med-reminders/next` to avoid stale reminder banners
 - [x] Bump service worker cache versions to force refresh
+- [x] Applied pending DB migrations for profile/recipient/med fields
 
 ### 2026-01-16 - Consistent Navigation Across All Pages
 
