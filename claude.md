@@ -281,6 +281,7 @@
 - [x] Switched PWA build to injectManifest to ensure custom service worker handles push events
 - [x] Added frontend API helpers for push subscription management
 - [x] Applied DB migrations for push_subscriptions + medication_reminders.last_notified_at
+- [x] Generated VAPID keys and updated environment configuration
 
 ## Architecture Decisions
 
