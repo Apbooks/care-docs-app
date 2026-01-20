@@ -1,6 +1,22 @@
-// API base URL - uses Vite build-time env `VITE_PUBLIC_API_URL` if provided,
-// otherwise falls back to same-origin `/api`.
-const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
+// API base URL - prefers Vite build-time env, otherwise infers from hostname.
+const API_BASE = (() => {
+	const envBase = import.meta.env.VITE_PUBLIC_API_URL;
+	if (envBase && envBase !== 'auto') return envBase;
+	if (typeof window === 'undefined') return '/api';
+	const { protocol, hostname } = window.location;
+	if (hostname === 'caredocs.apvinyldesigns.com') {
+		return `${protocol}//${hostname}/api`;
+	}
+	if (
+		hostname === 'localhost' ||
+		hostname === '127.0.0.1' ||
+		hostname.startsWith('192.168.') ||
+		hostname.endsWith('.local')
+	) {
+		return `${protocol}//${hostname}:8000/api`;
+	}
+	return '/api';
+})();
 
 // Import offline stores (lazy loaded to avoid circular deps)
 let offlineModule = null;

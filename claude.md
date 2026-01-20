@@ -287,6 +287,7 @@
 - [x] Fixed login redirect race by awaiting auth store persistence
 - [x] Switched to simple split-hostname setup (frontend on caredocs.*, API on api.caredocs.*)
 - [x] Simplified deployment to single hostname via nginx reverse proxy on port 8080
+- [x] Added auto API base selection to support both local and public access
 
 ## Architecture Decisions
 
