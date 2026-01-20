@@ -18,7 +18,7 @@
 			const response = await login(username, password);
 
 			// Store user data AND token in localStorage
-			authStore.setUser(response.user);
+			await authStore.setUser(response.user);
 
 			// Store access token in localStorage for cross-origin requests
 			if (response.access_token) {
@@ -26,6 +26,9 @@
 			}
 			if (response.refresh_token) {
 				localStorage.setItem('refresh_token', response.refresh_token);
+			}
+			if (response.access_token || response.refresh_token) {
+				await authStore.persistTokens(response.access_token, response.refresh_token);
 			}
 
 			// Redirect to dashboard

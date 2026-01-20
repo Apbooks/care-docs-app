@@ -284,6 +284,7 @@
 - [x] Generated VAPID keys and updated environment configuration
 - [x] Updated production env to use tunnel domain for CORS, PUBLIC_API_URL, and frontend ORIGIN
 - [x] Enabled proxy headers in production backend to preserve HTTPS in redirects behind Cloudflare
+- [x] Fixed login redirect race by awaiting auth store persistence
 
 ## Architecture Decisions
 
