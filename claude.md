@@ -283,6 +283,7 @@
 - [x] Applied DB migrations for push_subscriptions + medication_reminders.last_notified_at
 - [x] Generated VAPID keys and updated environment configuration
 - [x] Updated production env to use tunnel domain for CORS, PUBLIC_API_URL, and frontend ORIGIN
+- [x] Enabled proxy headers in production backend to preserve HTTPS in redirects behind Cloudflare
 
 ## Architecture Decisions
 
