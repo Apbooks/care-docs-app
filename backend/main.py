@@ -64,6 +64,10 @@ async def shutdown_event():
 async def health_check():
     return {"status": "healthy", "message": "Care Documentation API is running"}
 
+@app.head("/api/health")
+async def health_check_head():
+    return None
+
 # Serve setup.html
 @app.get("/setup.html")
 async def serve_setup():

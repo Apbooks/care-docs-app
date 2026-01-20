@@ -12,7 +12,7 @@ from routes.auth import get_current_user, get_current_active_admin
 from routes.stream import broadcast_event
 from models.med_reminder import MedicationReminder
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 class MedicationCreate(BaseModel):

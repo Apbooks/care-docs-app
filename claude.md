@@ -289,6 +289,7 @@
 - [x] Simplified deployment to single hostname via nginx reverse proxy on port 8080
 - [x] Added auto API base selection to support both local and public access
 - [x] Fixed SSE stream base URL to use auto API base (prevents /api/stream 404 locally)
+- [x] Added HEAD handler for /api/health and disabled slash redirects for medications
 
 ## Architecture Decisions
 
