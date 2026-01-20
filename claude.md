@@ -288,6 +288,7 @@
 - [x] Switched to simple split-hostname setup (frontend on caredocs.*, API on api.caredocs.*)
 - [x] Simplified deployment to single hostname via nginx reverse proxy on port 8080
 - [x] Added auto API base selection to support both local and public access
+- [x] Fixed SSE stream base URL to use auto API base (prevents /api/stream 404 locally)
 
 ## Architecture Decisions
 

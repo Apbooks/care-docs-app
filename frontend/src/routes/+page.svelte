@@ -4,7 +4,7 @@
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { authStore, isAdmin } from '$lib/stores/auth';
-import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession, getNextMedReminders, skipMedReminder, createEvent, checkMedEarly } from '$lib/services/api';
+import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession, getNextMedReminders, skipMedReminder, createEvent, checkMedEarly } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -63,7 +63,7 @@ import { logout as logoutApi, getCurrentUser, getActiveContinuousFeed, stopConti
 		const handleActiveFeedChanged = () => loadActiveFeed();
 		window.addEventListener('active-feed-changed', handleActiveFeedChanged);
 
-		const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
+		const API_BASE = getApiBase();
 
 		async function connectStream() {
 			try {

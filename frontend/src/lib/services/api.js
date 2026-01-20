@@ -18,6 +18,10 @@ const API_BASE = (() => {
 	return '/api';
 })();
 
+export function getApiBase() {
+	return API_BASE;
+}
+
 // Import offline stores (lazy loaded to avoid circular deps)
 let offlineModule = null;
 async function getOfflineModule() {
