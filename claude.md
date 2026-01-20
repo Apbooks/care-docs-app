@@ -286,6 +286,7 @@
 - [x] Enabled proxy headers in production backend to preserve HTTPS in redirects behind Cloudflare
 - [x] Fixed login redirect race by awaiting auth store persistence
 - [x] Switched to simple split-hostname setup (frontend on caredocs.*, API on api.caredocs.*)
+- [x] Simplified deployment to single hostname via nginx reverse proxy on port 8080
 
 ## Architecture Decisions
 
