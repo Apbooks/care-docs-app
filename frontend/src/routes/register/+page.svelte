@@ -35,6 +35,20 @@
 		menuOpen = false;
 	}
 
+	function validatePassword(passwordValue) {
+		const errors = [];
+		if (!/[a-z]/.test(passwordValue)) {
+			errors.push('Include a lowercase letter.');
+		}
+		if (!/[A-Z]/.test(passwordValue)) {
+			errors.push('Include an uppercase letter.');
+		}
+		if (!/[0-9]/.test(passwordValue)) {
+			errors.push('Include a number.');
+		}
+		return errors;
+	}
+
 	async function handleLogout() {
 		try {
 			await logoutApi();
@@ -68,9 +82,10 @@
 			return;
 		}
 
-		// Validate password length
-		if (password.length < 6) {
-			error = 'Password must be at least 6 characters';
+		// Validate password strength
+		const passwordIssues = validatePassword(password);
+		if (passwordIssues.length > 0) {
+			error = passwordIssues.join(' ');
 			return;
 		}
 
@@ -256,10 +271,13 @@
 					>
 						<option value="caregiver">Caregiver</option>
 						<option value="admin">Administrator</option>
+						<option value="read_only">Read Only</option>
 					</select>
 					<p class="mt-1 text-sm text-gray-500 dark:text-slate-400">
 						{#if role === 'admin'}
 							Administrators can create users and access all features.
+						{:else if role === 'read_only'}
+							Read-only users can view data but cannot log or edit events.
 						{:else}
 							Caregivers can log care activities but cannot create users.
 						{/if}
@@ -279,8 +297,9 @@
 						minlength="6"
 						disabled={loading}
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-						placeholder="Minimum 6 characters"
+						placeholder="Upper, lower, and a number"
 					/>
+					<p class="mt-1 text-sm text-gray-500 dark:text-slate-400">Password must include uppercase, lowercase, and a number.</p>
 				</div>
 
 				<!-- Confirm Password -->

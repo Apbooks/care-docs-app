@@ -291,6 +291,20 @@
 - [x] Fixed SSE stream base URL to use auto API base (prevents /api/stream 404 locally)
 - [x] Added HEAD handler for /api/health and disabled slash redirects for medications
 
+### 2026-01-20 - Invite-Based User Onboarding + Recipient Access (In Progress)
+
+#### Completed
+- [x] Added invite system with expiring tokens and copyable links
+- [x] Added user-recipient access mapping and access control helpers
+- [x] Enforced recipient access + read-only restrictions across event, feed, reminder, photo, stream, and template endpoints
+- [x] Updated admin UI to create invites, edit roles (admin/caregiver/read_only), and manage recipient access
+- [x] Added invite acceptance page with username/email/name + password strength validation
+- [x] Added pending invite list + revoke support in admin UI
+- [x] Enforced case-insensitive usernames in login/register/invites/admin scripts
+- [x] Applied DB tables for invites/access and rebuilt production containers
+- [x] Disabled auth refresh on invite route to avoid redirect to login
+- [x] Fixed user delete to clear recipient access first (prevents FK 500)
+
 ## Architecture Decisions
 
 ### Why SvelteKit?
@@ -392,6 +406,8 @@
 - [x] photos
 - [ ] reminders
 - [x] push_subscriptions
+- [x] user_invites
+- [x] user_recipient_access
 
 ---
 
@@ -673,7 +689,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-19 (Alembic setup)
+**Last Updated:** 2026-01-20 (Invites + access control)
 
 ---
 
@@ -732,6 +748,30 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   expiration_time timestamp NULL,
   created_at timestamp NOT NULL DEFAULT now(),
   updated_at timestamp NOT NULL DEFAULT now()
+);
+```
+
+### User Invites + Recipient Access
+
+```sql
+CREATE TABLE IF NOT EXISTS user_invites (
+  id uuid PRIMARY KEY,
+  token varchar(128) NOT NULL UNIQUE,
+  email varchar(255),
+  username varchar(50),
+  role varchar(20) NOT NULL DEFAULT 'caregiver',
+  recipient_ids jsonb NOT NULL DEFAULT '[]',
+  expires_at timestamp NOT NULL,
+  used_at timestamp NULL,
+  created_by_user_id uuid NOT NULL REFERENCES users(id),
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS user_recipient_access (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id),
+  recipient_id uuid NOT NULL REFERENCES care_recipients(id),
+  CONSTRAINT uniq_user_recipient UNIQUE (user_id, recipient_id)
 );
 ```
 

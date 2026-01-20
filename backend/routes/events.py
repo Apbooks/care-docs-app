@@ -15,6 +15,11 @@ from models.care_recipient import CareRecipient
 from routes.auth import get_current_user
 from routes.stream import broadcast_event
 from services.med_reminder_service import record_medication_dose, update_reminder_after_event_delete
+from services.access_control import (
+    ensure_recipient_access,
+    get_allowed_recipient_ids,
+    require_write_access,
+)
 from services.utils import to_utc_iso
 
 router = APIRouter()
@@ -117,6 +122,8 @@ async def create_event(
     - observation: General notes and observations
     """
 
+    require_write_access(current_user)
+
     # Validate event type
     valid_types = ["medication", "feeding", "diaper", "demeanor", "observation"]
     if event_data.type not in valid_types:
@@ -127,6 +134,7 @@ async def create_event(
 
     # Create event
     recipient = resolve_recipient(db, event_data.recipient_id)
+    ensure_recipient_access(db, current_user, str(recipient.id))
 
     new_event = Event(
         type=event_data.type,
@@ -185,6 +193,16 @@ async def get_events(
     Returns events ordered by timestamp (most recent first)
     """
 
+    allowed = get_allowed_recipient_ids(db, current_user)
+    if allowed is not None:
+        if recipient_id and recipient_id not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this recipient"
+            )
+        if not allowed:
+            return []
+
     # Use joinedload to eagerly fetch related User and CareRecipient (fixes N+1 query)
     query = db.query(Event).options(
         joinedload(Event.user),
@@ -201,6 +219,8 @@ async def get_events(
         query = query.filter(Event.timestamp <= end)
     if recipient_id:
         query = query.filter(Event.recipient_id == recipient_id)
+    elif allowed is not None:
+        query = query.filter(Event.recipient_id.in_(allowed))
 
     if q:
         search = f"%{q.strip()}%"
@@ -258,6 +278,8 @@ async def get_event(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found"
         )
+    if event.recipient_id:
+        ensure_recipient_access(db, current_user, str(event.recipient_id))
 
     return EventResponse(
         id=str(event.id),
@@ -285,6 +307,8 @@ async def update_event(
 ):
     """Update an event (notes and metadata only)"""
 
+    require_write_access(current_user)
+
     event = db.query(Event).options(
         joinedload(Event.user),
         joinedload(Event.recipient)
@@ -295,6 +319,8 @@ async def update_event(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found"
         )
+    if event.recipient_id:
+        ensure_recipient_access(db, current_user, str(event.recipient_id))
 
     # Update fields if provided
     if event_update.type is not None:
@@ -316,6 +342,7 @@ async def update_event(
         event.event_data = event_update.metadata
     if event_update.recipient_id is not None:
         recipient = resolve_recipient(db, event_update.recipient_id)
+        ensure_recipient_access(db, current_user, str(recipient.id))
         event.recipient_id = recipient.id
 
     event.updated_at = datetime.now(timezone.utc)
@@ -354,6 +381,8 @@ async def delete_event(
 ):
     """Delete an event"""
 
+    require_write_access(current_user)
+
     event = db.query(Event).filter(Event.id == event_id).first()
 
     if not event:
@@ -361,6 +390,8 @@ async def delete_event(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found"
         )
+    if event.recipient_id:
+        ensure_recipient_access(db, current_user, str(event.recipient_id))
 
     med_name = None
     recipient_id = None
@@ -392,6 +423,16 @@ async def get_event_stats(
     Returns count of each event type
     """
 
+    allowed = get_allowed_recipient_ids(db, current_user)
+    if allowed is not None:
+        if recipient_id and recipient_id not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this recipient"
+            )
+        if not allowed:
+            return {"total": 0, "medication": 0, "feeding": 0, "diaper": 0, "demeanor": 0, "observation": 0}
+
     stats = {}
     event_types = ["medication", "feeding", "diaper", "demeanor", "observation"]
 
@@ -399,12 +440,16 @@ async def get_event_stats(
         count_query = db.query(Event).filter(Event.type == event_type)
         if recipient_id:
             count_query = count_query.filter(Event.recipient_id == recipient_id)
+        elif allowed is not None:
+            count_query = count_query.filter(Event.recipient_id.in_(allowed))
         count = count_query.count()
         stats[event_type] = count
 
     total_query = db.query(Event)
     if recipient_id:
         total_query = total_query.filter(Event.recipient_id == recipient_id)
+    elif allowed is not None:
+        total_query = total_query.filter(Event.recipient_id.in_(allowed))
     stats["total"] = total_query.count()
 
     return stats

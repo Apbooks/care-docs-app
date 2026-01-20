@@ -10,6 +10,7 @@ from models.quick_feed import QuickFeed
 from models.care_recipient import CareRecipient
 from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
+from services.access_control import get_allowed_recipient_ids
 
 router = APIRouter()
 VALID_FEED_MODES = ["continuous", "bolus", "oral"]
@@ -64,11 +65,23 @@ async def list_quick_medications(
             detail="Admin privileges required to view inactive templates"
         )
 
+    allowed = get_allowed_recipient_ids(db, current_user)
+    if allowed is not None:
+        if recipient_id and recipient_id not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this recipient"
+            )
+        if not allowed:
+            return []
+
     query = db.query(QuickMedication)
     if not include_inactive:
         query = query.filter(QuickMedication.is_active.is_(True))
     if recipient_id:
         query = query.filter(QuickMedication.recipient_id == recipient_id)
+    elif allowed is not None:
+        query = query.filter(QuickMedication.recipient_id.in_(allowed))
 
     meds = query.order_by(QuickMedication.created_at.desc()).all()
 
@@ -261,11 +274,23 @@ async def list_quick_feeds(
             detail="Admin privileges required to view inactive templates"
         )
 
+    allowed = get_allowed_recipient_ids(db, current_user)
+    if allowed is not None:
+        if recipient_id and recipient_id not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this recipient"
+            )
+        if not allowed:
+            return []
+
     query = db.query(QuickFeed)
     if not include_inactive:
         query = query.filter(QuickFeed.is_active.is_(True))
     if recipient_id:
         query = query.filter(QuickFeed.recipient_id == recipient_id)
+    elif allowed is not None:
+        query = query.filter(QuickFeed.recipient_id.in_(allowed))
 
     feeds = query.order_by(QuickFeed.created_at.desc()).all()
 

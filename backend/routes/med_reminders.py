@@ -12,6 +12,7 @@ from models.medication import Medication
 from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
 from services.med_reminder_service import calculate_next_due, check_early_status, get_medication_by_name
+from services.access_control import ensure_recipient_access, require_write_access
 
 router = APIRouter()
 
@@ -105,6 +106,7 @@ async def list_reminders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    ensure_recipient_access(db, current_user, recipient_id)
     query = db.query(MedicationReminder).options(joinedload(MedicationReminder.medication))
     query = query.filter(MedicationReminder.recipient_id == recipient_id)
     if not include_disabled:
@@ -119,6 +121,7 @@ async def create_reminder(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_admin)
 ):
+    ensure_recipient_access(db, current_user, payload.recipient_id)
     existing = db.query(MedicationReminder).filter(
         MedicationReminder.recipient_id == payload.recipient_id,
         MedicationReminder.medication_id == payload.medication_id
@@ -162,6 +165,7 @@ async def update_reminder(
     reminder = db.query(MedicationReminder).filter(MedicationReminder.id == reminder_id).first()
     if not reminder:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reminder not found")
+    ensure_recipient_access(db, current_user, str(reminder.recipient_id))
 
     data = updates.model_dump(exclude_unset=True)
     if "start_time" in data:
@@ -182,9 +186,11 @@ async def skip_reminder(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_write_access(current_user)
     reminder = db.query(MedicationReminder).filter(MedicationReminder.id == reminder_id).first()
     if not reminder:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reminder not found")
+    ensure_recipient_access(db, current_user, str(reminder.recipient_id))
     reminder.enabled = False
     reminder.last_skipped_at = datetime.now(timezone.utc)
     db.add(reminder)
@@ -199,9 +205,11 @@ async def log_dose(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_write_access(current_user)
     reminder = db.query(MedicationReminder).filter(MedicationReminder.id == reminder_id).first()
     if not reminder:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reminder not found")
+    ensure_recipient_access(db, current_user, str(reminder.recipient_id))
     reminder.last_given_at = datetime.now(timezone.utc)
     reminder.enabled = True
     db.add(reminder)
@@ -217,6 +225,7 @@ async def next_reminders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    ensure_recipient_access(db, current_user, recipient_id)
     reminders = db.query(MedicationReminder).options(joinedload(MedicationReminder.medication)).filter(
         MedicationReminder.recipient_id == recipient_id,
         MedicationReminder.enabled.is_(True)
@@ -253,6 +262,7 @@ async def check_early(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    ensure_recipient_access(db, current_user, payload.recipient_id)
     medication = get_medication_by_name(db, payload.med_name, payload.recipient_id)
     if not medication:
         return MedEarlyCheckResponse(status="unknown")

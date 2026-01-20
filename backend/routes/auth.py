@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, Request, status, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import timedelta
@@ -8,13 +9,17 @@ import uuid
 
 from database import get_db
 from models.user import User
+from models.user_recipient_access import UserRecipientAccess
+from models.care_recipient import CareRecipient
 from services.auth_service import (
     verify_password,
     get_password_hash,
     create_access_token,
     create_refresh_token,
     decode_token,
-    verify_token_type
+    verify_token_type,
+    normalize_username,
+    validate_password_strength
 )
 from config import get_settings
 
@@ -158,8 +163,24 @@ async def register_user(
 
     Only administrators can create new user accounts to ensure proper access control.
     """
-    # Check if username already exists
-    existing_user = db.query(User).filter(User.username == user_data.username).first()
+    normalized_username = normalize_username(user_data.username)
+    if not normalized_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username is required"
+        )
+
+    password_errors = validate_password_strength(user_data.password)
+    if password_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=" ".join(password_errors)
+        )
+
+    # Check if username already exists (case-insensitive)
+    existing_user = db.query(User).filter(
+        func.lower(User.username) == normalized_username
+    ).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,15 +196,15 @@ async def register_user(
         )
 
     # Validate role
-    if user_data.role not in ["admin", "caregiver"]:
+    if user_data.role not in ["admin", "caregiver", "read_only"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role. Must be 'admin' or 'caregiver'"
+            detail="Invalid role. Must be 'admin', 'caregiver', or 'read_only'"
         )
 
     # Create new user
     new_user = User(
-        username=user_data.username,
+        username=normalized_username,
         email=user_data.email,
         password_hash=get_password_hash(user_data.password),
         role=user_data.role
@@ -219,7 +240,10 @@ async def login(
     for enhanced security.
     """
     # Find user by username
-    user = db.query(User).filter(User.username == login_data.username).first()
+    normalized_username = normalize_username(login_data.username)
+    user = db.query(User).filter(
+        func.lower(User.username) == normalized_username
+    ).first()
 
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
@@ -455,6 +479,10 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
 
 
+class UserRecipientAccessUpdate(BaseModel):
+    recipient_ids: List[str]
+
+
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
     request: Request,
@@ -504,7 +532,7 @@ async def update_user(
         user.is_active = user_update.is_active
 
     if user_update.role is not None:
-        if user_update.role not in ["admin", "caregiver"]:
+        if user_update.role not in ["admin", "caregiver", "read_only"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid role"
@@ -549,7 +577,62 @@ async def delete_user(
             detail="User not found"
         )
 
+    db.query(UserRecipientAccess).filter(
+        UserRecipientAccess.user_id == user_id
+    ).delete(synchronize_session=False)
+
     db.delete(user)
     db.commit()
 
     return {"message": "User deleted successfully"}
+
+
+@router.get("/users/{user_id}/recipients")
+async def get_user_recipients(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if user.role == "admin":
+        recipients = db.query(CareRecipient).filter(CareRecipient.is_active.is_(True)).all()
+        return {"recipient_ids": [str(rec.id) for rec in recipients]}
+
+    access_rows = db.query(UserRecipientAccess).filter(
+        UserRecipientAccess.user_id == user_id
+    ).all()
+    return {"recipient_ids": [str(row.recipient_id) for row in access_rows]}
+
+
+@router.put("/users/{user_id}/recipients")
+async def update_user_recipients(
+    user_id: str,
+    payload: UserRecipientAccessUpdate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    recipients = db.query(CareRecipient).filter(
+        CareRecipient.id.in_(payload.recipient_ids)
+    ).all()
+    if len(recipients) != len(set(payload.recipient_ids)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="One or more recipients are invalid"
+        )
+
+    db.query(UserRecipientAccess).filter(
+        UserRecipientAccess.user_id == user_id
+    ).delete()
+
+    for recipient in recipients:
+        db.add(UserRecipientAccess(user_id=user_id, recipient_id=recipient.id))
+
+    db.commit()
+    return {"recipient_ids": [str(rec.id) for rec in recipients]}

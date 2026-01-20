@@ -3,8 +3,8 @@
 	import { onMount, tick } from 'svelte';
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
-	import { authStore, isAdmin } from '$lib/stores/auth';
-import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession, getNextMedReminders, skipMedReminder, createEvent, checkMedEarly } from '$lib/services/api';
+	import { authStore, isAdmin, isReadOnly } from '$lib/stores/auth';
+	import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFeed, stopContinuousFeed, refreshSession, getNextMedReminders, skipMedReminder, createEvent, checkMedEarly } from '$lib/services/api';
 	import QuickEntry from '$lib/components/QuickEntry.svelte';
 	import EventList from '$lib/components/EventList.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -18,6 +18,7 @@ import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFee
 
 	let user = null;
 	let userIsAdmin = false;
+	let userIsReadOnly = false;
 	let showQuickEntry = false;
 	let eventListComponent;
 	let activeContinuousFeed = null;
@@ -40,6 +41,10 @@ import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFee
 
 	isAdmin.subscribe(value => {
 		userIsAdmin = value;
+	});
+
+	isReadOnly.subscribe(value => {
+		userIsReadOnly = value;
 	});
 
 	onMount(() => {
@@ -166,6 +171,10 @@ import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFee
 	}
 
 	async function handleSkipReminder(reminderId) {
+		if (userIsReadOnly) {
+			medRemindersError = 'Read-only users cannot update reminders';
+			return;
+		}
 		try {
 			await skipMedReminder(reminderId);
 			loadMedReminders();
@@ -176,6 +185,10 @@ import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFee
 
 	async function handleLogMedNow(reminder) {
 		if (!$selectedRecipientId) return;
+		if (userIsReadOnly) {
+			medRemindersError = 'Read-only users cannot log events';
+			return;
+		}
 		try {
 			const earlyCheck = await checkMedEarly({
 				recipient_id: $selectedRecipientId,
@@ -234,6 +247,10 @@ import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFee
 
 	async function stopContinuousFeedAction() {
 		if (!activeContinuousFeed || feedActionLoading || !$selectedRecipientId) return;
+		if (userIsReadOnly) {
+			feedActionError = 'Read-only users cannot stop feeds';
+			return;
+		}
 		feedActionError = '';
 		feedActionLoading = true;
 
@@ -449,14 +466,16 @@ import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFee
 										<button
 											type="button"
 											on:click={() => handleLogMedNow(reminder)}
-											class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+											class={`px-3 py-2 rounded-lg text-sm font-semibold ${userIsReadOnly ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+											disabled={userIsReadOnly}
 										>
 											Log dose now
 										</button>
 										<button
 											type="button"
 											on:click={() => handleSkipReminder(reminder.id)}
-											class="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+											class={`px-3 py-2 rounded-lg border text-sm font-semibold ${userIsReadOnly ? 'border-slate-300 text-slate-400 cursor-not-allowed' : 'border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'}`}
+											disabled={userIsReadOnly}
 										>
 											Skip this med
 										</button>
@@ -471,23 +490,25 @@ import { logout as logoutApi, getApiBase, getCurrentUser, getActiveContinuousFee
 			<!-- Recent Events -->
 			<div class="bg-white dark:bg-slate-900 rounded-xl shadow p-6">
 				<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-4">Recent Events</h2>
-				<EventList bind:this={eventListComponent} limit={20} recipientId={$selectedRecipientId} allowedTypes={enabledCategories} />
+				<EventList bind:this={eventListComponent} limit={20} recipientId={$selectedRecipientId} allowedTypes={enabledCategories} readOnly={userIsReadOnly} />
 			</div>
 		</main>
 
-		<!-- Floating Action Button -->
-		<button
-			on:click={() => showQuickEntry = true}
-			class="fixed bottom-6 right-6 w-[72px] h-[72px] bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all flex items-center justify-center z-40"
-			aria-label="Quick Entry"
-		>
-			<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-			</svg>
-		</button>
+		{#if !userIsReadOnly}
+			<!-- Floating Action Button -->
+			<button
+				on:click={() => showQuickEntry = true}
+				class="fixed bottom-6 right-6 w-[72px] h-[72px] bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all flex items-center justify-center z-40"
+				aria-label="Quick Entry"
+			>
+				<svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+				</svg>
+			</button>
 
-		<!-- Quick Entry Modal -->
-		<QuickEntry bind:show={showQuickEntry} on:eventCreated={handleEventCreated} />
+			<!-- Quick Entry Modal -->
+			<QuickEntry bind:show={showQuickEntry} on:eventCreated={handleEventCreated} />
+		{/if}
 	</div>
 {:else}
 	<div class="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">

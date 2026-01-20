@@ -9,6 +9,7 @@
 	export let type = null;
 	export let recipientId = null;
 	export let allowedTypes = null;
+	export let readOnly = false;
 
 	let events = [];
 	let loading = true;
@@ -187,6 +188,9 @@
 	}
 
 	async function startEdit(event) {
+		if (readOnly) {
+			return;
+		}
 		editError = '';
 		photosError = '';
 		eventPhotos = [];
@@ -283,6 +287,7 @@
 
 	export async function openById(eventId) {
 		if (!eventId) return;
+		if (readOnly) return;
 		let target = events.find(item => item.id === eventId);
 		if (!target) {
 			try {
@@ -309,14 +314,17 @@
 	{:else if events.length === 0}
 		<div class="text-center py-10">
 			<p class="text-gray-600 dark:text-slate-300 text-base">No events recorded yet</p>
-			<p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Tap the + button to create your first entry</p>
+			{#if !readOnly}
+				<p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Tap the + button to create your first entry</p>
+			{/if}
 		</div>
 	{:else}
 		{#each events as event (event.id)}
 			<button
 				type="button"
 				on:click={() => startEdit(event)}
-				class="text-left bg-white dark:bg-slate-900 rounded-xl shadow p-4 sm:p-5 hover:shadow-md transition-shadow w-full"
+				disabled={readOnly}
+				class={`text-left bg-white dark:bg-slate-900 rounded-xl shadow p-4 sm:p-5 transition-shadow w-full ${readOnly ? 'cursor-default' : 'hover:shadow-md'}`}
 			>
 				<div class="flex items-start gap-3">
 					<!-- Event Icon -->
@@ -796,7 +804,7 @@
 					{:else if photosError}
 						<p class="text-sm text-red-600 dark:text-red-400">{photosError}</p>
 					{:else if eventPhotos.length > 0}
-						<PhotoGallery photos={eventPhotos} on:delete={handlePhotoDelete} />
+						<PhotoGallery photos={eventPhotos} on:delete={handlePhotoDelete} canDelete={!readOnly} />
 					{:else}
 						<p class="text-sm text-gray-500 dark:text-slate-400 italic">No photos attached</p>
 					{/if}
@@ -804,29 +812,31 @@
 			</div>
 			<div class="flex flex-wrap items-center justify-between gap-3 p-6 border-t border-gray-200 dark:border-slate-800">
 				<div class="flex items-center gap-2">
-					{#if deleteTargetId === editEvent.id}
-						<button
-							type="button"
-							on:click={() => handleDelete(editEvent.id)}
-							class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700"
-						>
-							Confirm Delete
-						</button>
-						<button
-							type="button"
-							on:click={() => deleteTargetId = null}
-							class="px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-						>
-							Cancel
-						</button>
-					{:else}
-						<button
-							type="button"
-							on:click={() => deleteTargetId = editEvent.id}
-							class="px-4 py-2 text-sm font-semibold rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950"
-						>
-							Delete
-						</button>
+					{#if !readOnly}
+						{#if deleteTargetId === editEvent.id}
+							<button
+								type="button"
+								on:click={() => handleDelete(editEvent.id)}
+								class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700"
+							>
+								Confirm Delete
+							</button>
+							<button
+								type="button"
+								on:click={() => deleteTargetId = null}
+								class="px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+							>
+								Cancel
+							</button>
+						{:else}
+							<button
+								type="button"
+								on:click={() => deleteTargetId = editEvent.id}
+								class="px-4 py-2 text-sm font-semibold rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950"
+							>
+								Delete
+							</button>
+						{/if}
 					{/if}
 				</div>
 				<button
@@ -836,14 +846,16 @@
 				>
 					Cancel
 				</button>
-				<button
-					type="button"
-					on:click={saveEdit}
-					disabled={editLoading}
-					class="px-4 py-2 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400"
-				>
-					{editLoading ? 'Saving...' : 'Save Changes'}
-				</button>
+				{#if !readOnly}
+					<button
+						type="button"
+						on:click={saveEdit}
+						disabled={editLoading}
+						class="px-4 py-2 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400"
+					>
+						{editLoading ? 'Saving...' : 'Save Changes'}
+					</button>
+				{/if}
 			</div>
 		</div>
 	</div>

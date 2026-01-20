@@ -325,6 +325,71 @@ export async function registerUser(userData) {
 	});
 }
 
+// ============================================================================
+// INVITES + USER ACCESS (Admin)
+// ============================================================================
+
+async function publicRequest(endpoint, options = {}) {
+	const url = `${API_BASE}${endpoint}`;
+	const response = await fetch(url, {
+		...options,
+		headers: {
+			'Content-Type': 'application/json',
+			...options.headers
+		},
+		credentials: 'include'
+	});
+
+	const contentType = response.headers.get('content-type');
+	const text = await response.text();
+	const data = text && contentType?.includes('application/json') ? JSON.parse(text) : null;
+
+	if (!response.ok) {
+		throw new Error((data && data.detail) || `HTTP ${response.status}`);
+	}
+
+	return data ?? { success: true };
+}
+
+export async function createInvite(data) {
+	return apiRequest('/invites', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function getInvite(token) {
+	return publicRequest(`/invites/${token}`);
+}
+
+export async function acceptInvite(token, data) {
+	return publicRequest(`/invites/${token}/accept`, {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function listInvites() {
+	return apiRequest('/invites');
+}
+
+export async function revokeInvite(token) {
+	return apiRequest(`/invites/${token}`, {
+		method: 'DELETE'
+	});
+}
+
+export async function getUserRecipientAccess(userId) {
+	return apiRequest(`/auth/users/${userId}/recipients`);
+}
+
+export async function updateUserRecipientAccess(userId, recipientIds) {
+	return apiRequest(`/auth/users/${userId}/recipients`, {
+		method: 'PUT',
+		body: JSON.stringify({ recipient_ids: recipientIds })
+	});
+}
+
 /**
  * Refresh access token
  * @param {string} refreshToken

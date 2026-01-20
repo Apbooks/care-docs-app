@@ -1,6 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
+	import { initRecipients } from '$lib/stores/recipients';
 	import { login } from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
@@ -30,6 +31,9 @@
 			if (response.access_token || response.refresh_token) {
 				await authStore.persistTokens(response.access_token, response.refresh_token);
 			}
+
+			// Load recipients so dashboard has a default selection
+			await initRecipients();
 
 			// Redirect to dashboard
 			goto('/');

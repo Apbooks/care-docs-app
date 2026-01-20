@@ -14,6 +14,7 @@ import sys
 import psycopg2
 from getpass import getpass
 import bcrypt
+import hashlib
 import uuid
 
 # Database connection details
@@ -23,11 +24,26 @@ DB_NAME = "caredb"
 DB_USER = "careapp"
 DB_PASSWORD = "1d2361418342716c0649a2294e8b02441c86951db7311990f9c3aa60767a352c"
 
+def normalize_username(username: str) -> str:
+    return (username or "").strip().lower()
+
+
+def validate_password_strength(password: str) -> list:
+    errors = []
+    if not any(ch.islower() for ch in password):
+        errors.append("Password must include a lowercase letter.")
+    if not any(ch.isupper() for ch in password):
+        errors.append("Password must include an uppercase letter.")
+    if not any(ch.isdigit() for ch in password):
+        errors.append("Password must include a number.")
+    return errors
+
+
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt"""
-    password_bytes = password.encode('utf-8')
+    """Hash a password using bcrypt over sha256 for compatibility."""
+    sha = hashlib.sha256(password.encode('utf-8')).digest()
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password_bytes, salt)
+    hashed = bcrypt.hashpw(sha, salt)
     return hashed.decode('utf-8')
 
 def create_admin():
@@ -36,7 +52,8 @@ def create_admin():
     print("="*60 + "\n")
 
     # Get user input
-    username = input("Username: ").strip()
+    username_input = input("Username: ").strip()
+    username = normalize_username(username_input)
     if not username:
         print("Error: Username cannot be empty")
         sys.exit(1)
@@ -46,9 +63,10 @@ def create_admin():
         print("Error: Email cannot be empty")
         sys.exit(1)
 
-    password = getpass("Password (min 6 characters): ")
-    if len(password) < 6:
-        print("Error: Password must be at least 6 characters")
+    password = getpass("Password (include upper, lower, number): ")
+    password_errors = validate_password_strength(password)
+    if password_errors:
+        print("Error: " + " ".join(password_errors))
         sys.exit(1)
 
     password_confirm = getpass("Confirm password: ")
@@ -70,7 +88,7 @@ def create_admin():
         cursor = conn.cursor()
 
         # Check if username exists
-        cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+        cursor.execute("SELECT id FROM users WHERE LOWER(username) = LOWER(%s)", (username,))
         if cursor.fetchone():
             print(f"\nError: Username '{username}' already exists")
             conn.close()

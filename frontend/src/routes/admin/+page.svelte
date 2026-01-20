@@ -20,6 +20,11 @@
 		createRecipient,
 		updateRecipient,
 		deleteRecipient,
+		createInvite,
+		listInvites,
+		revokeInvite,
+		getUserRecipientAccess,
+		updateUserRecipientAccess,
 		getVapidPublicKey,
 		subscribePush,
 		unsubscribePush,
@@ -49,6 +54,11 @@
 	let profileError = '';
 	let avatarUploading = false;
 	let adminTab = 'meds';
+	const roleOptions = [
+		{ value: 'admin', label: 'Admin' },
+		{ value: 'caregiver', label: 'Caregiver' },
+		{ value: 'read_only', label: 'Read Only' }
+	];
 	const adminTabs = [
 		{ id: 'profile', label: 'Profile' },
 		{ id: 'recipients', label: 'Recipients' },
@@ -145,6 +155,23 @@
 	let newReminderMedicationId = '';
 	let newReminderStartTime = '';
 	let newReminderInterval = '';
+
+	let inviteRole = 'caregiver';
+	let inviteRecipientIds = [];
+	let inviteExpiresHours = '48';
+	let inviteResult = null;
+	let inviteError = '';
+	let inviteLoading = false;
+	let pendingInvites = [];
+	let pendingInvitesLoading = false;
+
+	let accessUserId = null;
+	let accessUserName = '';
+	let accessUserRole = '';
+	let accessRecipientIds = [];
+	let accessLoading = false;
+	let accessSaving = false;
+	let accessError = '';
 
 	authStore.subscribe(value => {
 		user = value;
@@ -323,7 +350,8 @@
 			loadMedications(),
 			loadMedReminders(),
 			loadTimezone(),
-			loadNotificationSettings()
+			loadNotificationSettings(),
+			loadInvites()
 		]);
 		await initializePushState();
 	});
@@ -345,6 +373,17 @@
 			error = err.message || 'Failed to load users';
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadInvites() {
+		pendingInvitesLoading = true;
+		try {
+			pendingInvites = await listInvites();
+		} catch (err) {
+			inviteError = err.message || 'Failed to load invites';
+		} finally {
+			pendingInvitesLoading = false;
 		}
 	}
 
@@ -767,6 +806,105 @@
 		}
 	}
 
+	async function handleCreateInvite() {
+		inviteError = '';
+		inviteResult = null;
+
+		inviteLoading = true;
+		try {
+			const result = await createInvite({
+				role: inviteRole,
+				recipient_ids: inviteRecipientIds,
+				expires_in_hours: parseInt(inviteExpiresHours || '48', 10)
+			});
+			inviteResult = result;
+			await loadInvites();
+		} catch (err) {
+			inviteError = err.message || 'Failed to create invite';
+		} finally {
+			inviteLoading = false;
+		}
+	}
+
+	async function handleCopyInvite(url) {
+		const inviteUrl = url || inviteResult?.invite_url;
+		if (!inviteUrl || typeof navigator === 'undefined') return;
+		try {
+			await navigator.clipboard.writeText(inviteUrl);
+		} catch (err) {
+			inviteError = 'Failed to copy invite link';
+		}
+	}
+
+	async function handleRevokeInvite(token) {
+		inviteError = '';
+		try {
+			await revokeInvite(token);
+			pendingInvites = pendingInvites.filter((invite) => invite.token !== token);
+		} catch (err) {
+			inviteError = err.message || 'Failed to revoke invite';
+		}
+	}
+
+	async function openAccessEditor(userItem) {
+		accessUserId = userItem.id;
+		accessUserName = userItem.username;
+		accessUserRole = userItem.role;
+		accessRecipientIds = [];
+		accessError = '';
+		accessLoading = true;
+
+		try {
+			const response = await getUserRecipientAccess(userItem.id);
+			accessRecipientIds = response?.recipient_ids || [];
+		} catch (err) {
+			accessError = err.message || 'Failed to load recipient access';
+		} finally {
+			accessLoading = false;
+		}
+	}
+
+	function closeAccessEditor() {
+		accessUserId = null;
+		accessUserName = '';
+		accessUserRole = '';
+		accessRecipientIds = [];
+		accessError = '';
+		accessLoading = false;
+		accessSaving = false;
+	}
+
+	async function handleSaveAccess() {
+		if (!accessUserId) return;
+		accessError = '';
+		accessSaving = true;
+
+		try {
+			const response = await updateUserRecipientAccess(accessUserId, accessRecipientIds);
+			accessRecipientIds = response?.recipient_ids || [];
+		} catch (err) {
+			accessError = err.message || 'Failed to update recipient access';
+		} finally {
+			accessSaving = false;
+		}
+	}
+
+	async function handleRoleChange(userId, role) {
+		error = '';
+		try {
+			const updatedUser = await apiRequest(`/auth/users/${userId}`, {
+				method: 'PATCH',
+				body: JSON.stringify({ role })
+			});
+			users = users.map(u => u.id === userId ? updatedUser : u);
+			if (accessUserId === userId) {
+				accessUserRole = updatedUser.role;
+			}
+		} catch (err) {
+			error = err.message || 'Failed to update user role';
+		}
+	}
+
 	async function handleDeleteUser(userId) {
 		// Don't allow deleting yourself
 		if (userId === user.id) {
@@ -808,7 +946,9 @@
 	}
 
 	function getRoleBadgeColor(role) {
-		return role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
+		if (role === 'admin') return 'bg-purple-100 text-purple-800';
+		if (role === 'read_only') return 'bg-slate-200 text-slate-700';
+		return 'bg-blue-100 text-blue-800';
 	}
 
 	function formatDate(dateString) {
@@ -979,24 +1119,161 @@
 			</div>
 		{/if}
 
-	<!-- User Management Section -->
-	<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
-		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
-			<div class="flex justify-between items-center">
-				<div>
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">User Management</h2>
-					<p class="text-base text-gray-600 dark:text-slate-300 mt-1">View and manage user accounts</p>
+		<div class="grid gap-6">
+			<!-- Invite User -->
+			<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
+				<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Invite User</h2>
+					<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Invite link lets the user set their username, email, name, and password.</p>
 				</div>
-				<button
-					on:click={() => goto('/register')}
-					class="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-base"
-				>
-					Add New User
-				</button>
-			</div>
-		</div>
+				<div class="p-6 space-y-4">
+					{#if inviteError}
+						<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+							<p class="text-red-800 dark:text-red-200 text-base">{inviteError}</p>
+						</div>
+					{/if}
+					<form class="grid gap-4 sm:grid-cols-2" on:submit|preventDefault={handleCreateInvite}>
+						<div>
+							<label for="invite-role" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Role</label>
+							<select
+								id="invite-role"
+								bind:value={inviteRole}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							>
+								{#each roleOptions as option}
+									<option value={option.value}>{option.label}</option>
+								{/each}
+							</select>
+						</div>
+						<div>
+							<label for="invite-expires" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Invite expires (hours)</label>
+							<input
+								id="invite-expires"
+								type="number"
+								min="1"
+								max="720"
+								bind:value={inviteExpiresHours}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div class="sm:col-span-2">
+							<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Recipient access</p>
+							{#if recipientsList.length === 0}
+								<p class="text-sm text-slate-500 dark:text-slate-400">Create recipients first to assign access.</p>
+							{:else}
+								<div class="flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-slate-300">
+									{#each recipientsList as recipient}
+										<label class="flex items-center gap-2">
+											<input
+												type="checkbox"
+												checked={inviteRecipientIds.includes(recipient.id)}
+												on:change={(event) => {
+													if (event.target.checked) {
+														inviteRecipientIds = [...inviteRecipientIds, recipient.id];
+													} else {
+														inviteRecipientIds = inviteRecipientIds.filter((item) => item !== recipient.id);
+													}
+												}}
+												class="w-4 h-4 text-blue-600 border-gray-300 rounded"
+											/>
+											<span>{recipient.name}</span>
+										</label>
+									{/each}
+								</div>
+							{/if}
+						</div>
+						<div class="sm:col-span-2">
+							<button
+								type="submit"
+								disabled={inviteLoading}
+								class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
+							>
+								{inviteLoading ? 'Creating...' : 'Create Invite Link'}
+							</button>
+						</div>
+					</form>
 
-			<div class="p-6">
+					{#if inviteResult}
+						<div class="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+							<p class="text-sm text-slate-600 dark:text-slate-300 mb-2">Invite link</p>
+							<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+								<input
+									type="text"
+									readonly
+									value={inviteResult.invite_url}
+									class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm"
+								/>
+								<button
+									type="button"
+									on:click={handleCopyInvite}
+									class="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold"
+								>
+									Copy Link
+								</button>
+							</div>
+							<p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Expires: {new Date(inviteResult.expires_at).toLocaleString()}</p>
+						</div>
+					{/if}
+
+					<div class="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+						<p class="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2">Pending Invites</p>
+						{#if pendingInvitesLoading}
+							<p class="text-sm text-slate-500 dark:text-slate-400">Loading invites...</p>
+						{:else if pendingInvites.length === 0}
+							<p class="text-sm text-slate-500 dark:text-slate-400">No pending invites.</p>
+						{:else}
+							<div class="space-y-3">
+								{#each pendingInvites as invite}
+									<div class="border border-slate-200 dark:border-slate-800 rounded-lg p-3">
+										<div class="flex flex-wrap items-center justify-between gap-2">
+											<div>
+												<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Role: {invite.role}</p>
+												<p class="text-xs text-slate-500 dark:text-slate-400">Recipients: {(invite.recipient_names || []).join(', ') || 'None selected'}</p>
+												<p class="text-xs text-slate-500 dark:text-slate-400">Expires: {new Date(invite.expires_at).toLocaleString()}</p>
+											</div>
+											<div class="flex items-center gap-2">
+												<button
+													type="button"
+													on:click={() => handleCopyInvite(invite.invite_url)}
+													class="px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold"
+												>
+													Copy Link
+												</button>
+												<button
+													type="button"
+													on:click={() => handleRevokeInvite(invite.token)}
+													class="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-xs font-semibold"
+												>
+													Revoke
+												</button>
+											</div>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+			</div>
+
+			<!-- User Management Section -->
+			<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
+				<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+					<div class="flex justify-between items-center">
+						<div>
+							<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">User Management</h2>
+							<p class="text-base text-gray-600 dark:text-slate-300 mt-1">View and manage user accounts</p>
+						</div>
+						<button
+							on:click={() => goto('/register')}
+							class="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-base"
+						>
+							Add New User
+						</button>
+					</div>
+				</div>
+
+				<div class="p-6">
 				{#if loading}
 					<div class="text-center py-8">
 						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -1024,6 +1301,26 @@
 									{u.role}
 								</span>
 							</div>
+							<div class="mt-3 grid gap-2">
+								<label for={`user-role-${u.id}`} class="text-xs font-semibold text-slate-500 dark:text-slate-400">Role</label>
+								<select
+									id={`user-role-${u.id}`}
+									class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+									value={u.role}
+									on:change={(event) => handleRoleChange(u.id, event.target.value)}
+								>
+									{#each roleOptions as option}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+								<button
+									type="button"
+									on:click={() => openAccessEditor(u)}
+									class="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold"
+								>
+									Manage Access
+								</button>
+							</div>
 							<div class="mt-3 flex flex-wrap items-center gap-3">
 								<button
 									on:click={() => handleToggleActive(u.id, u.is_active)}
@@ -1039,12 +1336,14 @@
 									<div class="flex items-center gap-3">
 										<span class="text-sm text-gray-600 dark:text-slate-300">Confirm delete?</span>
 										<button
+											type="button"
 											on:click={() => handleDeleteUser(u.id)}
 											class="text-red-600 font-semibold"
 										>
 											Yes
 										</button>
 										<button
+											type="button"
 											on:click={() => deleteConfirmUserId = null}
 											class="text-gray-600 font-semibold"
 										>
@@ -1052,13 +1351,14 @@
 										</button>
 									</div>
 								{:else}
-									<button
-										on:click={() => deleteConfirmUserId = u.id}
-										disabled={u.id === user?.id}
-										class="text-red-600 font-semibold disabled:text-gray-400 disabled:cursor-not-allowed"
-									>
-										Delete User
-									</button>
+										<button
+											type="button"
+											on:click={() => deleteConfirmUserId = u.id}
+											disabled={u.id === user?.id}
+											class="text-red-600 font-semibold disabled:text-gray-400 disabled:cursor-not-allowed"
+										>
+											Delete User
+										</button>
 								{/if}
 							</div>
 						</div>
@@ -1102,9 +1402,15 @@
 										</div>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
-										<span class={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
-											{u.role}
-										</span>
+										<select
+											class="px-2 py-1 border border-slate-200 rounded-lg text-xs"
+											value={u.role}
+											on:change={(event) => handleRoleChange(u.id, event.target.value)}
+										>
+											{#each roleOptions as option}
+												<option value={option.value}>{option.label}</option>
+											{/each}
+										</select>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<button
@@ -1123,12 +1429,14 @@
 											<div class="flex items-center justify-end gap-2">
 												<span class="text-gray-600 text-xs">Confirm delete?</span>
 												<button
+													type="button"
 													on:click={() => handleDeleteUser(u.id)}
 													class="text-red-600 hover:text-red-900"
 												>
 													Yes
 												</button>
 												<button
+													type="button"
 													on:click={() => deleteConfirmUserId = null}
 													class="text-gray-600 hover:text-gray-900"
 												>
@@ -1136,13 +1444,23 @@
 												</button>
 											</div>
 										{:else}
-											<button
-												on:click={() => deleteConfirmUserId = u.id}
-												disabled={u.id === user?.id}
-												class="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-											>
-												Delete
-											</button>
+											<div class="flex items-center justify-end gap-3">
+												<button
+													type="button"
+													on:click={() => openAccessEditor(u)}
+													class="text-slate-600 hover:text-slate-900"
+												>
+													Access
+												</button>
+												<button
+													type="button"
+													on:click={() => deleteConfirmUserId = u.id}
+													disabled={u.id === user?.id}
+													class="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+												>
+													Delete
+												</button>
+											</div>
 										{/if}
 									</td>
 								</tr>
@@ -1153,6 +1471,75 @@
 			{/if}
 		</div>
 	</div>
+	{#if accessUserId}
+		<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
+			<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Recipient Access</h3>
+				<p class="text-sm text-gray-600 dark:text-slate-300 mt-1">
+					Manage access for <span class="font-semibold">{accessUserName}</span>
+				</p>
+			</div>
+			<div class="p-6 space-y-4">
+				{#if accessError}
+					<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+						<p class="text-red-800 dark:text-red-200 text-base">{accessError}</p>
+					</div>
+				{/if}
+				{#if accessUserRole === 'admin'}
+					<p class="text-sm text-slate-600 dark:text-slate-300">Admins automatically have access to all recipients.</p>
+				{/if}
+				{#if accessLoading}
+					<div class="text-center py-6">
+						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+						<p class="mt-2 text-gray-600 dark:text-slate-300 text-base">Loading access...</p>
+					</div>
+				{:else}
+					{#if recipientsList.length === 0}
+						<p class="text-sm text-slate-500 dark:text-slate-400">No recipients available.</p>
+					{:else}
+						<div class="flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-slate-300">
+							{#each recipientsList as recipient}
+								<label class="flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={accessRecipientIds.includes(recipient.id)}
+										disabled={accessUserRole === 'admin'}
+										on:change={(event) => {
+											if (event.target.checked) {
+												accessRecipientIds = [...accessRecipientIds, recipient.id];
+											} else {
+												accessRecipientIds = accessRecipientIds.filter((item) => item !== recipient.id);
+											}
+										}}
+										class="w-4 h-4 text-blue-600 border-gray-300 rounded"
+									/>
+									<span>{recipient.name}</span>
+								</label>
+							{/each}
+						</div>
+					{/if}
+				{/if}
+				<div class="flex flex-wrap items-center gap-3">
+					<button
+						type="button"
+						on:click={handleSaveAccess}
+						disabled={accessSaving || accessUserRole === 'admin'}
+						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
+					>
+						{accessSaving ? 'Saving...' : 'Save Access'}
+					</button>
+					<button
+						type="button"
+						on:click={closeAccessEditor}
+						class="px-4 py-3 border border-slate-200 rounded-xl text-base"
+					>
+						Close
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+		</div>
 	{/if}
 
 	{#if adminTab === 'recipients'}

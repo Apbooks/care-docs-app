@@ -135,3 +135,11 @@ export const isAdmin = {
 		});
 	}
 };
+
+export const isReadOnly = {
+	subscribe: (callback) => {
+		return authStore.subscribe((user) => {
+			callback(user?.role === 'read_only');
+		});
+	}
+};

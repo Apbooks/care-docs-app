@@ -14,7 +14,8 @@ from getpass import getpass
 from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
 from models.user import User
-from services.auth_service import get_password_hash
+from sqlalchemy import func
+from services.auth_service import get_password_hash, normalize_username, validate_password_strength
 
 
 def create_admin_user():
@@ -33,8 +34,9 @@ def create_admin_user():
     print("Enter admin user details:")
     print("-" * 60)
 
-    username = input("Username: ").strip()
-    if not username:
+    username_input = input("Username: ").strip()
+    normalized_username = normalize_username(username_input)
+    if not normalized_username:
         print("Error: Username cannot be empty")
         sys.exit(1)
 
@@ -43,18 +45,13 @@ def create_admin_user():
         print("Error: Email cannot be empty")
         sys.exit(1)
 
-    password = getpass("Password (min 6 characters, max 72 bytes): ")
-    if len(password) < 6:
-        print("Error: Password must be at least 6 characters")
+    password = getpass("Password (include upper, lower, number): ")
+    password_errors = validate_password_strength(password)
+    if password_errors:
+        print("Error: " + " ".join(password_errors))
         sys.exit(1)
 
-    # Truncate to 72 bytes for bcrypt compatibility
-    password_bytes = password.encode('utf-8')[:72]
-    password = password_bytes.decode('utf-8', errors='ignore')
-
     password_confirm = getpass("Confirm password: ")
-    password_confirm_bytes = password_confirm.encode('utf-8')[:72]
-    password_confirm = password_confirm_bytes.decode('utf-8', errors='ignore')
 
     if password != password_confirm:
         print("Error: Passwords do not match")
@@ -67,9 +64,9 @@ def create_admin_user():
 
     try:
         # Check if username already exists
-        existing_user = db.query(User).filter(User.username == username).first()
+        existing_user = db.query(User).filter(func.lower(User.username) == normalized_username).first()
         if existing_user:
-            print(f"Error: Username '{username}' already exists")
+            print(f"Error: Username '{normalized_username}' already exists")
             sys.exit(1)
 
         # Check if email already exists
@@ -79,10 +76,10 @@ def create_admin_user():
             sys.exit(1)
 
         # Create admin user
-        print(f"Creating admin user '{username}'...")
+        print(f"Creating admin user '{normalized_username}'...")
 
         admin_user = User(
-            username=username,
+            username=normalized_username,
             email=email,
             password_hash=get_password_hash(password),
             role="admin",

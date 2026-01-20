@@ -9,6 +9,8 @@ from .photo import Photo
 from .medication import Medication
 from .med_reminder import MedicationReminder
 from .push_subscription import PushSubscription
+from .user_invite import UserInvite
+from .user_recipient_access import UserRecipientAccess
 # from .reminder import Reminder
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     "Medication",
     "MedicationReminder",
     "PushSubscription",
+    "UserInvite",
+    "UserRecipientAccess",
 ]
