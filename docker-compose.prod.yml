@@ -67,7 +67,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - ORIGIN=http://localhost:3000
+      - ORIGIN=${PUBLIC_ORIGIN:-http://localhost:3000}
       - PORT=3000
     depends_on:
       - backend

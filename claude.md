@@ -282,6 +282,7 @@
 - [x] Added frontend API helpers for push subscription management
 - [x] Applied DB migrations for push_subscriptions + medication_reminders.last_notified_at
 - [x] Generated VAPID keys and updated environment configuration
+- [x] Updated production env to use tunnel domain for CORS, PUBLIC_API_URL, and frontend ORIGIN
 
 ## Architecture Decisions
 
