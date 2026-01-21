@@ -3,13 +3,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
-from datetime import timedelta
+from datetime import timedelta, datetime
 import os
 import uuid
+import secrets
+import hashlib
 
 from database import get_db
 from models.user import User
 from models.user_recipient_access import UserRecipientAccess
+from models.password_reset_token import PasswordResetToken
 from models.care_recipient import CareRecipient
 from services.auth_service import (
     verify_password,
@@ -22,6 +25,7 @@ from services.auth_service import (
     validate_password_strength
 )
 from config import get_settings
+from services.email_service import send_email
 
 settings = get_settings()
 router = APIRouter()
@@ -90,6 +94,27 @@ class UserProfileUpdate(BaseModel):
     display_name: Optional[str] = None
 
 
+class EmailUpdateRequest(BaseModel):
+    email: EmailStr
+    current_password: str
+
+
+class PasswordUpdateRequest(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+    confirm_password: str
+
+
 def _avatar_url(filename: Optional[str], request: Optional[Request] = None) -> Optional[str]:
     if not filename:
         return None
@@ -97,6 +122,10 @@ def _avatar_url(filename: Optional[str], request: Optional[Request] = None) -> O
         base_url = str(request.base_url).rstrip("/")
         return f"{base_url}/avatars/{filename}"
     return f"/avatars/{filename}"
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 # Helper function to get current user from token
@@ -360,6 +389,61 @@ async def update_current_user(
     )
 
 
+@router.patch("/me/email", response_model=UserResponse)
+async def update_current_user_email(
+    payload: EmailUpdateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+
+    next_email = payload.email.strip().lower()
+    existing = db.query(User).filter(
+        func.lower(User.email) == func.lower(next_email),
+        User.id != current_user.id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already in use")
+
+    current_user.email = next_email
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    return UserResponse(
+        id=str(current_user.id),
+        username=current_user.username,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        avatar_url=_avatar_url(current_user.avatar_filename, request),
+        role=current_user.role,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at.isoformat()
+    )
+
+
+@router.patch("/me/password")
+async def update_current_user_password(
+    payload: PasswordUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
+    errors = validate_password_strength(payload.new_password)
+    if errors:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=" ".join(errors))
+
+    current_user.password_hash = get_password_hash(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    return {"message": "Password updated"}
+
+
 @router.post("/me/avatar", response_model=UserResponse)
 async def upload_avatar(
     request: Request,
@@ -469,6 +553,90 @@ async def refresh_access_token(
             created_at=user.created_at.isoformat()
         )
     }
+
+# ============================================================================
+# PASSWORD RESET
+# ============================================================================
+
+@router.post("/password-reset/request")
+async def request_password_reset(
+    payload: PasswordResetRequest,
+    db: Session = Depends(get_db)
+):
+    if not settings.SMTP_HOST or not settings.SMTP_FROM:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email service is not configured"
+        )
+
+    user = db.query(User).filter(func.lower(User.email) == func.lower(payload.email.strip())).first()
+    if user and user.is_active:
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None)
+        ).delete(synchronize_session=False)
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = _hash_reset_token(raw_token)
+        expires_at = datetime.utcnow() + timedelta(hours=2)
+
+        reset_token = PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at
+        )
+        db.add(reset_token)
+        db.commit()
+
+        base_url = settings.FRONTEND_BASE_URL.rstrip("/")
+        reset_link = f"{base_url}/reset-password?token={raw_token}"
+        subject = f"{settings.APP_NAME} password reset"
+        body = (
+            "We received a request to reset your password.\n\n"
+            f"Reset your password here: {reset_link}\n\n"
+            "If you did not request this, you can ignore this email."
+        )
+        try:
+            send_email(user.email, subject, body)
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc)
+            )
+
+    return {"message": "If that email address exists, a reset link has been sent."}
+
+
+@router.post("/password-reset/confirm")
+async def confirm_password_reset(
+    payload: PasswordResetConfirm,
+    db: Session = Depends(get_db)
+):
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
+    errors = validate_password_strength(payload.new_password)
+    if errors:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=" ".join(errors))
+
+    token_hash = _hash_reset_token(payload.token.strip())
+    reset_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.used_at.is_(None),
+        PasswordResetToken.expires_at > datetime.utcnow()
+    ).first()
+    if not reset_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
+    user = db.query(User).filter(User.id == reset_token.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
+    user.password_hash = get_password_hash(payload.new_password)
+    reset_token.used_at = datetime.utcnow()
+    db.add(user)
+    db.add(reset_token)
+    db.commit()
+    return {"message": "Password reset successful"}
 
 # ============================================================================
 # USER MANAGEMENT ENDPOINTS (Admin Only)

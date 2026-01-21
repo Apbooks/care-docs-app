@@ -11,6 +11,7 @@ from .med_reminder import MedicationReminder
 from .push_subscription import PushSubscription
 from .user_invite import UserInvite
 from .user_recipient_access import UserRecipientAccess
+from .password_reset_token import PasswordResetToken
 # from .reminder import Reminder
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "PushSubscription",
     "UserInvite",
     "UserRecipientAccess",
+    "PasswordResetToken",
 ]

@@ -290,6 +290,20 @@ export async function updateCurrentUserProfile(data) {
 	});
 }
 
+export async function updateCurrentUserEmail(data) {
+	return apiRequest('/auth/me/email', {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function updateCurrentUserPassword(data) {
+	return apiRequest('/auth/me/password', {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
 export async function uploadAvatar(file) {
 	const url = `${API_BASE}/auth/me/avatar`;
 	const token = getStoredToken('access_token');
@@ -322,6 +336,20 @@ export async function registerUser(userData) {
 	return apiRequest('/auth/register', {
 		method: 'POST',
 		body: JSON.stringify(userData)
+	});
+}
+
+export async function requestPasswordReset(email) {
+	return publicRequest('/auth/password-reset/request', {
+		method: 'POST',
+		body: JSON.stringify({ email })
+	});
+}
+
+export async function confirmPasswordReset(payload) {
+	return publicRequest('/auth/password-reset/confirm', {
+		method: 'POST',
+		body: JSON.stringify(payload)
 	});
 }
 

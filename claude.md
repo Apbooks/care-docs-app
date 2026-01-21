@@ -950,6 +950,21 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 #### Updated
 - [x] Shortened dashboard event timestamp format and allowed wrapping on small screens
 
+### 2026-01-21 - User Settings + Password Reset (In Progress)
+
+#### Added
+- [x] User settings page (email + password updates)
+- [x] Device push enable/disable controls for caregivers/admins
+- [x] Forgot password + reset password frontend routes
+- [x] Backend endpoints for email/password updates and reset token flow
+- [x] SMTP configuration placeholders in .env.example
+
+### 2026-01-21 - Production Access Fix
+
+#### Fixed
+- [x] Resolved Vite host allowlist block for caredocs.apvinyldesigns.com by adding it to `server.allowedHosts` in `frontend/vite.config.js`
+- [x] Rebuilt production containers to apply the change (nginx reverse proxy preserved)
+
 ### 2026-01-16 - Consistent Navigation Across All Pages
 
 #### Navigation Updates
