@@ -124,12 +124,11 @@
 			...($timezone === 'local' ? {} : options)
 		});
 		const day = date.toLocaleDateString('en-US', {
-			year: '2-digit',
-			month: 'numeric',
+			month: 'short',
 			day: 'numeric',
 			...($timezone === 'local' ? {} : options)
 		});
-		return `${time} ${day}`;
+		return `${time} · ${day}`;
 	}
 
 	function formatMetadata(event) {
@@ -179,12 +178,64 @@
 		}
 	}
 
+	function getTimeZoneOffsetMinutes(date, timeZone) {
+		const parts = new Intl.DateTimeFormat('en-US', {
+			timeZone,
+			timeZoneName: 'shortOffset',
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23'
+		}).formatToParts(date);
+		const tzPart = parts.find((part) => part.type === 'timeZoneName');
+		const match = tzPart?.value?.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/);
+		if (!match) return 0;
+		const hours = parseInt(match[1], 10);
+		const minutes = match[2] ? parseInt(match[2], 10) : 0;
+		return hours * 60 + (hours >= 0 ? minutes : -minutes);
+	}
+
+	function formatDateTimeForInput(dateValue) {
+		if ($timezone === 'local') {
+			const offsetMs = dateValue.getTimezoneOffset() * 60000;
+			const local = new Date(dateValue.getTime() - offsetMs);
+			return local.toISOString().slice(0, 16);
+		}
+		const parts = new Intl.DateTimeFormat('en-CA', {
+			timeZone: $timezone,
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23'
+		}).formatToParts(dateValue);
+		const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+		return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
+	}
+
 	function toDateTimeLocal(value) {
 		if (!value) return '';
 		const date = new Date(value);
-		const offsetMs = date.getTimezoneOffset() * 60000;
-		const local = new Date(date.getTime() - offsetMs);
-		return local.toISOString().slice(0, 16);
+		return formatDateTimeForInput(date);
+	}
+
+	function toUtcIsoFromInput(value) {
+		if (!value) return null;
+		if ($timezone === 'local') {
+			return new Date(value).toISOString();
+		}
+		const [datePart, timePart] = value.split('T');
+		if (!datePart || !timePart) return null;
+		const [year, month, day] = datePart.split('-').map(Number);
+		const [hour, minute] = timePart.split(':').map(Number);
+		let utcMillis = Date.UTC(year, month - 1, day, hour, minute);
+		let offset = getTimeZoneOffsetMinutes(new Date(utcMillis), $timezone);
+		utcMillis -= offset * 60000;
+		const offsetCheck = getTimeZoneOffsetMinutes(new Date(utcMillis), $timezone);
+		if (offsetCheck !== offset) {
+			utcMillis = Date.UTC(year, month - 1, day, hour, minute) - offsetCheck * 60000;
+		}
+		return new Date(utcMillis).toISOString();
 	}
 
 	async function startEdit(event) {
@@ -253,7 +304,7 @@
 		try {
 			const payload = {
 				type: editEvent.type,
-				timestamp: editEvent.timestamp ? new Date(editEvent.timestamp).toISOString() : null,
+				timestamp: editEvent.timestamp ? toUtcIsoFromInput(editEvent.timestamp) : null,
 				notes: editEvent.notes || null,
 				metadata: editEvent.metadata || {},
 				recipient_id: editEvent.recipient_id || null
@@ -350,7 +401,7 @@
 							</div>
 
 							<!-- Time Badge -->
-							<span class={`px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap ${getEventBadgeClass(event.type)}`}>
+							<span class={`px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-full whitespace-normal sm:whitespace-nowrap leading-tight ${getEventBadgeClass(event.type)}`}>
 								{formatTime(event.timestamp)}
 							</span>
 						</div>

@@ -15,6 +15,7 @@ class UserInvite(Base):
     token = Column(String(128), unique=True, nullable=False, index=True)
     email = Column(String(255), nullable=True, index=True)
     username = Column(String(50), nullable=True, index=True)
+    invitee_name = Column(String(120), nullable=True)
     role = Column(String(20), nullable=False, default="caregiver")
     recipient_ids = Column(JSONB, nullable=False, default=list)
 

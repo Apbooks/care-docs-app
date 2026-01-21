@@ -937,6 +937,19 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 - [x] Added Alembic dependency to backend requirements
 - [x] Created baseline Alembic revision and stamped DB head
 
+### 2026-01-20 - Admin Invite UX Fixes
+
+#### Fixed
+- [x] Copy invite link now ignores click events and copies the actual URL
+- [x] Added copy feedback indicator for invite link
+- [x] Copy button now changes to "Copied" for the specific invite link
+- [x] Added invitee name field to invite creation and pending invite list
+
+### 2026-01-20 - Dashboard Mobile Formatting
+
+#### Updated
+- [x] Shortened dashboard event timestamp format and allowed wrapping on small screens
+
 ### 2026-01-16 - Consistent Navigation Across All Pages
 
 #### Navigation Updates

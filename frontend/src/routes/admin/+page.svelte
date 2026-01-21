@@ -157,11 +157,15 @@
 	let newReminderInterval = '';
 
 	let inviteRole = 'caregiver';
+	let inviteeName = '';
 	let inviteRecipientIds = [];
 	let inviteExpiresHours = '48';
 	let inviteResult = null;
 	let inviteError = '';
 	let inviteLoading = false;
+	let inviteCopied = false;
+	let inviteCopiedToken = null;
+	let inviteCopiedTimeout;
 	let pendingInvites = [];
 	let pendingInvitesLoading = false;
 
@@ -813,11 +817,13 @@
 		inviteLoading = true;
 		try {
 			const result = await createInvite({
+				invitee_name: (inviteeName || '').trim() || null,
 				role: inviteRole,
 				recipient_ids: inviteRecipientIds,
 				expires_in_hours: parseInt(inviteExpiresHours || '48', 10)
 			});
 			inviteResult = result;
+			inviteeName = '';
 			await loadInvites();
 		} catch (err) {
 			inviteError = err.message || 'Failed to create invite';
@@ -826,11 +832,36 @@
 		}
 	}
 
-	async function handleCopyInvite(url) {
-		const inviteUrl = url || inviteResult?.invite_url;
-		if (!inviteUrl || typeof navigator === 'undefined') return;
+	async function handleCopyInvite(urlOrEvent) {
+		const inviteUrl = typeof urlOrEvent === 'string' ? urlOrEvent : inviteResult?.invite_url;
+		if (!inviteUrl) return;
 		try {
-			await navigator.clipboard.writeText(inviteUrl);
+			clearTimeout(inviteCopiedTimeout);
+			if (navigator?.clipboard?.writeText) {
+				await navigator.clipboard.writeText(inviteUrl);
+				inviteCopied = true;
+				inviteCopiedToken = inviteUrl;
+				inviteCopiedTimeout = setTimeout(() => {
+					inviteCopied = false;
+					inviteCopiedToken = null;
+				}, 2500);
+				return;
+			}
+			const textarea = document.createElement('textarea');
+			textarea.value = inviteUrl;
+			textarea.setAttribute('readonly', '');
+			textarea.style.position = 'absolute';
+			textarea.style.left = '-9999px';
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+			inviteCopied = true;
+			inviteCopiedToken = inviteUrl;
+			inviteCopiedTimeout = setTimeout(() => {
+				inviteCopied = false;
+				inviteCopiedToken = null;
+			}, 2500);
 		} catch (err) {
 			inviteError = 'Failed to copy invite link';
 		}
@@ -1133,6 +1164,17 @@
 						</div>
 					{/if}
 					<form class="grid gap-4 sm:grid-cols-2" on:submit|preventDefault={handleCreateInvite}>
+						<div class="sm:col-span-2">
+							<label for="invite-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Invitee name</label>
+							<input
+								id="invite-name"
+								type="text"
+								bind:value={inviteeName}
+								maxlength="120"
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+								placeholder="Who is this invite for?"
+							/>
+						</div>
 						<div>
 							<label for="invite-role" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Role</label>
 							<select
@@ -1196,6 +1238,9 @@
 					{#if inviteResult}
 						<div class="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
 							<p class="text-sm text-slate-600 dark:text-slate-300 mb-2">Invite link</p>
+							{#if inviteResult.invitee_name}
+								<p class="text-xs text-slate-500 dark:text-slate-400 mb-2">Invitee: {inviteResult.invitee_name}</p>
+							{/if}
 							<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 								<input
 									type="text"
@@ -1208,7 +1253,7 @@
 									on:click={handleCopyInvite}
 									class="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold"
 								>
-									Copy Link
+									{inviteCopied && inviteCopiedToken === inviteResult.invite_url ? 'Copied' : 'Copy Link'}
 								</button>
 							</div>
 							<p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Expires: {new Date(inviteResult.expires_at).toLocaleString()}</p>
@@ -1227,6 +1272,9 @@
 									<div class="border border-slate-200 dark:border-slate-800 rounded-lg p-3">
 										<div class="flex flex-wrap items-center justify-between gap-2">
 											<div>
+												{#if invite.invitee_name}
+													<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Invitee: {invite.invitee_name}</p>
+												{/if}
 												<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Role: {invite.role}</p>
 												<p class="text-xs text-slate-500 dark:text-slate-400">Recipients: {(invite.recipient_names || []).join(', ') || 'None selected'}</p>
 												<p class="text-xs text-slate-500 dark:text-slate-400">Expires: {new Date(invite.expires_at).toLocaleString()}</p>
@@ -1237,7 +1285,7 @@
 													on:click={() => handleCopyInvite(invite.invite_url)}
 													class="px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold"
 												>
-													Copy Link
+													{inviteCopied && inviteCopiedToken === invite.invite_url ? 'Copied' : 'Copy Link'}
 												</button>
 												<button
 													type="button"

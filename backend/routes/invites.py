@@ -21,6 +21,7 @@ router = APIRouter()
 class InviteCreate(BaseModel):
     email: Optional[EmailStr] = None
     username: Optional[str] = Field(default=None, min_length=2, max_length=50)
+    invitee_name: Optional[str] = Field(default=None, max_length=120)
     role: str = "caregiver"
     recipient_ids: List[str] = Field(default_factory=list)
     expires_in_hours: int = Field(48, ge=1, le=720)
@@ -30,6 +31,7 @@ class InviteResponse(BaseModel):
     token: str
     email: Optional[str]
     username: Optional[str]
+    invitee_name: Optional[str]
     role: str
     recipient_ids: List[str]
     expires_at: str
@@ -39,6 +41,7 @@ class InviteResponse(BaseModel):
 class InviteInfoResponse(BaseModel):
     email: Optional[str]
     username: Optional[str]
+    invitee_name: Optional[str]
     role: str
     recipient_ids: List[str]
     recipient_names: List[str]
@@ -55,6 +58,7 @@ class InviteAcceptRequest(BaseModel):
 
 class InviteSummaryResponse(BaseModel):
     token: str
+    invitee_name: Optional[str]
     role: str
     recipient_ids: List[str]
     recipient_names: List[str]
@@ -137,6 +141,7 @@ async def create_invite(
         token=token,
         email=payload.email,
         username=normalized_username,
+        invitee_name=(payload.invitee_name or "").strip() or None,
         role=payload.role,
         recipient_ids=[str(rec.id) for rec in recipients],
         expires_at=expires_at,
@@ -155,6 +160,7 @@ async def create_invite(
         token=invite.token,
         email=invite.email,
         username=invite.username,
+        invitee_name=invite.invitee_name,
         role=invite.role,
         recipient_ids=invite.recipient_ids or [],
         expires_at=invite.expires_at.isoformat(),
@@ -179,6 +185,7 @@ async def get_invite(token: str, db: Session = Depends(get_db)):
     return InviteInfoResponse(
         email=invite.email,
         username=invite.username,
+        invitee_name=invite.invitee_name,
         role=invite.role,
         recipient_ids=invite.recipient_ids or [],
         recipient_names=recipient_names,
@@ -288,6 +295,7 @@ async def list_invites(
         invite_url = f"{base_url}/invite/{invite.token}"
         results.append(InviteSummaryResponse(
             token=invite.token,
+            invitee_name=invite.invitee_name,
             role=invite.role,
             recipient_ids=invite.recipient_ids or [],
             recipient_names=recipient_names,
