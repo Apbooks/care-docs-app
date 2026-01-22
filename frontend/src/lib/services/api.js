@@ -1,6 +1,26 @@
-// API base URL - uses Vite build-time env `VITE_PUBLIC_API_URL` if provided,
-// otherwise falls back to same-origin `/api`.
-const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || '/api';
+// API base URL - prefers Vite build-time env, otherwise infers from hostname.
+const API_BASE = (() => {
+	const envBase = import.meta.env.VITE_PUBLIC_API_URL;
+	if (envBase && envBase !== 'auto') return envBase;
+	if (typeof window === 'undefined') return '/api';
+	const { protocol, hostname } = window.location;
+	if (hostname === 'caredocs.apvinyldesigns.com') {
+		return `${protocol}//${hostname}/api`;
+	}
+	if (
+		hostname === 'localhost' ||
+		hostname === '127.0.0.1' ||
+		hostname.startsWith('192.168.') ||
+		hostname.endsWith('.local')
+	) {
+		return `${protocol}//${hostname}:8000/api`;
+	}
+	return '/api';
+})();
+
+export function getApiBase() {
+	return API_BASE;
+}
 
 // Import offline stores (lazy loaded to avoid circular deps)
 let offlineModule = null;
@@ -270,6 +290,20 @@ export async function updateCurrentUserProfile(data) {
 	});
 }
 
+export async function updateCurrentUserEmail(data) {
+	return apiRequest('/auth/me/email', {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function updateCurrentUserPassword(data) {
+	return apiRequest('/auth/me/password', {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
 export async function uploadAvatar(file) {
 	const url = `${API_BASE}/auth/me/avatar`;
 	const token = getStoredToken('access_token');
@@ -302,6 +336,85 @@ export async function registerUser(userData) {
 	return apiRequest('/auth/register', {
 		method: 'POST',
 		body: JSON.stringify(userData)
+	});
+}
+
+export async function requestPasswordReset(email) {
+	return publicRequest('/auth/password-reset/request', {
+		method: 'POST',
+		body: JSON.stringify({ email })
+	});
+}
+
+export async function confirmPasswordReset(payload) {
+	return publicRequest('/auth/password-reset/confirm', {
+		method: 'POST',
+		body: JSON.stringify(payload)
+	});
+}
+
+// ============================================================================
+// INVITES + USER ACCESS (Admin)
+// ============================================================================
+
+async function publicRequest(endpoint, options = {}) {
+	const url = `${API_BASE}${endpoint}`;
+	const response = await fetch(url, {
+		...options,
+		headers: {
+			'Content-Type': 'application/json',
+			...options.headers
+		},
+		credentials: 'include'
+	});
+
+	const contentType = response.headers.get('content-type');
+	const text = await response.text();
+	const data = text && contentType?.includes('application/json') ? JSON.parse(text) : null;
+
+	if (!response.ok) {
+		throw new Error((data && data.detail) || `HTTP ${response.status}`);
+	}
+
+	return data ?? { success: true };
+}
+
+export async function createInvite(data) {
+	return apiRequest('/invites', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function getInvite(token) {
+	return publicRequest(`/invites/${token}`);
+}
+
+export async function acceptInvite(token, data) {
+	return publicRequest(`/invites/${token}/accept`, {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function listInvites() {
+	return apiRequest('/invites');
+}
+
+export async function revokeInvite(token) {
+	return apiRequest(`/invites/${token}`, {
+		method: 'DELETE'
+	});
+}
+
+export async function getUserRecipientAccess(userId) {
+	return apiRequest(`/auth/users/${userId}/recipients`);
+}
+
+export async function updateUserRecipientAccess(userId, recipientIds) {
+	return apiRequest(`/auth/users/${userId}/recipients`, {
+		method: 'PUT',
+		body: JSON.stringify({ recipient_ids: recipientIds })
 	});
 }
 
@@ -660,6 +773,39 @@ export async function updateNotificationSettings(settings) {
 	return apiRequest('/settings/notifications', {
 		method: 'PUT',
 		body: JSON.stringify(settings)
+	});
+}
+
+// ============================================================================
+// PUSH NOTIFICATIONS
+// ============================================================================
+
+export async function getVapidPublicKey() {
+	return apiRequest('/notifications/vapid-public-key');
+}
+
+export async function listPushSubscriptions() {
+	return apiRequest('/notifications/subscriptions');
+}
+
+export async function subscribePush(subscription) {
+	return apiRequest('/notifications/subscribe', {
+		method: 'POST',
+		body: JSON.stringify(subscription)
+	});
+}
+
+export async function unsubscribePush(subscription) {
+	return apiRequest('/notifications/unsubscribe', {
+		method: 'POST',
+		body: JSON.stringify(subscription)
+	});
+}
+
+export async function sendTestNotification(data) {
+	return apiRequest('/notifications/test', {
+		method: 'POST',
+		body: JSON.stringify(data || {})
 	});
 }
 

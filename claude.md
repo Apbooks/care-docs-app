@@ -257,6 +257,54 @@
 - Pending migrations for new columns (see list above)
 - Web Push notifications and reminder UI still not implemented (Phase 6 "Reminders & Notifications")
 
+### 2026-01-19 - Next Steps Identified (No code changes)
+
+#### Next Up
+- Implement Reminders & Notifications (Web Push API setup, permission flow, reminder management UI, notification service, APScheduler integration)
+- Add testing infrastructure (pytest, Vitest) and cover core auth/event/reminder flows
+- Address deployment gaps: HTTPS, automated backups, performance optimization
+
+### 2026-01-19 - Reminder Scheduler + Notification Endpoints (Backend Complete)
+
+#### Completed
+- [x] Added APScheduler-based reminder scanner with SSE/pubsub broadcasts for due reminders
+- [x] Added push subscription model + API endpoints (subscribe/unsubscribe/list/test)
+- [x] Added reminder last_notified_at tracking to prevent duplicate alerts
+- [x] Added notification service wrapper for Web Push delivery
+- [x] Added scheduler configuration settings (SCHEDULER_ENABLED, REMINDER_SCAN_INTERVAL_SECONDS)
+
+### 2026-01-19 - Push Subscription UI + VAPID Endpoint (Complete)
+
+#### Completed
+- [x] Added VAPID public key endpoint for frontend subscription flow
+- [x] Added device push enable/disable + test controls in Admin Notifications tab
+- [x] Switched PWA build to injectManifest to ensure custom service worker handles push events
+- [x] Added frontend API helpers for push subscription management
+- [x] Applied DB migrations for push_subscriptions + medication_reminders.last_notified_at
+- [x] Generated VAPID keys and updated environment configuration
+- [x] Updated production env to use tunnel domain for CORS, PUBLIC_API_URL, and frontend ORIGIN
+- [x] Enabled proxy headers in production backend to preserve HTTPS in redirects behind Cloudflare
+- [x] Fixed login redirect race by awaiting auth store persistence
+- [x] Switched to simple split-hostname setup (frontend on caredocs.*, API on api.caredocs.*)
+- [x] Simplified deployment to single hostname via nginx reverse proxy on port 8080
+- [x] Added auto API base selection to support both local and public access
+- [x] Fixed SSE stream base URL to use auto API base (prevents /api/stream 404 locally)
+- [x] Added HEAD handler for /api/health and disabled slash redirects for medications
+
+### 2026-01-20 - Invite-Based User Onboarding + Recipient Access (In Progress)
+
+#### Completed
+- [x] Added invite system with expiring tokens and copyable links
+- [x] Added user-recipient access mapping and access control helpers
+- [x] Enforced recipient access + read-only restrictions across event, feed, reminder, photo, stream, and template endpoints
+- [x] Updated admin UI to create invites, edit roles (admin/caregiver/read_only), and manage recipient access
+- [x] Added invite acceptance page with username/email/name + password strength validation
+- [x] Added pending invite list + revoke support in admin UI
+- [x] Enforced case-insensitive usernames in login/register/invites/admin scripts
+- [x] Applied DB tables for invites/access and rebuilt production containers
+- [x] Disabled auth refresh on invite route to avoid redirect to login
+- [x] Fixed user delete to clear recipient access first (prevents FK 500)
+
 ## Architecture Decisions
 
 ### Why SvelteKit?
@@ -336,13 +384,14 @@
 - [x] Feeding totals summary (daily + range)
 
 #### 6. Reminders & Notifications
-- [ ] Web Push API setup
-- [ ] Permission request
+- [x] Web Push API setup
+- [x] Permission request
 - [ ] Reminder management UI
-- [ ] Notification service
-- [ ] APScheduler integration
+- [x] Notification service
+- [x] APScheduler integration
 - [ ] Snooze/dismiss
 - [ ] Notification clicks
+- [x] Backend scheduler + push subscription endpoints
 
 ---
 
@@ -356,7 +405,9 @@
 - [x] care_recipients
 - [x] photos
 - [ ] reminders
-- [ ] push_subscriptions
+- [x] push_subscriptions
+- [x] user_invites
+- [x] user_recipient_access
 
 ---
 
@@ -436,7 +487,7 @@ _To be measured after deployment_
 - ✓ PWA icons (now using SVG - icon.svg, favicon.svg)
 - No testing infrastructure (pytest, Vitest)
 - No rate limiting on authentication endpoints
-- No database migration system (using create_all instead of Alembic)
+- Alembic added; need baseline revision and plan to disable create_all in production
 - Insufficient logging configuration
 - Dynamic Tailwind classes causing bundle bloat
 - No input validation length limits on text fields
@@ -638,7 +689,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-19 (DB migrations applied)
+**Last Updated:** 2026-01-20 (Invites + access control)
 
 ---
 
@@ -657,6 +708,16 @@ After completing work, always commit changes and push to the remote repository.
 
 ## Migration Notes (manual SQL)
 
+### Alembic (schema tracking)
+
+```bash
+# Create a new migration (run from /app inside the backend container)
+alembic -c /app/alembic.ini revision --autogenerate -m "describe change"
+
+# Apply latest migrations
+alembic -c /app/alembic.ini upgrade head
+```
+
 ### Medication Library + Quick Meds
 
 ```sql
@@ -671,6 +732,53 @@ ALTER TABLE medications ADD COLUMN default_route VARCHAR(40);
 ALTER TABLE care_recipients ADD COLUMN enabled_categories JSONB NOT NULL DEFAULT '["medication","feeding","diaper","demeanor","observation"]';
 ALTER TABLE users ADD COLUMN display_name VARCHAR(100);
 ALTER TABLE users ADD COLUMN avatar_filename VARCHAR(255);
+```
+
+### Reminder Notifications (Backend)
+
+```sql
+ALTER TABLE medication_reminders ADD COLUMN last_notified_at timestamp;
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id),
+  endpoint varchar(2048) NOT NULL UNIQUE,
+  p256dh varchar(255) NOT NULL,
+  auth varchar(255) NOT NULL,
+  expiration_time timestamp NULL,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+```
+
+### User Invites + Recipient Access
+
+```sql
+CREATE TABLE IF NOT EXISTS user_invites (
+  id uuid PRIMARY KEY,
+  token varchar(128) NOT NULL UNIQUE,
+  email varchar(255),
+  username varchar(50),
+  role varchar(20) NOT NULL DEFAULT 'caregiver',
+  recipient_ids jsonb NOT NULL DEFAULT '[]',
+  expires_at timestamp NOT NULL,
+  used_at timestamp NULL,
+  created_by_user_id uuid NOT NULL REFERENCES users(id),
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS user_recipient_access (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id),
+  recipient_id uuid NOT NULL REFERENCES care_recipients(id),
+  CONSTRAINT uniq_user_recipient UNIQUE (user_id, recipient_id)
+);
+```
+
+### Quick Feeds Name (optional)
+
+```sql
+ALTER TABLE quick_feeds ADD COLUMN name varchar(120);
 ```
 
 Quick meds migration (one-time):
@@ -827,6 +935,49 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 - [x] Prevent caching `/api/med-reminders/next` to avoid stale reminder banners
 - [x] Bump service worker cache versions to force refresh
 - [x] Applied pending DB migrations for profile/recipient/med fields
+
+### 2026-01-19 - Alembic Migrations Added
+
+#### Completed
+- [x] Added Alembic configuration in `backend/alembic` and `backend/alembic.ini`
+- [x] Added Alembic dependency to backend requirements
+- [x] Created baseline Alembic revision and stamped DB head
+
+### 2026-01-20 - Admin Invite UX Fixes
+
+#### Fixed
+- [x] Copy invite link now ignores click events and copies the actual URL
+- [x] Added copy feedback indicator for invite link
+- [x] Copy button now changes to "Copied" for the specific invite link
+- [x] Added invitee name field to invite creation and pending invite list
+
+### 2026-01-20 - Dashboard Mobile Formatting
+
+#### Updated
+- [x] Shortened dashboard event timestamp format and allowed wrapping on small screens
+
+### 2026-01-21 - User Settings + Password Reset (In Progress)
+
+#### Added
+- [x] User settings page (email + password updates)
+- [x] Device push enable/disable controls for caregivers/admins
+- [x] Forgot password + reset password frontend routes
+- [x] Backend endpoints for email/password updates and reset token flow
+- [x] SMTP configuration placeholders in .env.example
+
+### 2026-01-21 - Production Access Fix
+
+#### Fixed
+- [x] Resolved Vite host allowlist block for caredocs.apvinyldesigns.com by adding it to `server.allowedHosts` in `frontend/vite.config.js`
+- [x] Rebuilt production containers to apply the change (nginx reverse proxy preserved)
+
+### 2026-01-22 - Continuous Feed Naming + Quick Feed Templates (In Progress)
+
+#### Added
+- [x] Optional continuous feed name captured on start and stored in event metadata
+- [x] Dashboard banner + recent events now show feed name, rate, dose, and interval
+- [x] Quick feed templates support an optional name (UI + API)
+- [x] Dark mode quick template text contrast improved for rate/dose details
 
 ### 2026-01-16 - Consistent Navigation Across All Pages
 

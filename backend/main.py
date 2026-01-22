@@ -7,10 +7,11 @@ import os
 from database import init_db
 
 # Import routes
-from routes import auth, events, setup, quick_templates, settings as settings_routes, feeds, stream, recipients, photos, medications, med_reminders
+from routes import auth, events, setup, quick_templates, settings as settings_routes, feeds, stream, recipients, photos, medications, med_reminders, notifications, invites
 
 # Import pub/sub service
 from services import pubsub
+from services.reminder_scheduler import start_scheduler, stop_scheduler
 
 # Import settings
 from config import get_settings
@@ -49,17 +50,23 @@ async def startup_event():
     # Register local broadcast handler and start listening for cross-worker events
     pubsub.register_handler(stream.local_broadcast)
     await pubsub.start_listener()
+    start_scheduler()
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Clean up pub/sub listener on application shutdown"""
     await pubsub.stop_listener()
+    stop_scheduler()
 
 # Health check endpoint
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "message": "Care Documentation API is running"}
+
+@app.head("/api/health")
+async def health_check_head():
+    return None
 
 # Serve setup.html
 @app.get("/setup.html")
@@ -93,6 +100,8 @@ app.include_router(recipients.router, prefix="/api", tags=["recipients"])
 app.include_router(photos.router, prefix="/api/photos", tags=["photos"])
 app.include_router(medications.router, prefix="/api/medications", tags=["medications"])
 app.include_router(med_reminders.router, prefix="/api/med-reminders", tags=["med-reminders"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(invites.router, prefix="/api/invites", tags=["invites"])
 
 if __name__ == "__main__":
     import uvicorn

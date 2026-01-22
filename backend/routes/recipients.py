@@ -8,6 +8,7 @@ from database import get_db
 from models.care_recipient import CareRecipient
 from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
+from services.access_control import get_allowed_recipient_ids
 
 router = APIRouter()
 
@@ -56,6 +57,12 @@ async def list_recipients(
     query = db.query(CareRecipient)
     if not include_inactive:
         query = query.filter(CareRecipient.is_active.is_(True))
+
+    allowed = get_allowed_recipient_ids(db, current_user)
+    if allowed is not None:
+        if not allowed:
+            return []
+        query = query.filter(CareRecipient.id.in_(allowed))
 
     recipients = query.order_by(CareRecipient.created_at.asc()).all()
 

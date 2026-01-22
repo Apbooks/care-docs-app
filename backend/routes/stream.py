@@ -11,6 +11,7 @@ from models.user import User
 from routes.auth import get_token_from_request
 from services.auth_service import decode_token, verify_token_type
 from services import pubsub
+from services.access_control import get_allowed_recipient_ids
 
 router = APIRouter()
 
@@ -73,7 +74,8 @@ async def stream_events(
     token: Optional[str] = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    await _get_current_user_from_stream(request, db, token)
+    current_user = await _get_current_user_from_stream(request, db, token)
+    allowed = get_allowed_recipient_ids(db, current_user)
 
     queue: asyncio.Queue = asyncio.Queue(maxsize=100)
 
@@ -88,6 +90,10 @@ async def stream_events(
 
                 try:
                     message = await asyncio.wait_for(queue.get(), timeout=15)
+                    if allowed is not None:
+                        recipient_id = message.get("recipient_id")
+                        if recipient_id and recipient_id not in allowed:
+                            continue
                     yield f"data: {json.dumps(message)}\n\n"
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"

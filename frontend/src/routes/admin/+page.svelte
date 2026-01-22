@@ -20,6 +20,15 @@
 		createRecipient,
 		updateRecipient,
 		deleteRecipient,
+		createInvite,
+		listInvites,
+		revokeInvite,
+		getUserRecipientAccess,
+		updateUserRecipientAccess,
+		getVapidPublicKey,
+		subscribePush,
+		unsubscribePush,
+		sendTestNotification,
 		logout as logoutApi
 	} from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -45,6 +54,11 @@
 	let profileError = '';
 	let avatarUploading = false;
 	let adminTab = 'meds';
+	const roleOptions = [
+		{ value: 'admin', label: 'Admin' },
+		{ value: 'caregiver', label: 'Caregiver' },
+		{ value: 'read_only', label: 'Read Only' }
+	];
 	const adminTabs = [
 		{ id: 'profile', label: 'Profile' },
 		{ id: 'recipients', label: 'Recipients' },
@@ -60,6 +74,12 @@
 	let notificationsDueSoonMinutes = '0';
 	let notificationsOverdueMinutes = '60';
 	let notificationsSnoozeMinutes = '15';
+	let pushSupported = false;
+	let pushPermission = 'default';
+	let pushSubscriptionActive = false;
+	let pushActionLoading = false;
+	let pushActionError = '';
+	let pushTestStatus = '';
 
 	const timezones = [
 		'local',
@@ -95,6 +115,7 @@
 	let newFeedDuration = '';
 	let newFeedFormula = '';
 	let newFeedMode = 'bolus';
+	let newFeedName = '';
 	let newFeedRate = '';
 	let newFeedDose = '';
 	let newFeedInterval = '';
@@ -104,6 +125,7 @@
 	let editFeedDuration = '';
 	let editFeedFormula = '';
 	let editFeedMode = 'bolus';
+	let editFeedName = '';
 	let editFeedRate = '';
 	let editFeedDose = '';
 	let editFeedInterval = '';
@@ -136,6 +158,27 @@
 	let newReminderStartTime = '';
 	let newReminderInterval = '';
 
+	let inviteRole = 'caregiver';
+	let inviteeName = '';
+	let inviteRecipientIds = [];
+	let inviteExpiresHours = '48';
+	let inviteResult = null;
+	let inviteError = '';
+	let inviteLoading = false;
+	let inviteCopied = false;
+	let inviteCopiedToken = null;
+	let inviteCopiedTimeout;
+	let pendingInvites = [];
+	let pendingInvitesLoading = false;
+
+	let accessUserId = null;
+	let accessUserName = '';
+	let accessUserRole = '';
+	let accessRecipientIds = [];
+	let accessLoading = false;
+	let accessSaving = false;
+	let accessError = '';
+
 	authStore.subscribe(value => {
 		user = value;
 	});
@@ -156,6 +199,31 @@
 		menuOpen = false;
 	}
 
+	function urlBase64ToUint8Array(base64String) {
+		const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+		const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+		const rawData = atob(base64);
+		const outputArray = new Uint8Array(rawData.length);
+		for (let i = 0; i < rawData.length; i += 1) {
+			outputArray[i] = rawData.charCodeAt(i);
+		}
+		return outputArray;
+	}
+
+	async function initializePushState() {
+		if (typeof window === 'undefined') return;
+		pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+		pushPermission = typeof Notification !== 'undefined' ? Notification.permission : 'default';
+		if (!pushSupported) return;
+		try {
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.getSubscription();
+			pushSubscriptionActive = !!subscription;
+		} catch (err) {
+			pushActionError = err.message || 'Unable to read push subscription status';
+		}
+	}
+
 	async function handleLogout() {
 		try {
 			await logoutApi();
@@ -168,6 +236,79 @@
 			localStorage.removeItem('access_token');
 			localStorage.removeItem('refresh_token');
 			goto('/login');
+		}
+	}
+
+	async function handleEnableDevicePush() {
+		pushActionError = '';
+		pushTestStatus = '';
+		pushActionLoading = true;
+		try {
+			if (!pushSupported) {
+				throw new Error('Push notifications are not supported on this device');
+			}
+			if (typeof Notification === 'undefined') {
+				throw new Error('Notification API not available');
+			}
+			const permission = await Notification.requestPermission();
+			pushPermission = permission;
+			if (permission !== 'granted') {
+				throw new Error('Permission not granted for notifications');
+			}
+			const { public_key } = await getVapidPublicKey();
+			if (!public_key) {
+				throw new Error('Missing VAPID public key');
+			}
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.subscribe({
+				userVisibleOnly: true,
+				applicationServerKey: urlBase64ToUint8Array(public_key)
+			});
+			await subscribePush(subscription.toJSON());
+			pushSubscriptionActive = true;
+		} catch (err) {
+			pushActionError = err.message || 'Failed to enable push notifications';
+		} finally {
+			pushActionLoading = false;
+		}
+	}
+
+	async function handleDisableDevicePush() {
+		pushActionError = '';
+		pushTestStatus = '';
+		pushActionLoading = true;
+		try {
+			if (!pushSupported) {
+				throw new Error('Push notifications are not supported on this device');
+			}
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.getSubscription();
+			if (subscription) {
+				await unsubscribePush(subscription.toJSON());
+				await subscription.unsubscribe();
+			}
+			pushSubscriptionActive = false;
+		} catch (err) {
+			pushActionError = err.message || 'Failed to disable push notifications';
+		} finally {
+			pushActionLoading = false;
+		}
+	}
+
+	async function handleSendTestNotification() {
+		pushActionError = '';
+		pushTestStatus = '';
+		pushActionLoading = true;
+		try {
+			await sendTestNotification({
+				title: 'Care Docs Reminder',
+				body: 'This is a test notification from Care Docs.'
+			});
+			pushTestStatus = 'Test notification sent.';
+		} catch (err) {
+			pushActionError = err.message || 'Failed to send test notification';
+		} finally {
+			pushActionLoading = false;
 		}
 	}
 
@@ -215,8 +356,10 @@
 			loadMedications(),
 			loadMedReminders(),
 			loadTimezone(),
-			loadNotificationSettings()
+			loadNotificationSettings(),
+			loadInvites()
 		]);
+		await initializePushState();
 	});
 
 	$: if ($selectedRecipientId && $selectedRecipientId !== lastTemplateRecipientId) {
@@ -236,6 +379,17 @@
 			error = err.message || 'Failed to load users';
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadInvites() {
+		pendingInvitesLoading = true;
+		try {
+			pendingInvites = await listInvites();
+		} catch (err) {
+			inviteError = err.message || 'Failed to load invites';
+		} finally {
+			pendingInvitesLoading = false;
 		}
 	}
 
@@ -567,6 +721,7 @@
 
 		try {
 			const created = await createQuickFeed({
+				name: newFeedName || null,
 				mode: newFeedMode,
 				amount_ml: newFeedAmount ? parseInt(newFeedAmount) : null,
 				duration_min: newFeedDuration ? parseInt(newFeedDuration) : null,
@@ -582,6 +737,7 @@
 			newFeedDuration = '';
 			newFeedFormula = '';
 			newFeedMode = 'bolus';
+			newFeedName = '';
 			newFeedRate = '';
 			newFeedDose = '';
 			newFeedInterval = '';
@@ -619,6 +775,7 @@
 		editFeedDuration = feed.duration_min ?? '';
 		editFeedFormula = feed.formula_type ?? '';
 		editFeedMode = feed.mode || 'bolus';
+		editFeedName = feed.name ?? '';
 		editFeedRate = feed.rate_ml_hr ?? '';
 		editFeedDose = feed.dose_ml ?? '';
 		editFeedInterval = feed.interval_hr ?? '';
@@ -631,6 +788,7 @@
 		editFeedDuration = '';
 		editFeedFormula = '';
 		editFeedMode = 'bolus';
+		editFeedName = '';
 		editFeedRate = '';
 		editFeedDose = '';
 		editFeedInterval = '';
@@ -642,6 +800,7 @@
 
 		try {
 			const updated = await updateQuickFeed(editFeedId, {
+				name: editFeedName || null,
 				mode: editFeedMode,
 				amount_ml: editFeedAmount === '' ? null : parseInt(editFeedAmount),
 				duration_min: editFeedDuration === '' ? null : parseInt(editFeedDuration),
@@ -655,6 +814,132 @@
 			cancelEditQuickFeed();
 		} catch (err) {
 			quickFeedsError = err.message || 'Failed to update quick feed';
+		}
+	}
+
+	async function handleCreateInvite() {
+		inviteError = '';
+		inviteResult = null;
+
+		inviteLoading = true;
+		try {
+			const result = await createInvite({
+				invitee_name: (inviteeName || '').trim() || null,
+				role: inviteRole,
+				recipient_ids: inviteRecipientIds,
+				expires_in_hours: parseInt(inviteExpiresHours || '48', 10)
+			});
+			inviteResult = result;
+			inviteeName = '';
+			await loadInvites();
+		} catch (err) {
+			inviteError = err.message || 'Failed to create invite';
+		} finally {
+			inviteLoading = false;
+		}
+	}
+
+	async function handleCopyInvite(urlOrEvent) {
+		const inviteUrl = typeof urlOrEvent === 'string' ? urlOrEvent : inviteResult?.invite_url;
+		if (!inviteUrl) return;
+		try {
+			clearTimeout(inviteCopiedTimeout);
+			if (navigator?.clipboard?.writeText) {
+				await navigator.clipboard.writeText(inviteUrl);
+				inviteCopied = true;
+				inviteCopiedToken = inviteUrl;
+				inviteCopiedTimeout = setTimeout(() => {
+					inviteCopied = false;
+					inviteCopiedToken = null;
+				}, 2500);
+				return;
+			}
+			const textarea = document.createElement('textarea');
+			textarea.value = inviteUrl;
+			textarea.setAttribute('readonly', '');
+			textarea.style.position = 'absolute';
+			textarea.style.left = '-9999px';
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+			inviteCopied = true;
+			inviteCopiedToken = inviteUrl;
+			inviteCopiedTimeout = setTimeout(() => {
+				inviteCopied = false;
+				inviteCopiedToken = null;
+			}, 2500);
+		} catch (err) {
+			inviteError = 'Failed to copy invite link';
+		}
+	}
+
+	async function handleRevokeInvite(token) {
+		inviteError = '';
+		try {
+			await revokeInvite(token);
+			pendingInvites = pendingInvites.filter((invite) => invite.token !== token);
+		} catch (err) {
+			inviteError = err.message || 'Failed to revoke invite';
+		}
+	}
+
+	async function openAccessEditor(userItem) {
+		accessUserId = userItem.id;
+		accessUserName = userItem.username;
+		accessUserRole = userItem.role;
+		accessRecipientIds = [];
+		accessError = '';
+		accessLoading = true;
+
+		try {
+			const response = await getUserRecipientAccess(userItem.id);
+			accessRecipientIds = response?.recipient_ids || [];
+		} catch (err) {
+			accessError = err.message || 'Failed to load recipient access';
+		} finally {
+			accessLoading = false;
+		}
+	}
+
+	function closeAccessEditor() {
+		accessUserId = null;
+		accessUserName = '';
+		accessUserRole = '';
+		accessRecipientIds = [];
+		accessError = '';
+		accessLoading = false;
+		accessSaving = false;
+	}
+
+	async function handleSaveAccess() {
+		if (!accessUserId) return;
+		accessError = '';
+		accessSaving = true;
+
+		try {
+			const response = await updateUserRecipientAccess(accessUserId, accessRecipientIds);
+			accessRecipientIds = response?.recipient_ids || [];
+		} catch (err) {
+			accessError = err.message || 'Failed to update recipient access';
+		} finally {
+			accessSaving = false;
+		}
+	}
+
+	async function handleRoleChange(userId, role) {
+		error = '';
+		try {
+			const updatedUser = await apiRequest(`/auth/users/${userId}`, {
+				method: 'PATCH',
+				body: JSON.stringify({ role })
+			});
+			users = users.map(u => u.id === userId ? updatedUser : u);
+			if (accessUserId === userId) {
+				accessUserRole = updatedUser.role;
+			}
+		} catch (err) {
+			error = err.message || 'Failed to update user role';
 		}
 	}
 
@@ -699,7 +984,9 @@
 	}
 
 	function getRoleBadgeColor(role) {
-		return role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
+		if (role === 'admin') return 'bg-purple-100 text-purple-800';
+		if (role === 'read_only') return 'bg-slate-200 text-slate-700';
+		return 'bg-blue-100 text-blue-800';
 	}
 
 	function formatDate(dateString) {
@@ -773,6 +1060,12 @@
 					class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
 				>
 					History
+				</button>
+				<button
+					on:click={() => { closeMenu(); goto('/settings'); }}
+					class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+				>
+					Settings
 				</button>
 				{#if userIsAdmin}
 					<button
@@ -870,24 +1163,178 @@
 			</div>
 		{/if}
 
-	<!-- User Management Section -->
-	<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
-		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
-			<div class="flex justify-between items-center">
-				<div>
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">User Management</h2>
-					<p class="text-base text-gray-600 dark:text-slate-300 mt-1">View and manage user accounts</p>
+		<div class="grid gap-6">
+			<!-- Invite User -->
+			<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
+				<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Invite User</h2>
+					<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Invite link lets the user set their username, email, name, and password.</p>
 				</div>
-				<button
-					on:click={() => goto('/register')}
-					class="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-base"
-				>
-					Add New User
-				</button>
-			</div>
-		</div>
+				<div class="p-6 space-y-4">
+					{#if inviteError}
+						<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+							<p class="text-red-800 dark:text-red-200 text-base">{inviteError}</p>
+						</div>
+					{/if}
+					<form class="grid gap-4 sm:grid-cols-2" on:submit|preventDefault={handleCreateInvite}>
+						<div class="sm:col-span-2">
+							<label for="invite-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Invitee name</label>
+							<input
+								id="invite-name"
+								type="text"
+								bind:value={inviteeName}
+								maxlength="120"
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+								placeholder="Who is this invite for?"
+							/>
+						</div>
+						<div>
+							<label for="invite-role" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Role</label>
+							<select
+								id="invite-role"
+								bind:value={inviteRole}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							>
+								{#each roleOptions as option}
+									<option value={option.value}>{option.label}</option>
+								{/each}
+							</select>
+						</div>
+						<div>
+							<label for="invite-expires" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Invite expires (hours)</label>
+							<input
+								id="invite-expires"
+								type="number"
+								min="1"
+								max="720"
+								bind:value={inviteExpiresHours}
+								class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							/>
+						</div>
+						<div class="sm:col-span-2">
+							<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Recipient access</p>
+							{#if recipientsList.length === 0}
+								<p class="text-sm text-slate-500 dark:text-slate-400">Create recipients first to assign access.</p>
+							{:else}
+								<div class="flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-slate-300">
+									{#each recipientsList as recipient}
+										<label class="flex items-center gap-2">
+											<input
+												type="checkbox"
+												checked={inviteRecipientIds.includes(recipient.id)}
+												on:change={(event) => {
+													if (event.target.checked) {
+														inviteRecipientIds = [...inviteRecipientIds, recipient.id];
+													} else {
+														inviteRecipientIds = inviteRecipientIds.filter((item) => item !== recipient.id);
+													}
+												}}
+												class="w-4 h-4 text-blue-600 border-gray-300 rounded"
+											/>
+											<span>{recipient.name}</span>
+										</label>
+									{/each}
+								</div>
+							{/if}
+						</div>
+						<div class="sm:col-span-2">
+							<button
+								type="submit"
+								disabled={inviteLoading}
+								class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
+							>
+								{inviteLoading ? 'Creating...' : 'Create Invite Link'}
+							</button>
+						</div>
+					</form>
 
-			<div class="p-6">
+					{#if inviteResult}
+						<div class="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+							<p class="text-sm text-slate-600 dark:text-slate-300 mb-2">Invite link</p>
+							{#if inviteResult.invitee_name}
+								<p class="text-xs text-slate-500 dark:text-slate-400 mb-2">Invitee: {inviteResult.invitee_name}</p>
+							{/if}
+							<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+								<input
+									type="text"
+									readonly
+									value={inviteResult.invite_url}
+									class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm"
+								/>
+								<button
+									type="button"
+									on:click={handleCopyInvite}
+									class="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold"
+								>
+									{inviteCopied && inviteCopiedToken === inviteResult.invite_url ? 'Copied' : 'Copy Link'}
+								</button>
+							</div>
+							<p class="text-xs text-slate-500 dark:text-slate-400 mt-2">Expires: {new Date(inviteResult.expires_at).toLocaleString()}</p>
+						</div>
+					{/if}
+
+					<div class="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+						<p class="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2">Pending Invites</p>
+						{#if pendingInvitesLoading}
+							<p class="text-sm text-slate-500 dark:text-slate-400">Loading invites...</p>
+						{:else if pendingInvites.length === 0}
+							<p class="text-sm text-slate-500 dark:text-slate-400">No pending invites.</p>
+						{:else}
+							<div class="space-y-3">
+								{#each pendingInvites as invite}
+									<div class="border border-slate-200 dark:border-slate-800 rounded-lg p-3">
+										<div class="flex flex-wrap items-center justify-between gap-2">
+											<div>
+												{#if invite.invitee_name}
+													<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Invitee: {invite.invitee_name}</p>
+												{/if}
+												<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Role: {invite.role}</p>
+												<p class="text-xs text-slate-500 dark:text-slate-400">Recipients: {(invite.recipient_names || []).join(', ') || 'None selected'}</p>
+												<p class="text-xs text-slate-500 dark:text-slate-400">Expires: {new Date(invite.expires_at).toLocaleString()}</p>
+											</div>
+											<div class="flex items-center gap-2">
+												<button
+													type="button"
+													on:click={() => handleCopyInvite(invite.invite_url)}
+													class="px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold"
+												>
+													{inviteCopied && inviteCopiedToken === invite.invite_url ? 'Copied' : 'Copy Link'}
+												</button>
+												<button
+													type="button"
+													on:click={() => handleRevokeInvite(invite.token)}
+													class="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-xs font-semibold"
+												>
+													Revoke
+												</button>
+											</div>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+			</div>
+
+			<!-- User Management Section -->
+			<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
+				<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+					<div class="flex justify-between items-center">
+						<div>
+							<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">User Management</h2>
+							<p class="text-base text-gray-600 dark:text-slate-300 mt-1">View and manage user accounts</p>
+						</div>
+						<button
+							on:click={() => goto('/register')}
+							class="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-base"
+						>
+							Add New User
+						</button>
+					</div>
+				</div>
+
+				<div class="p-6">
 				{#if loading}
 					<div class="text-center py-8">
 						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -915,6 +1362,26 @@
 									{u.role}
 								</span>
 							</div>
+							<div class="mt-3 grid gap-2">
+								<label for={`user-role-${u.id}`} class="text-xs font-semibold text-slate-500 dark:text-slate-400">Role</label>
+								<select
+									id={`user-role-${u.id}`}
+									class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+									value={u.role}
+									on:change={(event) => handleRoleChange(u.id, event.target.value)}
+								>
+									{#each roleOptions as option}
+										<option value={option.value}>{option.label}</option>
+									{/each}
+								</select>
+								<button
+									type="button"
+									on:click={() => openAccessEditor(u)}
+									class="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold"
+								>
+									Manage Access
+								</button>
+							</div>
 							<div class="mt-3 flex flex-wrap items-center gap-3">
 								<button
 									on:click={() => handleToggleActive(u.id, u.is_active)}
@@ -930,12 +1397,14 @@
 									<div class="flex items-center gap-3">
 										<span class="text-sm text-gray-600 dark:text-slate-300">Confirm delete?</span>
 										<button
+											type="button"
 											on:click={() => handleDeleteUser(u.id)}
 											class="text-red-600 font-semibold"
 										>
 											Yes
 										</button>
 										<button
+											type="button"
 											on:click={() => deleteConfirmUserId = null}
 											class="text-gray-600 font-semibold"
 										>
@@ -943,13 +1412,14 @@
 										</button>
 									</div>
 								{:else}
-									<button
-										on:click={() => deleteConfirmUserId = u.id}
-										disabled={u.id === user?.id}
-										class="text-red-600 font-semibold disabled:text-gray-400 disabled:cursor-not-allowed"
-									>
-										Delete User
-									</button>
+										<button
+											type="button"
+											on:click={() => deleteConfirmUserId = u.id}
+											disabled={u.id === user?.id}
+											class="text-red-600 font-semibold disabled:text-gray-400 disabled:cursor-not-allowed"
+										>
+											Delete User
+										</button>
 								{/if}
 							</div>
 						</div>
@@ -993,9 +1463,15 @@
 										</div>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
-										<span class={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(u.role)}`}>
-											{u.role}
-										</span>
+										<select
+											class="px-2 py-1 border border-slate-200 rounded-lg text-xs"
+											value={u.role}
+											on:change={(event) => handleRoleChange(u.id, event.target.value)}
+										>
+											{#each roleOptions as option}
+												<option value={option.value}>{option.label}</option>
+											{/each}
+										</select>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap">
 										<button
@@ -1014,12 +1490,14 @@
 											<div class="flex items-center justify-end gap-2">
 												<span class="text-gray-600 text-xs">Confirm delete?</span>
 												<button
+													type="button"
 													on:click={() => handleDeleteUser(u.id)}
 													class="text-red-600 hover:text-red-900"
 												>
 													Yes
 												</button>
 												<button
+													type="button"
 													on:click={() => deleteConfirmUserId = null}
 													class="text-gray-600 hover:text-gray-900"
 												>
@@ -1027,13 +1505,23 @@
 												</button>
 											</div>
 										{:else}
-											<button
-												on:click={() => deleteConfirmUserId = u.id}
-												disabled={u.id === user?.id}
-												class="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-											>
-												Delete
-											</button>
+											<div class="flex items-center justify-end gap-3">
+												<button
+													type="button"
+													on:click={() => openAccessEditor(u)}
+													class="text-slate-600 hover:text-slate-900"
+												>
+													Access
+												</button>
+												<button
+													type="button"
+													on:click={() => deleteConfirmUserId = u.id}
+													disabled={u.id === user?.id}
+													class="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+												>
+													Delete
+												</button>
+											</div>
 										{/if}
 									</td>
 								</tr>
@@ -1044,6 +1532,75 @@
 			{/if}
 		</div>
 	</div>
+	{#if accessUserId}
+		<div class="bg-white dark:bg-slate-900 rounded-xl shadow">
+			<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-slate-100">Recipient Access</h3>
+				<p class="text-sm text-gray-600 dark:text-slate-300 mt-1">
+					Manage access for <span class="font-semibold">{accessUserName}</span>
+				</p>
+			</div>
+			<div class="p-6 space-y-4">
+				{#if accessError}
+					<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+						<p class="text-red-800 dark:text-red-200 text-base">{accessError}</p>
+					</div>
+				{/if}
+				{#if accessUserRole === 'admin'}
+					<p class="text-sm text-slate-600 dark:text-slate-300">Admins automatically have access to all recipients.</p>
+				{/if}
+				{#if accessLoading}
+					<div class="text-center py-6">
+						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+						<p class="mt-2 text-gray-600 dark:text-slate-300 text-base">Loading access...</p>
+					</div>
+				{:else}
+					{#if recipientsList.length === 0}
+						<p class="text-sm text-slate-500 dark:text-slate-400">No recipients available.</p>
+					{:else}
+						<div class="flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-slate-300">
+							{#each recipientsList as recipient}
+								<label class="flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={accessRecipientIds.includes(recipient.id)}
+										disabled={accessUserRole === 'admin'}
+										on:change={(event) => {
+											if (event.target.checked) {
+												accessRecipientIds = [...accessRecipientIds, recipient.id];
+											} else {
+												accessRecipientIds = accessRecipientIds.filter((item) => item !== recipient.id);
+											}
+										}}
+										class="w-4 h-4 text-blue-600 border-gray-300 rounded"
+									/>
+									<span>{recipient.name}</span>
+								</label>
+							{/each}
+						</div>
+					{/if}
+				{/if}
+				<div class="flex flex-wrap items-center gap-3">
+					<button
+						type="button"
+						on:click={handleSaveAccess}
+						disabled={accessSaving || accessUserRole === 'admin'}
+						class="px-4 py-3 bg-blue-600 text-white rounded-xl text-base hover:bg-blue-700 disabled:bg-blue-300"
+					>
+						{accessSaving ? 'Saving...' : 'Save Access'}
+					</button>
+					<button
+						type="button"
+						on:click={closeAccessEditor}
+						class="px-4 py-3 border border-slate-200 rounded-xl text-base"
+					>
+						Close
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+		</div>
 	{/if}
 
 	{#if adminTab === 'recipients'}
@@ -1590,6 +2147,16 @@
 				</div>
 
 				{#if newFeedMode === 'continuous'}
+					<div class="sm:col-span-4">
+						<label for="new-feed-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feed Name (optional)</label>
+						<input
+							id="new-feed-name"
+							type="text"
+							bind:value={newFeedName}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="Overnight"
+						/>
+					</div>
 					<div>
 						<label for="new-feed-rate" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Rate (ml/hr)</label>
 						<input
@@ -1707,11 +2274,21 @@
 									</div>
 
 									{#if editFeedMode === 'continuous'}
-										<div class="grid gap-3 sm:grid-cols-2">
-											<div>
-												<label for="edit-feed-rate" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Rate (ml/hr)</label>
-												<input
-													id="edit-feed-rate"
+					<div class="grid gap-3 sm:grid-cols-2">
+						<div class="sm:col-span-2">
+							<label for="edit-feed-name" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Feed Name</label>
+							<input
+								id="edit-feed-name"
+								type="text"
+								bind:value={editFeedName}
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+								placeholder="Overnight"
+							/>
+						</div>
+						<div>
+							<label for="edit-feed-rate" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Rate (ml/hr)</label>
+							<input
+								id="edit-feed-rate"
 													type="number"
 													min="0"
 													bind:value={editFeedRate}
@@ -1803,6 +2380,9 @@
 										<div class="text-base font-semibold text-gray-900 dark:text-slate-100 capitalize">
 											{feed.mode || 'bolus'}
 										</div>
+										{#if feed.name}
+											<div class="text-sm text-gray-700 dark:text-slate-200">{feed.name}</div>
+										{/if}
 										{#if (feed.mode || 'bolus') === 'continuous'}
 											<div class="text-sm text-gray-600 dark:text-slate-300">
 												Rate {feed.rate_ml_hr || '-'} ml/hr · Interval {feed.interval_hr || '-'} hr
@@ -1913,6 +2493,49 @@
 							bind:value={notificationsSnoozeMinutes}
 							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
 						/>
+					</div>
+				</div>
+				<div class="mt-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4 space-y-3">
+					<div>
+						<h3 class="text-base font-semibold text-slate-900 dark:text-slate-100">Device push status</h3>
+						<p class="text-sm text-slate-600 dark:text-slate-300">Enable push notifications on this device after turning on push in settings.</p>
+					</div>
+					<div class="text-sm text-slate-700 dark:text-slate-200 space-y-1">
+						<div>Supported: {pushSupported ? 'Yes' : 'No'}</div>
+						<div>Permission: {pushPermission}</div>
+						<div>Subscribed: {pushSubscriptionActive ? 'Yes' : 'No'}</div>
+					</div>
+					{#if pushActionError}
+						<p class="text-sm text-red-700 dark:text-red-200">{pushActionError}</p>
+					{/if}
+					{#if pushTestStatus}
+						<p class="text-sm text-emerald-700 dark:text-emerald-200">{pushTestStatus}</p>
+					{/if}
+					<div class="flex flex-wrap gap-3">
+						<button
+							type="button"
+							on:click={handleEnableDevicePush}
+							disabled={pushActionLoading || !pushSupported}
+							class="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white disabled:opacity-50"
+						>
+							Enable on this device
+						</button>
+						<button
+							type="button"
+							on:click={handleDisableDevicePush}
+							disabled={pushActionLoading || !pushSupported}
+							class="px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
+						>
+							Disable on this device
+						</button>
+						<button
+							type="button"
+							on:click={handleSendTestNotification}
+							disabled={pushActionLoading || !pushSubscriptionActive}
+							class="px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
+						>
+							Send test notification
+						</button>
 					</div>
 				</div>
 				<div>

@@ -9,6 +9,7 @@
 	export let type = null;
 	export let recipientId = null;
 	export let allowedTypes = null;
+	export let readOnly = false;
 
 	let events = [];
 	let loading = true;
@@ -123,12 +124,11 @@
 			...($timezone === 'local' ? {} : options)
 		});
 		const day = date.toLocaleDateString('en-US', {
-			year: '2-digit',
-			month: 'numeric',
+			month: 'short',
 			day: 'numeric',
 			...($timezone === 'local' ? {} : options)
 		});
-		return `${time} ${day}`;
+		return `${time} · ${day}`;
 	}
 
 	function formatMetadata(event) {
@@ -140,12 +140,19 @@
 			case 'feeding':
 				if (metadata?.mode === 'continuous') {
 					const status = metadata?.status || (metadata?.duration_min ? 'stopped' : 'started');
+					const detailParts = [];
+					if (metadata?.name) detailParts.push(metadata.name);
+					if (metadata?.rate_ml_hr) detailParts.push(`Rate ${metadata.rate_ml_hr} ml/hr`);
+					if (metadata?.dose_ml) detailParts.push(`Dose ${metadata.dose_ml} ml`);
+					if (metadata?.interval_hr) detailParts.push(`Interval ${metadata.interval_hr} hr`);
 					if (status === 'stopped') {
 						const total = metadata?.pump_total_ml ?? metadata?.amount_ml;
 						const totalLabel = total ? `${total}ml` : 'total pending';
-						return `Continuous feed stopped · ${totalLabel}`;
+						const detailText = detailParts.length ? ` · ${detailParts.join(' · ')}` : '';
+						return `Continuous feed stopped · ${totalLabel}${detailText}`;
 					}
-					return 'Continuous feed started';
+					const detailText = detailParts.length ? ` · ${detailParts.join(' · ')}` : '';
+					return `Continuous feed started${detailText}`;
 				}
 				if (metadata?.mode === 'oral') {
 					return metadata?.oral_notes || event.notes || 'Oral feeding';
@@ -178,15 +185,70 @@
 		}
 	}
 
+	function getTimeZoneOffsetMinutes(date, timeZone) {
+		const parts = new Intl.DateTimeFormat('en-US', {
+			timeZone,
+			timeZoneName: 'shortOffset',
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23'
+		}).formatToParts(date);
+		const tzPart = parts.find((part) => part.type === 'timeZoneName');
+		const match = tzPart?.value?.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/);
+		if (!match) return 0;
+		const hours = parseInt(match[1], 10);
+		const minutes = match[2] ? parseInt(match[2], 10) : 0;
+		return hours * 60 + (hours >= 0 ? minutes : -minutes);
+	}
+
+	function formatDateTimeForInput(dateValue) {
+		if ($timezone === 'local') {
+			const offsetMs = dateValue.getTimezoneOffset() * 60000;
+			const local = new Date(dateValue.getTime() - offsetMs);
+			return local.toISOString().slice(0, 16);
+		}
+		const parts = new Intl.DateTimeFormat('en-CA', {
+			timeZone: $timezone,
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23'
+		}).formatToParts(dateValue);
+		const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+		return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
+	}
+
 	function toDateTimeLocal(value) {
 		if (!value) return '';
 		const date = new Date(value);
-		const offsetMs = date.getTimezoneOffset() * 60000;
-		const local = new Date(date.getTime() - offsetMs);
-		return local.toISOString().slice(0, 16);
+		return formatDateTimeForInput(date);
+	}
+
+	function toUtcIsoFromInput(value) {
+		if (!value) return null;
+		if ($timezone === 'local') {
+			return new Date(value).toISOString();
+		}
+		const [datePart, timePart] = value.split('T');
+		if (!datePart || !timePart) return null;
+		const [year, month, day] = datePart.split('-').map(Number);
+		const [hour, minute] = timePart.split(':').map(Number);
+		let utcMillis = Date.UTC(year, month - 1, day, hour, minute);
+		let offset = getTimeZoneOffsetMinutes(new Date(utcMillis), $timezone);
+		utcMillis -= offset * 60000;
+		const offsetCheck = getTimeZoneOffsetMinutes(new Date(utcMillis), $timezone);
+		if (offsetCheck !== offset) {
+			utcMillis = Date.UTC(year, month - 1, day, hour, minute) - offsetCheck * 60000;
+		}
+		return new Date(utcMillis).toISOString();
 	}
 
 	async function startEdit(event) {
+		if (readOnly) {
+			return;
+		}
 		editError = '';
 		photosError = '';
 		eventPhotos = [];
@@ -249,7 +311,7 @@
 		try {
 			const payload = {
 				type: editEvent.type,
-				timestamp: editEvent.timestamp ? new Date(editEvent.timestamp).toISOString() : null,
+				timestamp: editEvent.timestamp ? toUtcIsoFromInput(editEvent.timestamp) : null,
 				notes: editEvent.notes || null,
 				metadata: editEvent.metadata || {},
 				recipient_id: editEvent.recipient_id || null
@@ -283,6 +345,7 @@
 
 	export async function openById(eventId) {
 		if (!eventId) return;
+		if (readOnly) return;
 		let target = events.find(item => item.id === eventId);
 		if (!target) {
 			try {
@@ -309,14 +372,17 @@
 	{:else if events.length === 0}
 		<div class="text-center py-10">
 			<p class="text-gray-600 dark:text-slate-300 text-base">No events recorded yet</p>
-			<p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Tap the + button to create your first entry</p>
+			{#if !readOnly}
+				<p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Tap the + button to create your first entry</p>
+			{/if}
 		</div>
 	{:else}
 		{#each events as event (event.id)}
 			<button
 				type="button"
 				on:click={() => startEdit(event)}
-				class="text-left bg-white dark:bg-slate-900 rounded-xl shadow p-4 sm:p-5 hover:shadow-md transition-shadow w-full"
+				disabled={readOnly}
+				class={`text-left bg-white dark:bg-slate-900 rounded-xl shadow p-4 sm:p-5 transition-shadow w-full ${readOnly ? 'cursor-default' : 'hover:shadow-md'}`}
 			>
 				<div class="flex items-start gap-3">
 					<!-- Event Icon -->
@@ -342,7 +408,7 @@
 							</div>
 
 							<!-- Time Badge -->
-							<span class={`px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap ${getEventBadgeClass(event.type)}`}>
+							<span class={`px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-full whitespace-normal sm:whitespace-nowrap leading-tight ${getEventBadgeClass(event.type)}`}>
 								{formatTime(event.timestamp)}
 							</span>
 						</div>
@@ -491,6 +557,16 @@
 
 						{#if editEvent.metadata.mode === 'continuous'}
 							<div class="grid gap-3 sm:grid-cols-2">
+								<div class="sm:col-span-2">
+									<label for="edit-feeding-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feed Name</label>
+									<input
+										id="edit-feeding-name"
+										type="text"
+										bind:value={editEvent.metadata.name}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+										placeholder="Overnight"
+									/>
+								</div>
 								<div>
 									<label for="edit-feeding-status" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Status</label>
 									<select
@@ -796,7 +872,7 @@
 					{:else if photosError}
 						<p class="text-sm text-red-600 dark:text-red-400">{photosError}</p>
 					{:else if eventPhotos.length > 0}
-						<PhotoGallery photos={eventPhotos} on:delete={handlePhotoDelete} />
+						<PhotoGallery photos={eventPhotos} on:delete={handlePhotoDelete} canDelete={!readOnly} />
 					{:else}
 						<p class="text-sm text-gray-500 dark:text-slate-400 italic">No photos attached</p>
 					{/if}
@@ -804,29 +880,31 @@
 			</div>
 			<div class="flex flex-wrap items-center justify-between gap-3 p-6 border-t border-gray-200 dark:border-slate-800">
 				<div class="flex items-center gap-2">
-					{#if deleteTargetId === editEvent.id}
-						<button
-							type="button"
-							on:click={() => handleDelete(editEvent.id)}
-							class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700"
-						>
-							Confirm Delete
-						</button>
-						<button
-							type="button"
-							on:click={() => deleteTargetId = null}
-							class="px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-						>
-							Cancel
-						</button>
-					{:else}
-						<button
-							type="button"
-							on:click={() => deleteTargetId = editEvent.id}
-							class="px-4 py-2 text-sm font-semibold rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950"
-						>
-							Delete
-						</button>
+					{#if !readOnly}
+						{#if deleteTargetId === editEvent.id}
+							<button
+								type="button"
+								on:click={() => handleDelete(editEvent.id)}
+								class="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700"
+							>
+								Confirm Delete
+							</button>
+							<button
+								type="button"
+								on:click={() => deleteTargetId = null}
+								class="px-4 py-2 text-sm font-semibold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+							>
+								Cancel
+							</button>
+						{:else}
+							<button
+								type="button"
+								on:click={() => deleteTargetId = editEvent.id}
+								class="px-4 py-2 text-sm font-semibold rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950"
+							>
+								Delete
+							</button>
+						{/if}
 					{/if}
 				</div>
 				<button
@@ -836,14 +914,16 @@
 				>
 					Cancel
 				</button>
-				<button
-					type="button"
-					on:click={saveEdit}
-					disabled={editLoading}
-					class="px-4 py-2 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400"
-				>
-					{editLoading ? 'Saving...' : 'Save Changes'}
-				</button>
+				{#if !readOnly}
+					<button
+						type="button"
+						on:click={saveEdit}
+						disabled={editLoading}
+						class="px-4 py-2 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400"
+					>
+						{editLoading ? 'Saving...' : 'Save Changes'}
+					</button>
+				{/if}
 			</div>
 		</div>
 	</div>

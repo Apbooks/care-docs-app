@@ -308,17 +308,23 @@
 					>
 						Dashboard
 					</button>
+				<button
+					on:click={() => { closeMenu(); goto('/history'); }}
+					class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+				>
+					History
+				</button>
+				<button
+					on:click={() => { closeMenu(); goto('/settings'); }}
+					class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
+				>
+					Settings
+				</button>
+				{#if userIsAdmin}
 					<button
-						on:click={() => { closeMenu(); goto('/history'); }}
+						on:click={() => { closeMenu(); goto('/admin'); }}
 						class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
 					>
-						History
-					</button>
-					{#if userIsAdmin}
-						<button
-							on:click={() => { closeMenu(); goto('/admin'); }}
-							class="w-full text-left px-2 py-3 text-base text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg"
-						>
 							Admin Panel
 						</button>
 					{/if}

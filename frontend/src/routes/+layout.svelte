@@ -8,16 +8,24 @@
 
 	onMount(() => {
 		initTheme();
-		initSettings();
-		initRecipients();
-		refreshSession();
+		const path = typeof window !== 'undefined' ? window.location.pathname : '';
+		const isInviteRoute = path.startsWith('/invite/');
+		if (!isInviteRoute) {
+			initSettings();
+		}
+		if (!isInviteRoute) {
+			initRecipients();
+			refreshSession();
+		}
 
 		const intervalId = setInterval(() => {
-			refreshSession();
+			if (!isInviteRoute) {
+				refreshSession();
+			}
 		}, 10 * 60 * 1000);
 
 		const handleVisibility = () => {
-			if (document.visibilityState === 'visible') {
+			if (document.visibilityState === 'visible' && !isInviteRoute) {
 				refreshSession();
 			}
 		};

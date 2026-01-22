@@ -15,6 +15,7 @@ from models.user import User
 from models.care_recipient import CareRecipient
 from routes.auth import get_current_user
 from routes.stream import broadcast_event
+from services.access_control import ensure_recipient_access, require_write_access
 from services.utils import to_utc_iso
 
 router = APIRouter()
@@ -24,6 +25,7 @@ ACTIVE_FEED_KEY_PREFIX = "active_continuous_feed"
 
 class ContinuousFeedStart(BaseModel):
     recipient_id: str = Field(..., min_length=1)
+    name: Optional[str] = Field(default=None, max_length=120)
     rate_ml_hr: Optional[float] = Field(default=None, ge=0)
     dose_ml: Optional[float] = Field(default=None, ge=0)
     interval_hr: Optional[float] = Field(default=None, ge=0)
@@ -102,6 +104,7 @@ async def get_active_continuous_feed(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Recipient not found or inactive"
         )
+    ensure_recipient_access(db, current_user, str(recipient.id))
 
     return ContinuousFeedStatus(active_feed=get_active_feed_setting(db, recipient_id), event=None)
 
@@ -112,12 +115,14 @@ async def start_continuous_feed(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_write_access(current_user)
     recipient = db.query(CareRecipient).filter(CareRecipient.id == payload.recipient_id).first()
     if not recipient or not recipient.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Recipient not found or inactive"
         )
+    ensure_recipient_access(db, current_user, str(recipient.id))
 
     if get_active_feed_setting(db, payload.recipient_id):
         raise HTTPException(
@@ -128,6 +133,7 @@ async def start_continuous_feed(
     start_time = datetime.now(timezone.utc)
     feed_data = {
         "recipient_id": str(recipient.id),
+        "name": payload.name.strip() if payload.name else None,
         "started_at": to_utc_iso(start_time),
         "rate_ml_hr": payload.rate_ml_hr,
         "dose_ml": payload.dose_ml,
@@ -171,12 +177,14 @@ async def stop_continuous_feed(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_write_access(current_user)
     recipient = db.query(CareRecipient).filter(CareRecipient.id == payload.recipient_id).first()
     if not recipient or not recipient.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Recipient not found or inactive"
         )
+    ensure_recipient_access(db, current_user, str(recipient.id))
 
     active_feed = get_active_feed_setting(db, payload.recipient_id)
     if not active_feed:
@@ -225,6 +233,7 @@ async def stop_continuous_feed(
         event_data={
             "mode": "continuous",
             "status": "stopped",
+            "name": active_feed.get("name"),
             "rate_ml_hr": active_feed.get("rate_ml_hr"),
             "dose_ml": active_feed.get("dose_ml"),
             "interval_hr": active_feed.get("interval_hr"),

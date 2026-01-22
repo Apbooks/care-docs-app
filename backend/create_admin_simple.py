@@ -4,10 +4,11 @@ Simple admin user creation script - directly creates admin user
 """
 
 import sys
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from database import SessionLocal, init_db
 from models.user import User
-import bcrypt
+from services.auth_service import get_password_hash, normalize_username, validate_password_strength
 
 
 def create_admin_user():
@@ -18,8 +19,9 @@ def create_admin_user():
     print("="*60 + "\n")
 
     # Get user input
-    username = input("Username: ").strip()
-    if not username:
+    username_input = input("Username: ").strip()
+    normalized_username = normalize_username(username_input)
+    if not normalized_username:
         print("Error: Username cannot be empty")
         sys.exit(1)
 
@@ -28,9 +30,10 @@ def create_admin_user():
         print("Error: Email cannot be empty")
         sys.exit(1)
 
-    password = input("Password: ").strip()
-    if len(password) < 6:
-        print("Error: Password must be at least 6 characters")
+    password = input("Password (include upper, lower, number): ").strip()
+    password_errors = validate_password_strength(password)
+    if password_errors:
+        print("Error: " + " ".join(password_errors))
         sys.exit(1)
 
     # Initialize database
@@ -43,9 +46,9 @@ def create_admin_user():
 
     try:
         # Check if username already exists
-        existing_user = db.query(User).filter(User.username == username).first()
+        existing_user = db.query(User).filter(func.lower(User.username) == normalized_username).first()
         if existing_user:
-            print(f"Error: Username '{username}' already exists")
+            print(f"Error: Username '{normalized_username}' already exists")
             sys.exit(1)
 
         # Check if email already exists
@@ -54,15 +57,13 @@ def create_admin_user():
             print(f"Error: Email '{email}' already exists")
             sys.exit(1)
 
-        # Hash password directly with bcrypt (truncate to 72 bytes)
-        print(f"Creating admin user '{username}'...")
-        password_bytes = password.encode('utf-8')[:72]
-        hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+        print(f"Creating admin user '{normalized_username}'...")
+        hashed = get_password_hash(password)
 
         admin_user = User(
-            username=username,
+            username=normalized_username,
             email=email,
-            password_hash=hashed.decode('utf-8'),
+            password_hash=hashed,
             role="admin",
             is_active=True
         )

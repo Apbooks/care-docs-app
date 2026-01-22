@@ -10,6 +10,7 @@ class QuickFeed(Base):
     __tablename__ = "quick_feeds"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    name = Column(String(120), nullable=True)
     mode = Column(String(20), nullable=False, default="bolus")
     amount_ml = Column(Integer, nullable=True)
     duration_min = Column(Integer, nullable=True)

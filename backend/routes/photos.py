@@ -16,6 +16,7 @@ from services.image_service import (
     save_image_to_disk,
     delete_image_from_disk,
 )
+from services.access_control import ensure_recipient_access, require_write_access
 
 router = APIRouter()
 
@@ -73,6 +74,8 @@ async def upload_photo(
     - Stripped of GPS/location EXIF data for privacy
     - A thumbnail will be generated for list views
     """
+    require_write_access(current_user)
+
     # Validate event exists
     try:
         event_uuid = UUID(event_id)
@@ -88,6 +91,8 @@ async def upload_photo(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found"
         )
+    if event.recipient_id:
+        ensure_recipient_access(db, current_user, str(event.recipient_id))
 
     # Validate file type
     if not file.content_type or not validate_image_type(file.content_type):
@@ -159,6 +164,8 @@ async def get_event_photos(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found"
         )
+    if event.recipient_id:
+        ensure_recipient_access(db, current_user, str(event.recipient_id))
 
     photos = db.query(Photo).filter(Photo.event_id == event_id).order_by(Photo.created_at).all()
 
@@ -178,6 +185,9 @@ async def get_photo(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Photo not found"
         )
+    event = db.query(Event).filter(Event.id == photo.event_id).first()
+    if event and event.recipient_id:
+        ensure_recipient_access(db, current_user, str(event.recipient_id))
 
     return photo_to_response(photo)
 
@@ -189,12 +199,16 @@ async def delete_photo(
     current_user: User = Depends(get_current_user)
 ):
     """Delete a photo."""
+    require_write_access(current_user)
     photo = db.query(Photo).filter(Photo.id == photo_id).first()
     if not photo:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Photo not found"
         )
+    event = db.query(Event).filter(Event.id == photo.event_id).first()
+    if event and event.recipient_id:
+        ensure_recipient_access(db, current_user, str(event.recipient_id))
 
     # Delete files from disk
     delete_image_from_disk(photo.filename)
@@ -215,5 +229,8 @@ async def get_photo_count(
     current_user: User = Depends(get_current_user)
 ):
     """Get the count of photos for an event (lightweight endpoint for badges)."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if event and event.recipient_id:
+        ensure_recipient_access(db, current_user, str(event.recipient_id))
     count = db.query(Photo).filter(Photo.event_id == event_id).count()
     return {"event_id": str(event_id), "count": count}

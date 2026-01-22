@@ -11,8 +11,9 @@ from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
 from routes.stream import broadcast_event
 from models.med_reminder import MedicationReminder
+from services.access_control import get_allowed_recipient_ids
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 class MedicationCreate(BaseModel):
@@ -94,6 +95,15 @@ async def list_medications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    allowed = get_allowed_recipient_ids(db, current_user)
+    if allowed is not None:
+        if recipient_id and recipient_id not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this recipient"
+            )
+        if not allowed:
+            return []
     query = db.query(Medication)
     if not include_inactive:
         query = query.filter(Medication.is_active.is_(True))
@@ -102,6 +112,10 @@ async def list_medications(
     if recipient_id:
         query = query.filter(
             (Medication.recipient_id == recipient_id) | (Medication.recipient_id.is_(None))
+        )
+    elif allowed is not None:
+        query = query.filter(
+            (Medication.recipient_id.in_(allowed)) | (Medication.recipient_id.is_(None))
         )
     meds = query.order_by(Medication.name.asc()).all()
     return [_to_response(med) for med in meds]

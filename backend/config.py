@@ -33,6 +33,20 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_CLAIM_EMAIL: str = "admin@example.com"
 
+    # Reminder Scheduler
+    SCHEDULER_ENABLED: bool = True
+    REMINDER_SCAN_INTERVAL_SECONDS: int = 60
+
+    # Email (SMTP) for password reset
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
+    FRONTEND_BASE_URL: str = "http://localhost:3000"
+
     @field_validator('JWT_SECRET_KEY')
     @classmethod
     def validate_jwt_secret(cls, v: str) -> str:

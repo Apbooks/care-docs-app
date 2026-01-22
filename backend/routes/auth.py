@@ -1,22 +1,31 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, Request, status, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
-from datetime import timedelta
+from datetime import timedelta, datetime
 import os
 import uuid
+import secrets
+import hashlib
 
 from database import get_db
 from models.user import User
+from models.user_recipient_access import UserRecipientAccess
+from models.password_reset_token import PasswordResetToken
+from models.care_recipient import CareRecipient
 from services.auth_service import (
     verify_password,
     get_password_hash,
     create_access_token,
     create_refresh_token,
     decode_token,
-    verify_token_type
+    verify_token_type,
+    normalize_username,
+    validate_password_strength
 )
 from config import get_settings
+from services.email_service import send_email
 
 settings = get_settings()
 router = APIRouter()
@@ -85,6 +94,27 @@ class UserProfileUpdate(BaseModel):
     display_name: Optional[str] = None
 
 
+class EmailUpdateRequest(BaseModel):
+    email: EmailStr
+    current_password: str
+
+
+class PasswordUpdateRequest(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+    confirm_password: str
+
+
 def _avatar_url(filename: Optional[str], request: Optional[Request] = None) -> Optional[str]:
     if not filename:
         return None
@@ -92,6 +122,10 @@ def _avatar_url(filename: Optional[str], request: Optional[Request] = None) -> O
         base_url = str(request.base_url).rstrip("/")
         return f"{base_url}/avatars/{filename}"
     return f"/avatars/{filename}"
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 # Helper function to get current user from token
@@ -158,8 +192,24 @@ async def register_user(
 
     Only administrators can create new user accounts to ensure proper access control.
     """
-    # Check if username already exists
-    existing_user = db.query(User).filter(User.username == user_data.username).first()
+    normalized_username = normalize_username(user_data.username)
+    if not normalized_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username is required"
+        )
+
+    password_errors = validate_password_strength(user_data.password)
+    if password_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=" ".join(password_errors)
+        )
+
+    # Check if username already exists (case-insensitive)
+    existing_user = db.query(User).filter(
+        func.lower(User.username) == normalized_username
+    ).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,15 +225,15 @@ async def register_user(
         )
 
     # Validate role
-    if user_data.role not in ["admin", "caregiver"]:
+    if user_data.role not in ["admin", "caregiver", "read_only"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role. Must be 'admin' or 'caregiver'"
+            detail="Invalid role. Must be 'admin', 'caregiver', or 'read_only'"
         )
 
     # Create new user
     new_user = User(
-        username=user_data.username,
+        username=normalized_username,
         email=user_data.email,
         password_hash=get_password_hash(user_data.password),
         role=user_data.role
@@ -219,7 +269,10 @@ async def login(
     for enhanced security.
     """
     # Find user by username
-    user = db.query(User).filter(User.username == login_data.username).first()
+    normalized_username = normalize_username(login_data.username)
+    user = db.query(User).filter(
+        func.lower(User.username) == normalized_username
+    ).first()
 
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
@@ -336,6 +389,61 @@ async def update_current_user(
     )
 
 
+@router.patch("/me/email", response_model=UserResponse)
+async def update_current_user_email(
+    payload: EmailUpdateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+
+    next_email = payload.email.strip().lower()
+    existing = db.query(User).filter(
+        func.lower(User.email) == func.lower(next_email),
+        User.id != current_user.id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already in use")
+
+    current_user.email = next_email
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    return UserResponse(
+        id=str(current_user.id),
+        username=current_user.username,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        avatar_url=_avatar_url(current_user.avatar_filename, request),
+        role=current_user.role,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at.isoformat()
+    )
+
+
+@router.patch("/me/password")
+async def update_current_user_password(
+    payload: PasswordUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
+    errors = validate_password_strength(payload.new_password)
+    if errors:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=" ".join(errors))
+
+    current_user.password_hash = get_password_hash(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    return {"message": "Password updated"}
+
+
 @router.post("/me/avatar", response_model=UserResponse)
 async def upload_avatar(
     request: Request,
@@ -447,12 +555,100 @@ async def refresh_access_token(
     }
 
 # ============================================================================
+# PASSWORD RESET
+# ============================================================================
+
+@router.post("/password-reset/request")
+async def request_password_reset(
+    payload: PasswordResetRequest,
+    db: Session = Depends(get_db)
+):
+    if not settings.SMTP_HOST or not settings.SMTP_FROM:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email service is not configured"
+        )
+
+    user = db.query(User).filter(func.lower(User.email) == func.lower(payload.email.strip())).first()
+    if user and user.is_active:
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None)
+        ).delete(synchronize_session=False)
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = _hash_reset_token(raw_token)
+        expires_at = datetime.utcnow() + timedelta(hours=2)
+
+        reset_token = PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at
+        )
+        db.add(reset_token)
+        db.commit()
+
+        base_url = settings.FRONTEND_BASE_URL.rstrip("/")
+        reset_link = f"{base_url}/reset-password?token={raw_token}"
+        subject = f"{settings.APP_NAME} password reset"
+        body = (
+            "We received a request to reset your password.\n\n"
+            f"Reset your password here: {reset_link}\n\n"
+            "If you did not request this, you can ignore this email."
+        )
+        try:
+            send_email(user.email, subject, body)
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc)
+            )
+
+    return {"message": "If that email address exists, a reset link has been sent."}
+
+
+@router.post("/password-reset/confirm")
+async def confirm_password_reset(
+    payload: PasswordResetConfirm,
+    db: Session = Depends(get_db)
+):
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
+    errors = validate_password_strength(payload.new_password)
+    if errors:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=" ".join(errors))
+
+    token_hash = _hash_reset_token(payload.token.strip())
+    reset_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.used_at.is_(None),
+        PasswordResetToken.expires_at > datetime.utcnow()
+    ).first()
+    if not reset_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
+    user = db.query(User).filter(User.id == reset_token.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
+    user.password_hash = get_password_hash(payload.new_password)
+    reset_token.used_at = datetime.utcnow()
+    db.add(user)
+    db.add(reset_token)
+    db.commit()
+    return {"message": "Password reset successful"}
+
+# ============================================================================
 # USER MANAGEMENT ENDPOINTS (Admin Only)
 # ============================================================================
 
 class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     role: Optional[str] = None
+
+
+class UserRecipientAccessUpdate(BaseModel):
+    recipient_ids: List[str]
 
 
 @router.get("/users", response_model=List[UserResponse])
@@ -504,7 +700,7 @@ async def update_user(
         user.is_active = user_update.is_active
 
     if user_update.role is not None:
-        if user_update.role not in ["admin", "caregiver"]:
+        if user_update.role not in ["admin", "caregiver", "read_only"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid role"
@@ -549,7 +745,62 @@ async def delete_user(
             detail="User not found"
         )
 
+    db.query(UserRecipientAccess).filter(
+        UserRecipientAccess.user_id == user_id
+    ).delete(synchronize_session=False)
+
     db.delete(user)
     db.commit()
 
     return {"message": "User deleted successfully"}
+
+
+@router.get("/users/{user_id}/recipients")
+async def get_user_recipients(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if user.role == "admin":
+        recipients = db.query(CareRecipient).filter(CareRecipient.is_active.is_(True)).all()
+        return {"recipient_ids": [str(rec.id) for rec in recipients]}
+
+    access_rows = db.query(UserRecipientAccess).filter(
+        UserRecipientAccess.user_id == user_id
+    ).all()
+    return {"recipient_ids": [str(row.recipient_id) for row in access_rows]}
+
+
+@router.put("/users/{user_id}/recipients")
+async def update_user_recipients(
+    user_id: str,
+    payload: UserRecipientAccessUpdate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_active_admin)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    recipients = db.query(CareRecipient).filter(
+        CareRecipient.id.in_(payload.recipient_ids)
+    ).all()
+    if len(recipients) != len(set(payload.recipient_ids)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="One or more recipients are invalid"
+        )
+
+    db.query(UserRecipientAccess).filter(
+        UserRecipientAccess.user_id == user_id
+    ).delete()
+
+    for recipient in recipients:
+        db.add(UserRecipientAccess(user_id=user_id, recipient_id=recipient.id))
+
+    db.commit()
+    return {"recipient_ids": [str(rec.id) for rec in recipients]}

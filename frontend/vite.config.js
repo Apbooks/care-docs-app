@@ -6,9 +6,11 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		SvelteKitPWA({
-			strategies: 'generateSW',
+			strategies: 'injectManifest',
 			scope: '/',
 			base: '/',
+			srcDir: 'src',
+			filename: 'service-worker.js',
 			manifest: {
 				short_name: 'CareDocsApp',
 				name: 'Care Documentation App',
@@ -38,7 +40,7 @@ export default defineConfig({
 					}
 				]
 			},
-			workbox: {
+			injectManifest: {
 				globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,woff,woff2,ico}'],
 				globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js']
 			},
@@ -51,6 +53,7 @@ export default defineConfig({
 	],
 	server: {
 		port: 3000,
+		allowedHosts: ['caredocs.apvinyldesigns.com'],
 		proxy: {
 			'/api': {
 				target: 'http://localhost:8000',

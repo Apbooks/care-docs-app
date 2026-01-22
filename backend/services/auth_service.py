@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List
 from jose import JWTError, jwt
 import hashlib
 import bcrypt
@@ -7,6 +7,19 @@ from config import get_settings
 
 settings = get_settings()
 
+def normalize_username(username: str) -> str:
+    return (username or "").strip().lower()
+
+
+def validate_password_strength(password: str) -> List[str]:
+    errors = []
+    if not any(ch.islower() for ch in password):
+        errors.append("Password must include a lowercase letter.")
+    if not any(ch.isupper() for ch in password):
+        errors.append("Password must include an uppercase letter.")
+    if not any(ch.isdigit() for ch in password):
+        errors.append("Password must include a number.")
+    return errors
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a stored bcrypt(sha256(password))."""

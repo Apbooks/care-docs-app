@@ -88,3 +88,6 @@ coverage.xml
 
 # Documentation
 .todo/
+
+# Local flowcharts
+flowcharts/

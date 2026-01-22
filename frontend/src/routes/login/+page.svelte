@@ -1,6 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth';
+	import { initRecipients } from '$lib/stores/recipients';
 	import { login } from '$lib/services/api';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
@@ -18,7 +19,7 @@
 			const response = await login(username, password);
 
 			// Store user data AND token in localStorage
-			authStore.setUser(response.user);
+			await authStore.setUser(response.user);
 
 			// Store access token in localStorage for cross-origin requests
 			if (response.access_token) {
@@ -27,6 +28,12 @@
 			if (response.refresh_token) {
 				localStorage.setItem('refresh_token', response.refresh_token);
 			}
+			if (response.access_token || response.refresh_token) {
+				await authStore.persistTokens(response.access_token, response.refresh_token);
+			}
+
+			// Load recipients so dashboard has a default selection
+			await initRecipients();
 
 			// Redirect to dashboard
 			goto('/');
@@ -94,6 +101,11 @@
 						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
 						placeholder="Enter your password"
 					/>
+					<div class="mt-2 text-right">
+						<a href="/forgot-password" class="text-sm text-blue-600 hover:text-blue-700">
+							Forgot password?
+						</a>
+					</div>
 				</div>
 
 				<!-- Login Button -->

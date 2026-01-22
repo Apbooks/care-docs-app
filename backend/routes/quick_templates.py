@@ -10,6 +10,7 @@ from models.quick_feed import QuickFeed
 from models.care_recipient import CareRecipient
 from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
+from services.access_control import get_allowed_recipient_ids
 
 router = APIRouter()
 VALID_FEED_MODES = ["continuous", "bolus", "oral"]
@@ -64,11 +65,23 @@ async def list_quick_medications(
             detail="Admin privileges required to view inactive templates"
         )
 
+    allowed = get_allowed_recipient_ids(db, current_user)
+    if allowed is not None:
+        if recipient_id and recipient_id not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this recipient"
+            )
+        if not allowed:
+            return []
+
     query = db.query(QuickMedication)
     if not include_inactive:
         query = query.filter(QuickMedication.is_active.is_(True))
     if recipient_id:
         query = query.filter(QuickMedication.recipient_id == recipient_id)
+    elif allowed is not None:
+        query = query.filter(QuickMedication.recipient_id.in_(allowed))
 
     meds = query.order_by(QuickMedication.created_at.desc()).all()
 
@@ -202,6 +215,7 @@ async def delete_quick_medication(
 # ============================================================================
 
 class QuickFeedCreate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=120)
     mode: str = Field(default="bolus", max_length=20)
     amount_ml: Optional[int] = Field(default=None, ge=0)
     duration_min: Optional[int] = Field(default=None, ge=0)
@@ -215,6 +229,7 @@ class QuickFeedCreate(BaseModel):
 
 
 class QuickFeedUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=120)
     mode: Optional[str] = Field(default=None, max_length=20)
     amount_ml: Optional[int] = Field(default=None, ge=0)
     duration_min: Optional[int] = Field(default=None, ge=0)
@@ -229,6 +244,7 @@ class QuickFeedUpdate(BaseModel):
 
 class QuickFeedResponse(BaseModel):
     id: str
+    name: Optional[str]
     mode: str
     amount_ml: Optional[int]
     duration_min: Optional[int]
@@ -261,17 +277,30 @@ async def list_quick_feeds(
             detail="Admin privileges required to view inactive templates"
         )
 
+    allowed = get_allowed_recipient_ids(db, current_user)
+    if allowed is not None:
+        if recipient_id and recipient_id not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this recipient"
+            )
+        if not allowed:
+            return []
+
     query = db.query(QuickFeed)
     if not include_inactive:
         query = query.filter(QuickFeed.is_active.is_(True))
     if recipient_id:
         query = query.filter(QuickFeed.recipient_id == recipient_id)
+    elif allowed is not None:
+        query = query.filter(QuickFeed.recipient_id.in_(allowed))
 
     feeds = query.order_by(QuickFeed.created_at.desc()).all()
 
     return [
         QuickFeedResponse(
             id=str(feed.id),
+            name=feed.name,
             mode=feed.mode,
             amount_ml=feed.amount_ml,
             duration_min=feed.duration_min,
@@ -309,6 +338,7 @@ async def create_quick_feed(
             detail="Recipient not found or inactive"
         )
     new_feed = QuickFeed(
+        name=data.name.strip() if data.name else None,
         mode=data.mode.strip().lower(),
         amount_ml=data.amount_ml,
         duration_min=data.duration_min,
@@ -328,6 +358,7 @@ async def create_quick_feed(
 
     return QuickFeedResponse(
         id=str(new_feed.id),
+        name=new_feed.name,
         mode=new_feed.mode,
         amount_ml=new_feed.amount_ml,
         duration_min=new_feed.duration_min,
@@ -361,6 +392,8 @@ async def update_quick_feed(
 
     if updates.amount_ml is not None:
         feed.amount_ml = updates.amount_ml
+    if updates.name is not None:
+        feed.name = updates.name.strip() if updates.name else None
     if updates.duration_min is not None:
         feed.duration_min = updates.duration_min
     if updates.formula_type is not None:
@@ -398,6 +431,7 @@ async def update_quick_feed(
 
     return QuickFeedResponse(
         id=str(feed.id),
+        name=feed.name,
         mode=feed.mode,
         amount_ml=feed.amount_ml,
         duration_min=feed.duration_min,
