@@ -416,7 +416,11 @@
 							<h3 class="font-semibold text-emerald-900 dark:text-emerald-100">Continuous Feed Running</h3>
 							<p class="text-base text-emerald-800 dark:text-emerald-200 mt-1">
 								Started {formatBannerTime(activeContinuousFeed.started_at)}
+								{#if activeContinuousFeed.name}
+									· {activeContinuousFeed.name}
+								{/if}
 								· Rate {activeContinuousFeed.rate_ml_hr || '-'} ml/hr
+								· Dose {activeContinuousFeed.dose_ml || '-'} ml
 								· Interval {activeContinuousFeed.interval_hr || '-'} hr
 							</p>
 						</div>

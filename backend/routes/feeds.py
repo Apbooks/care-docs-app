@@ -25,6 +25,7 @@ ACTIVE_FEED_KEY_PREFIX = "active_continuous_feed"
 
 class ContinuousFeedStart(BaseModel):
     recipient_id: str = Field(..., min_length=1)
+    name: Optional[str] = Field(default=None, max_length=120)
     rate_ml_hr: Optional[float] = Field(default=None, ge=0)
     dose_ml: Optional[float] = Field(default=None, ge=0)
     interval_hr: Optional[float] = Field(default=None, ge=0)
@@ -132,6 +133,7 @@ async def start_continuous_feed(
     start_time = datetime.now(timezone.utc)
     feed_data = {
         "recipient_id": str(recipient.id),
+        "name": payload.name.strip() if payload.name else None,
         "started_at": to_utc_iso(start_time),
         "rate_ml_hr": payload.rate_ml_hr,
         "dose_ml": payload.dose_ml,
@@ -231,6 +233,7 @@ async def stop_continuous_feed(
         event_data={
             "mode": "continuous",
             "status": "stopped",
+            "name": active_feed.get("name"),
             "rate_ml_hr": active_feed.get("rate_ml_hr"),
             "dose_ml": active_feed.get("dose_ml"),
             "interval_hr": active_feed.get("interval_hr"),

@@ -140,12 +140,19 @@
 			case 'feeding':
 				if (metadata?.mode === 'continuous') {
 					const status = metadata?.status || (metadata?.duration_min ? 'stopped' : 'started');
+					const detailParts = [];
+					if (metadata?.name) detailParts.push(metadata.name);
+					if (metadata?.rate_ml_hr) detailParts.push(`Rate ${metadata.rate_ml_hr} ml/hr`);
+					if (metadata?.dose_ml) detailParts.push(`Dose ${metadata.dose_ml} ml`);
+					if (metadata?.interval_hr) detailParts.push(`Interval ${metadata.interval_hr} hr`);
 					if (status === 'stopped') {
 						const total = metadata?.pump_total_ml ?? metadata?.amount_ml;
 						const totalLabel = total ? `${total}ml` : 'total pending';
-						return `Continuous feed stopped · ${totalLabel}`;
+						const detailText = detailParts.length ? ` · ${detailParts.join(' · ')}` : '';
+						return `Continuous feed stopped · ${totalLabel}${detailText}`;
 					}
-					return 'Continuous feed started';
+					const detailText = detailParts.length ? ` · ${detailParts.join(' · ')}` : '';
+					return `Continuous feed started${detailText}`;
 				}
 				if (metadata?.mode === 'oral') {
 					return metadata?.oral_notes || event.notes || 'Oral feeding';
@@ -550,6 +557,16 @@
 
 						{#if editEvent.metadata.mode === 'continuous'}
 							<div class="grid gap-3 sm:grid-cols-2">
+								<div class="sm:col-span-2">
+									<label for="edit-feeding-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feed Name</label>
+									<input
+										id="edit-feeding-name"
+										type="text"
+										bind:value={editEvent.metadata.name}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+										placeholder="Overnight"
+									/>
+								</div>
 								<div>
 									<label for="edit-feeding-status" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Status</label>
 									<select

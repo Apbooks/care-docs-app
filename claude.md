@@ -775,6 +775,12 @@ CREATE TABLE IF NOT EXISTS user_recipient_access (
 );
 ```
 
+### Quick Feeds Name (optional)
+
+```sql
+ALTER TABLE quick_feeds ADD COLUMN name varchar(120);
+```
+
 Quick meds migration (one-time):
 
 ```bash
@@ -964,6 +970,14 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 #### Fixed
 - [x] Resolved Vite host allowlist block for caredocs.apvinyldesigns.com by adding it to `server.allowedHosts` in `frontend/vite.config.js`
 - [x] Rebuilt production containers to apply the change (nginx reverse proxy preserved)
+
+### 2026-01-22 - Continuous Feed Naming + Quick Feed Templates (In Progress)
+
+#### Added
+- [x] Optional continuous feed name captured on start and stored in event metadata
+- [x] Dashboard banner + recent events now show feed name, rate, dose, and interval
+- [x] Quick feed templates support an optional name (UI + API)
+- [x] Dark mode quick template text contrast improved for rate/dose details
 
 ### 2026-01-16 - Consistent Navigation Across All Pages
 

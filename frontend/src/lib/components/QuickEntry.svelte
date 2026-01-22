@@ -48,6 +48,7 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 	let amountMl = '';
 	let durationMin = '';
 	let formulaType = '';
+	let feedName = '';
 	let feedRate = '';
 	let feedDose = '';
 	let feedInterval = '';
@@ -198,6 +199,7 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 		amountMl = '';
 		durationMin = '';
 		formulaType = '';
+		feedName = '';
 		feedingMode = 'bolus';
 		feedRate = '';
 		feedDose = '';
@@ -253,6 +255,7 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 		try {
 			const response = await startContinuousFeed({
 				recipient_id: $selectedRecipientId,
+				name: feedName || null,
 				rate_ml_hr: feedRate ? parseFloat(feedRate) : null,
 				dose_ml: feedDose ? parseFloat(feedDose) : null,
 				interval_hr: feedInterval ? parseFloat(feedInterval) : null,
@@ -347,6 +350,7 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 
 					const response = await startContinuousFeed({
 						recipient_id: $selectedRecipientId,
+						name: template.name || null,
 						rate_ml_hr: template.rate_ml_hr,
 						dose_ml: template.dose_ml,
 						interval_hr: template.interval_hr,
@@ -679,7 +683,7 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 										disabled={loading}
 									>
 										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm">{med.name}</div>
-										<div class="text-xs text-gray-700 mt-1">
+										<div class="text-xs text-gray-700 dark:text-slate-200 mt-1">
 											{med.default_dose ? `${med.default_dose}${med.dose_unit ? ` ${med.dose_unit}` : ''}` : 'Select dose'}
 										</div>
 									</button>
@@ -809,20 +813,23 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 										disabled={loading}
 									>
 										<div class="font-semibold text-gray-900 dark:text-slate-100 text-sm capitalize">
-											{feed.mode || 'bolus'}
+											{feed.name || feed.mode || 'bolus'}
 										</div>
+										{#if feed.name}
+											<div class="text-xs text-gray-500 dark:text-slate-300 mt-0.5 capitalize">{feed.mode || 'bolus'}</div>
+										{/if}
 										{#if (feed.mode || 'bolus') === 'continuous'}
-											<div class="text-xs text-gray-700 dark:text-slate-300 mt-1">{feed.rate_ml_hr || '-'} ml/hr · {feed.interval_hr || '-'} hr</div>
+											<div class="text-xs text-gray-700 dark:text-slate-200 mt-1">{feed.rate_ml_hr || '-'} ml/hr · {feed.interval_hr || '-'} hr</div>
 											{#if feed.dose_ml}
-												<div class="text-xs text-gray-600 dark:text-slate-400 mt-1">Dose {feed.dose_ml} ml</div>
+												<div class="text-xs text-gray-600 dark:text-slate-200 mt-1">Dose {feed.dose_ml} ml</div>
 											{/if}
 										{:else if (feed.mode || 'bolus') === 'oral'}
-											<div class="text-xs text-gray-700 dark:text-slate-300 mt-1 truncate">{feed.oral_notes || 'Oral notes'}</div>
+											<div class="text-xs text-gray-700 dark:text-slate-200 mt-1 truncate">{feed.oral_notes || 'Oral notes'}</div>
 										{:else}
-											<div class="text-xs text-gray-700 dark:text-slate-300 mt-1">{feed.amount_ml || '-'} ml</div>
+											<div class="text-xs text-gray-700 dark:text-slate-200 mt-1">{feed.amount_ml || '-'} ml</div>
 										{/if}
 										{#if feed.formula_type}
-											<div class="text-xs text-gray-600 dark:text-slate-400 mt-1">{feed.formula_type}</div>
+											<div class="text-xs text-gray-600 dark:text-slate-300 mt-1">{feed.formula_type}</div>
 										{/if}
 									</button>
 								{/each}
@@ -868,12 +875,27 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 										Feed running since {formatRunningTime(activeContinuousFeed.started_at)}
 									</p>
 									<p class="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
-										Rate {activeContinuousFeed.rate_ml_hr || '-'} ml/hr · Interval {activeContinuousFeed.interval_hr || '-'} hr
+										{#if activeContinuousFeed.name}
+											{activeContinuousFeed.name} ·
+										{/if}
+										Rate {activeContinuousFeed.rate_ml_hr || '-'} ml/hr · Dose {activeContinuousFeed.dose_ml || '-'} ml · Interval {activeContinuousFeed.interval_hr || '-'} hr
 									</p>
 								</div>
 							{/if}
 
 							<div class="grid gap-3 sm:grid-cols-2">
+								<div class="sm:col-span-2">
+									<label for="quick-feed-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+										Feed Name (optional)
+									</label>
+									<input
+										id="quick-feed-name"
+										type="text"
+										bind:value={feedName}
+										class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 text-base"
+										placeholder="Overnight"
+									/>
+								</div>
 								<div>
 									<label for="quick-feed-rate" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 										Feed Rate (ml/hr)

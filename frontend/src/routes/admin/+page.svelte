@@ -115,6 +115,7 @@
 	let newFeedDuration = '';
 	let newFeedFormula = '';
 	let newFeedMode = 'bolus';
+	let newFeedName = '';
 	let newFeedRate = '';
 	let newFeedDose = '';
 	let newFeedInterval = '';
@@ -124,6 +125,7 @@
 	let editFeedDuration = '';
 	let editFeedFormula = '';
 	let editFeedMode = 'bolus';
+	let editFeedName = '';
 	let editFeedRate = '';
 	let editFeedDose = '';
 	let editFeedInterval = '';
@@ -719,6 +721,7 @@
 
 		try {
 			const created = await createQuickFeed({
+				name: newFeedName || null,
 				mode: newFeedMode,
 				amount_ml: newFeedAmount ? parseInt(newFeedAmount) : null,
 				duration_min: newFeedDuration ? parseInt(newFeedDuration) : null,
@@ -734,6 +737,7 @@
 			newFeedDuration = '';
 			newFeedFormula = '';
 			newFeedMode = 'bolus';
+			newFeedName = '';
 			newFeedRate = '';
 			newFeedDose = '';
 			newFeedInterval = '';
@@ -771,6 +775,7 @@
 		editFeedDuration = feed.duration_min ?? '';
 		editFeedFormula = feed.formula_type ?? '';
 		editFeedMode = feed.mode || 'bolus';
+		editFeedName = feed.name ?? '';
 		editFeedRate = feed.rate_ml_hr ?? '';
 		editFeedDose = feed.dose_ml ?? '';
 		editFeedInterval = feed.interval_hr ?? '';
@@ -783,6 +788,7 @@
 		editFeedDuration = '';
 		editFeedFormula = '';
 		editFeedMode = 'bolus';
+		editFeedName = '';
 		editFeedRate = '';
 		editFeedDose = '';
 		editFeedInterval = '';
@@ -794,6 +800,7 @@
 
 		try {
 			const updated = await updateQuickFeed(editFeedId, {
+				name: editFeedName || null,
 				mode: editFeedMode,
 				amount_ml: editFeedAmount === '' ? null : parseInt(editFeedAmount),
 				duration_min: editFeedDuration === '' ? null : parseInt(editFeedDuration),
@@ -2140,6 +2147,16 @@
 				</div>
 
 				{#if newFeedMode === 'continuous'}
+					<div class="sm:col-span-4">
+						<label for="new-feed-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Feed Name (optional)</label>
+						<input
+							id="new-feed-name"
+							type="text"
+							bind:value={newFeedName}
+							class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
+							placeholder="Overnight"
+						/>
+					</div>
 					<div>
 						<label for="new-feed-rate" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Rate (ml/hr)</label>
 						<input
@@ -2257,11 +2274,21 @@
 									</div>
 
 									{#if editFeedMode === 'continuous'}
-										<div class="grid gap-3 sm:grid-cols-2">
-											<div>
-												<label for="edit-feed-rate" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Rate (ml/hr)</label>
-												<input
-													id="edit-feed-rate"
+					<div class="grid gap-3 sm:grid-cols-2">
+						<div class="sm:col-span-2">
+							<label for="edit-feed-name" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Feed Name</label>
+							<input
+								id="edit-feed-name"
+								type="text"
+								bind:value={editFeedName}
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+								placeholder="Overnight"
+							/>
+						</div>
+						<div>
+							<label for="edit-feed-rate" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Rate (ml/hr)</label>
+							<input
+								id="edit-feed-rate"
 													type="number"
 													min="0"
 													bind:value={editFeedRate}
@@ -2353,6 +2380,9 @@
 										<div class="text-base font-semibold text-gray-900 dark:text-slate-100 capitalize">
 											{feed.mode || 'bolus'}
 										</div>
+										{#if feed.name}
+											<div class="text-sm text-gray-700 dark:text-slate-200">{feed.name}</div>
+										{/if}
 										{#if (feed.mode || 'bolus') === 'continuous'}
 											<div class="text-sm text-gray-600 dark:text-slate-300">
 												Rate {feed.rate_ml_hr || '-'} ml/hr · Interval {feed.interval_hr || '-'} hr
