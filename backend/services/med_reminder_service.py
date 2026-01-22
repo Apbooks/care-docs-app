@@ -17,7 +17,10 @@ def _ensure_utc(value: Optional[datetime]) -> Optional[datetime]:
 
 
 def calculate_next_due(reminder: MedicationReminder, now: Optional[datetime] = None) -> Optional[datetime]:
-    base = reminder.last_given_at or reminder.start_time
+    if not reminder.medication or not reminder.medication.is_active:
+        return None
+    # Only show reminders after the medication has been given at least once.
+    base = reminder.last_given_at
     if base is None:
         return None
     base = _ensure_utc(base)

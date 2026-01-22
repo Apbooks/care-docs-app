@@ -150,6 +150,7 @@
 		}
 		medRemindersLoading = true;
 		medRemindersError = '';
+		medReminders = [];
 		try {
 			medReminders = await getNextMedReminders($selectedRecipientId, 10);
 		} catch (err) {

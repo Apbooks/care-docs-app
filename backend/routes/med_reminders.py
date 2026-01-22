@@ -191,8 +191,9 @@ async def skip_reminder(
     if not reminder:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reminder not found")
     ensure_recipient_access(db, current_user, str(reminder.recipient_id))
-    reminder.enabled = False
+    # Skipping pauses reminders until the next dose is logged, without disabling the reminder.
     reminder.last_skipped_at = datetime.now(timezone.utc)
+    reminder.last_given_at = None
     db.add(reminder)
     db.commit()
     reminder = db.query(MedicationReminder).options(joinedload(MedicationReminder.medication)).get(reminder.id)
@@ -234,6 +235,10 @@ async def next_reminders(
     results: List[MedReminderNextResponse] = []
     now = datetime.now(timezone.utc)
     for reminder in reminders:
+        if not reminder.medication or not reminder.medication.is_active:
+            if reminder.medication is None:
+                db.delete(reminder)
+            continue
         next_due = calculate_next_due(reminder, now)
         if not next_due:
             continue
@@ -253,6 +258,7 @@ async def next_reminders(
         ))
 
     results.sort(key=lambda item: item.next_due or "")
+    db.commit()
     return results[:limit]
 
 

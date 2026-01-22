@@ -254,15 +254,16 @@
 ### 2026-01-19 - Status Check (No code changes)
 
 #### Current Focus
-- Pending migrations for new columns (see list above)
-- Web Push notifications and reminder UI still not implemented (Phase 6 "Reminders & Notifications")
+- Reminder management UI (create/edit/snooze/dismiss) and notification click handling still not implemented
+- Testing infrastructure still not in place (pytest/Vitest/E2E)
+- Deployment gaps: HTTPS cert automation, scheduled backups, performance tuning
 
 ### 2026-01-19 - Next Steps Identified (No code changes)
 
 #### Next Up
-- Implement Reminders & Notifications (Web Push API setup, permission flow, reminder management UI, notification service, APScheduler integration)
+- Build reminder management UI + snooze/dismiss flows and hook notification clicks
 - Add testing infrastructure (pytest, Vitest) and cover core auth/event/reminder flows
-- Address deployment gaps: HTTPS, automated backups, performance optimization
+- Address deployment gaps: HTTPS automation, backups, performance optimization
 
 ### 2026-01-19 - Reminder Scheduler + Notification Endpoints (Backend Complete)
 
@@ -689,7 +690,7 @@ _To be measured after deployment_
 
 ---
 
-**Last Updated:** 2026-01-20 (Invites + access control)
+**Last Updated:** 2026-01-22 (Quick feed naming + release v0.2.0)
 
 ---
 
@@ -701,6 +702,10 @@ _To be measured after deployment_
 - Documenting architecture decisions
 - Recording deployment changes
 - Noting any known issues
+
+Branch workflow: default to working on `dev` unless explicitly told otherwise. Merge to `main` only when requested.
+
+Release workflow: tag stable merges to `main` using semantic versions (e.g., `v0.2.0`) and create a GitHub Release.
 
 After completing work, always commit changes and push to the remote repository.
 
@@ -978,6 +983,20 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 - [x] Dashboard banner + recent events now show feed name, rate, dose, and interval
 - [x] Quick feed templates support an optional name (UI + API)
 - [x] Dark mode quick template text contrast improved for rate/dose details
+
+### 2026-01-22 - Release v0.2.0
+
+#### Released
+- [x] Merged `dev` into `main` and tagged `v0.2.0`
+- [x] Created GitHub Release for `v0.2.0`
+
+### 2026-01-22 - Reminder Banner Cleanup
+
+#### Fixed
+- [x] Hide med reminders when the medication is deleted or inactive (prevents stale "due now" banner)
+- [x] Clear reminder banner state before refresh to avoid stale items on fetch errors
+- [x] Only show reminders after a medication has been logged at least once
+- [x] Skip dose now pauses reminders without disabling them (resumes on next logged dose)
 
 ### 2026-01-16 - Consistent Navigation Across All Pages
 
