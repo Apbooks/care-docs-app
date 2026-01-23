@@ -14,7 +14,7 @@ mkdir -p "$BACKUP_DIR"
 
 # Backup database
 echo "Starting backup at $(date)"
-docker-compose -f /home/pi/care-docs-app/docker-compose.prod.yml exec -T db \
+docker compose -f /home/pi/care-docs-app/docker-compose.yml exec -T db \
   pg_dump -U careapp caredb > "${BACKUP_DIR}/${BACKUP_FILE}"
 
 # Compress backup

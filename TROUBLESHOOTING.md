@@ -2,7 +2,7 @@
 
 ## Problem: Site down after running dev stack / rebuild
 
-**Cause:** Running the dev stack (`docker-compose.yml`) on the production host will
+**Cause:** Running the dev stack (`docker-compose.dev.yml`) on the production host will
 remove or conflict with the production nginx container. NPM expects the site on
 `http://<host-ip>:8080`.
 
@@ -12,7 +12,7 @@ remove or conflict with the production nginx container. NPM expects the site on
 docker compose down
 
 # Start production stack
-./scripts/prod-up.sh
+docker compose up -d --build
 
 # Confirm nginx is listening on 8080
 curl -I http://localhost:8080/
@@ -49,7 +49,7 @@ git pull origin main
 # Edit .env and ensure CORS_ORIGINS is comma-separated
 nano .env
 # Restart containers
-docker compose -f docker-compose.prod.yml restart
+docker compose restart
 ```
 
 ---
@@ -97,7 +97,7 @@ docker exec -it care-docs-app_backend_1 python create_admin.py
 This automatically finds the correct container:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec backend python create_admin.py
+docker compose exec backend python create_admin.py
 ```
 
 This is the **recommended method** as it doesn't require knowing the exact container name.
@@ -114,25 +114,25 @@ docker ps
 ### View Logs
 ```bash
 # All services
-docker compose -f docker-compose.prod.yml logs -f
+docker compose logs -f
 
 # Just backend
-docker compose -f docker-compose.prod.yml logs -f backend
+docker compose logs -f backend
 ```
 
 ### Restart Services
 ```bash
-docker compose -f docker-compose.prod.yml restart
+docker compose restart
 ```
 
 ### Stop Services
 ```bash
-docker compose -f docker-compose.prod.yml down
+docker compose down
 ```
 
 ### Rebuild and Restart
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 ```
 
 ---
@@ -148,7 +148,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 # Find what's using the port
 sudo lsof -i :3000
 
-# Stop the conflicting service or change ports in docker-compose.prod.yml
+# Stop the conflicting service or change ports in docker-compose.yml
 ```
 
 ### Database Connection Failed
@@ -160,14 +160,14 @@ docker ps | grep db
 
 **View database logs:**
 ```bash
-docker compose -f docker-compose.prod.yml logs db
+docker compose logs db
 ```
 
 ### API Not Responding
 
 **Check backend logs:**
 ```bash
-docker compose -f docker-compose.prod.yml logs backend
+docker compose logs backend
 ```
 
 **Common causes:**
@@ -177,7 +177,7 @@ docker compose -f docker-compose.prod.yml logs backend
 
 **Solution:** Check logs and restart backend:
 ```bash
-docker compose -f docker-compose.prod.yml restart backend
+docker compose restart backend
 ```
 
 ---
@@ -185,7 +185,7 @@ docker compose -f docker-compose.prod.yml restart backend
 ## Getting Help
 
 1. **Check container status:** `docker ps -a`
-2. **View logs:** `docker compose -f docker-compose.prod.yml logs`
+2. **View logs:** `docker compose logs`
 3. **Verify .env file:** `cat backend/.env` (check JWT_SECRET_KEY is set)
 4. **Test API health:** `curl http://localhost:8000/api/health`
 

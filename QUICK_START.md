@@ -3,14 +3,14 @@
 ## Production-Only (Recommended on this host)
 
 This host should run **production only**. The reverse proxy (Nginx Proxy Manager) points to
-`http://localhost:8080`, which is the nginx container in `docker-compose.prod.yml`.
+`http://localhost:8080`, which is the nginx container in `docker-compose.yml`.
 
 ### Start / Stop / Status
 ```bash
-./scripts/prod-up.sh
-./scripts/prod-status.sh
-./scripts/prod-logs.sh
-./scripts/prod-down.sh
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
+docker compose down
 ```
 
 ### One-time checks
@@ -18,7 +18,7 @@ This host should run **production only**. The reverse proxy (Nginx Proxy Manager
 - NPM should proxy `caredocs.apvinyldesigns.com` → `http://<host-ip>:8080`
 
 ### Do not run dev on this host
-The dev stack (`docker-compose.yml`) uses ports 3000/8000 and will collide with production.
+The dev stack (`docker-compose.dev.yml`) uses ports 3000/8000 and will collide with production.
 Run it on a different machine if needed.
 
 ## What Was Fixed
@@ -80,11 +80,10 @@ openssl rand -hex 32
 nano .env  # Paste the generated key as JWT_SECRET_KEY
 
 # 4. Start Docker containers
-cd ..
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 
 # 5. Create admin user
-docker compose -f docker-compose.prod.yml exec backend python create_admin.py
+docker compose exec backend python create_admin.py
 ```
 
 ---
@@ -145,7 +144,7 @@ CORS_ORIGINS=http://192.168.1.100:3000,https://mydomain.com
 
 Check logs:
 ```bash
-docker compose -f docker-compose.prod.yml logs backend
+docker compose logs backend
 ```
 
 ---
@@ -163,8 +162,9 @@ docker compose -f docker-compose.prod.yml logs backend
 
 - `DEPLOYMENT_GUIDE.md` - Comprehensive deployment documentation
 - `scripts/pi-setup.sh` - Automated setup script
-- `backend/.env.example` - Environment variable template
-- `docker-compose.prod.yml` - Production Docker configuration
+- `.env.example` - Environment variable template
+- `docker-compose.yml` - Production Docker configuration (default)
+- `docker-compose.dev.yml` - Development Docker configuration
 
 ---
 

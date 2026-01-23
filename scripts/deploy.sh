@@ -15,9 +15,9 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
-    echo "Docker Compose is not installed. Please install Docker Compose first."
+# Check if Docker Compose plugin is installed
+if ! docker compose version &> /dev/null; then
+    echo "Docker Compose is not installed. Please install the Docker Compose plugin first."
     exit 1
 fi
 
@@ -34,11 +34,11 @@ git pull origin main
 
 # Stop existing containers
 echo "Stopping existing containers..."
-docker-compose -f docker-compose.prod.yml down
+docker compose down
 
 # Build and start containers
 echo "Building and starting containers..."
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 
 # Wait for services to be ready
 echo "Waiting for services to start..."
@@ -46,12 +46,12 @@ sleep 10
 
 # Check if services are running
 echo "Checking service status..."
-docker-compose -f docker-compose.prod.yml ps
+docker compose ps
 
 # Show logs
 echo ""
 echo "Deployment complete!"
 echo ""
-echo "View logs with: docker-compose -f docker-compose.prod.yml logs -f"
+echo "View logs with: docker compose logs -f"
 echo "Access application at: http://$(hostname -I | awk '{print $1}')"
 echo ""

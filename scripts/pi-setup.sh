@@ -10,8 +10,8 @@ echo "=========================================="
 echo ""
 
 # Check if we're in the right directory
-if [ ! -f "docker-compose.prod.yml" ]; then
-    echo "Error: docker-compose.prod.yml not found!"
+if [ ! -f "docker-compose.yml" ]; then
+    echo "Error: docker-compose.yml not found!"
     echo "Please run this script from the project root directory."
     exit 1
 fi
@@ -101,10 +101,10 @@ echo "=========================================="
 echo ""
 
 # Stop any running containers
-docker compose -f docker-compose.prod.yml down 2>/dev/null || true
+docker compose down 2>/dev/null || true
 
 # Build and start containers
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 
 echo ""
 echo "Waiting for services to start..."
@@ -113,7 +113,7 @@ sleep 10
 # Check container status
 echo ""
 echo "Container Status:"
-docker compose -f docker-compose.prod.yml ps
+docker compose ps
 
 echo ""
 echo "=========================================="
@@ -155,16 +155,16 @@ echo ""
 echo "Next Steps:"
 echo ""
 echo "1. Create an admin user:"
-echo "   docker compose -f docker-compose.prod.yml exec backend python create_admin.py"
+echo "   docker compose exec backend python create_admin.py"
 echo ""
 echo "2. Access the application:"
 echo "   http://localhost:3000/login"
 echo ""
 echo "3. View logs (if needed):"
-echo "   docker compose -f docker-compose.prod.yml logs -f"
+echo "   docker compose logs -f"
 echo ""
 echo "4. Stop the application:"
-echo "   docker compose -f docker-compose.prod.yml down"
+echo "   docker compose down"
 echo ""
 
 # Offer to create admin user now
@@ -173,7 +173,7 @@ read -p "Create admin user now? (y/n): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
-    docker compose -f docker-compose.prod.yml exec backend python create_admin.py
+    docker compose exec backend python create_admin.py
     echo ""
     echo "=========================================="
     echo "You can now log in at: http://localhost:3000/login"

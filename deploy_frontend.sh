@@ -5,7 +5,7 @@
 set -euo pipefail
 
 : ${PUBLIC_API_URL:="http://localhost:8000"}
-COMPOSE_FILE="docker-compose.prod.yml"
+COMPOSE_FILE="docker-compose.yml"
 
 echo "Building frontend with PUBLIC_API_URL=${PUBLIC_API_URL}"
 export PUBLIC_API_URL

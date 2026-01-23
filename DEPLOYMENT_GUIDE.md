@@ -5,12 +5,12 @@
 This host should run **production only**. Nginx Proxy Manager should forward
 `caredocs.apvinyldesigns.com` to `http://<host-ip>:8080`.
 
-Use the helper scripts:
+Use standard Docker Compose commands:
 ```bash
-./scripts/prod-up.sh
-./scripts/prod-status.sh
-./scripts/prod-logs.sh
-./scripts/prod-down.sh
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
+docker compose down
 ```
 
 ## Critical Fixes Applied ✓
@@ -89,7 +89,7 @@ MAX_PHOTO_SIZE_MB=10
 cd /path/to/care-docs-app
 
 # Start all services (database, backend, frontend)
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 
 # Check that all containers are running
 docker compose ps
@@ -107,7 +107,7 @@ care-docs-db           running   5432/tcp
 
 ```bash
 # Run the admin creation script inside the backend container
-docker compose -f docker-compose.prod.yml exec backend python create_admin.py
+docker compose exec backend python create_admin.py
 ```
 
 Follow the interactive prompts:
@@ -256,7 +256,7 @@ SELECT type, COUNT(*) FROM events GROUP BY type;
 
 ## Performance Optimization (Raspberry Pi Specific)
 
-The production docker-compose is already optimized for Raspberry Pi 4B:
+The production docker compose is already optimized for Raspberry Pi 4B:
 
 - PostgreSQL: Limited to 256MB shared_buffers
 - Backend: Uvicorn with 2 workers
@@ -296,7 +296,7 @@ If experiencing performance issues:
 git pull origin main
 
 # Rebuild and restart containers
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 
 # Check logs for any errors
 docker compose logs -f

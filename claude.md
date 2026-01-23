@@ -5,6 +5,15 @@
 **Purpose:** Progressive Web App for documenting care activities for a child with neurological issues
 **Target Deployment:** Raspberry Pi 4B via Docker
 
+## Deployment Rule (Keep It Simple)
+- **Production is the default.** Use `docker-compose.yml` + `.env` only.
+- **Start:** `docker compose up -d --build`
+- **Stop:** `docker compose down`
+- **Status:** `docker compose ps`
+- **Logs:** `docker compose logs -f`
+- **Do NOT run dev on this host.** Development uses `docker-compose.dev.yml` on a different machine.
+- **NPM target:** `http://<host-ip>:8080` (nginx container).
+
 ---
 
 ## Technology Stack
@@ -40,8 +49,8 @@
   - database.py with SQLAlchemy setup
   - Directory structure for routes, models, services, middleware
 - [x] Created Docker Compose configurations:
-  - docker-compose.yml for development
-  - docker-compose.prod.yml for Raspberry Pi production
+  - docker-compose.dev.yml for development
+  - docker-compose.yml for Raspberry Pi production
   - Dockerfiles for frontend and backend (dev and prod versions)
   - PostgreSQL optimized for Raspberry Pi 4B
 - [x] Created nginx reverse proxy configuration with HTTPS support
@@ -341,6 +350,11 @@ CREATE TABLE medication_routes (
 
 #### Workflow Note
 - Work on `dev` unless explicitly requested otherwise.
+- **Production networking (do not break):**
+  - This host is **production-only**; do not run `docker-compose.dev.yml` here.
+  - Nginx Proxy Manager must point to `http://<host-ip>:8080` (the `care-docs-nginx` container from `docker-compose.yml`).
+  - Use `docker compose up -d --build` / `docker compose down` / `docker compose ps` / `docker compose logs -f` for all lifecycle actions.
+  - Running the dev stack can remove/override the prod nginx container and break the domain.
 
 ## Architecture Decisions
 
@@ -825,7 +839,7 @@ ALTER TABLE quick_feeds ADD COLUMN name varchar(120);
 Quick meds migration (one-time):
 
 ```bash
-docker compose -f docker-compose.prod.yml exec backend \
+docker compose exec backend \
   sh -lc "PYTHONPATH=/app python /app/scripts/migrate_quick_meds_to_medications.py"
 ```
 
@@ -1053,7 +1067,7 @@ UPDATE quick_feeds SET recipient_id = '<recipient-id>' WHERE recipient_id IS NUL
 ### 2026-01-15 - Bug Fixes & Diaper Form Enhancements
 
 #### Bug Fixes
-- [x] Removed `mem_reservation` from docker-compose.prod.yml (not supported on Raspberry Pi kernel)
+- [x] Removed `mem_reservation` from docker-compose.yml (not supported on Raspberry Pi kernel)
 - [x] Fixed datetime comparison bug in continuous feed stop endpoint (timezone-aware vs naive datetime)
   - Added check to ensure `started_at` is UTC-aware before comparison with `stop_time`
 
@@ -1080,7 +1094,7 @@ cd .
 nano .env  # Set JWT_SECRET_KEY, DB_PASSWORD, PUBLIC_API_URL, CORS_ORIGINS
 
 # 3. Start services
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 
 # 4. Create admin user via web browser
 # Open: http://192.168.1.101:8000/setup.html

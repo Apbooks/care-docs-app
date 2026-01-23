@@ -45,17 +45,17 @@ This host should run **production only**. Nginx Proxy Manager should forward
 ```bash
 cp .env.example .env
 # Edit .env (DB_PASSWORD, JWT_SECRET_KEY, PUBLIC_ORIGIN, PUBLIC_API_URL)
-./scripts/prod-up.sh
-./scripts/prod-status.sh
-./scripts/prod-logs.sh
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
 ```
 
 To stop:
 ```bash
-./scripts/prod-down.sh
+docker compose down
 ```
 
-Do **not** run the dev stack (`docker-compose.yml`) on this host.
+Do **not** run the dev stack on this host. Development uses `docker-compose.dev.yml`.
 
 ## Quick Start (Development)
 
@@ -83,7 +83,7 @@ openssl rand -hex 32
 ### 3. Start Development Environment
 
 ```bash
-docker-compose up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 This will start:
@@ -129,8 +129,8 @@ care-docs-app/
 │   ├── Dockerfile              # Development Docker image
 │   └── Dockerfile.prod         # Production Docker image
 ├── scripts/                    # Deployment scripts
-├── docker-compose.yml          # Development orchestration
-├── docker-compose.prod.yml     # Production configuration
+├── docker-compose.yml          # Production configuration (default)
+├── docker-compose.dev.yml      # Development configuration
 ├── nginx.conf                  # Nginx reverse proxy
 ├── .env.example                # Environment template
 ├── .gitignore                  # Git exclusions
@@ -153,7 +153,7 @@ pip install -r requirements.txt
 python -m pytest
 
 # Access Python shell with app context
-docker-compose exec backend python
+docker compose exec backend python
 ```
 
 ### Frontend Development
@@ -174,16 +174,16 @@ npm run build
 
 ```bash
 # Access PostgreSQL
-docker-compose exec db psql -U careapp -d caredb
+docker compose exec db psql -U careapp -d caredb
 
 # View database logs
-docker-compose logs db
+docker compose logs db
 
 # Backup database
-docker-compose exec db pg_dump -U careapp caredb > backup.sql
+docker compose exec db pg_dump -U careapp caredb > backup.sql
 
 # Restore database
-docker-compose exec -T db psql -U careapp caredb < backup.sql
+docker compose exec -T db psql -U careapp caredb < backup.sql
 ```
 
 ## Deployment to Raspberry Pi
@@ -200,7 +200,7 @@ sudo sh get-docker.sh
 sudo usermod -aG docker $USER
 
 # Install Docker Compose
-sudo apt install docker-compose
+sudo apt install docker-compose-plugin
 
 # Enable swap (2GB)
 sudo dphys-swapfile swapoff
@@ -236,7 +236,7 @@ web-push generate-vapid-keys
 ### 4. Build and Start
 
 ```bash
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 ```
 
 ### 5. Set Up HTTPS (Optional but Recommended)
@@ -246,7 +246,7 @@ docker-compose -f docker-compose.prod.yml up -d --build
 sudo apt install certbot python3-certbot-nginx
 
 # Stop containers temporarily
-docker-compose -f docker-compose.prod.yml down
+docker compose down
 
 # Get certificate
 sudo certbot certonly --standalone -d yourdomain.com
@@ -260,7 +260,7 @@ sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ssl/
 nano nginx.conf
 
 # Restart containers
-docker-compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 ### 6. Create First Admin User
@@ -273,10 +273,10 @@ Once the backend is running, you'll need to create an admin user to access the a
 
 ```bash
 # All containers
-docker-compose -f docker-compose.prod.yml logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose -f docker-compose.prod.yml logs -f backend
+docker compose logs -f backend
 ```
 
 ### Update Application
@@ -284,7 +284,7 @@ docker-compose -f docker-compose.prod.yml logs -f backend
 ```bash
 cd ~/care-docs-app
 git pull origin main
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 ```
 
 ### Automated Backups
@@ -321,20 +321,20 @@ Once the backend is running, visit http://localhost:8000/docs for interactive AP
 
 ```bash
 # Check logs
-docker-compose logs [service-name]
+docker compose logs [service-name]
 
 # Rebuild without cache
-docker-compose up --build --force-recreate
+docker compose up --build --force-recreate
 ```
 
 ### Database connection errors
 
 ```bash
 # Check database is healthy
-docker-compose ps
+docker compose ps
 
 # Check database logs
-docker-compose logs db
+docker compose logs db
 
 # Verify environment variables
 cat .env
@@ -360,7 +360,7 @@ free -h
 # Verify swap is enabled
 sudo swapon --show
 
-# Reduce Docker memory limits in docker-compose.prod.yml
+# Reduce Docker memory limits in docker-compose.yml
 ```
 
 ## Development Progress
