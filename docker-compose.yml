@@ -1,3 +1,4 @@
+# NOTE: Dev-only stack. Do not run on the production host (use docker-compose.prod.yml instead).
 services:
   # PostgreSQL Database
   db:

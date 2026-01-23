@@ -1,5 +1,18 @@
 # Raspberry Pi 4B Deployment Guide
 
+## Production-Only (Recommended on this host)
+
+This host should run **production only**. Nginx Proxy Manager should forward
+`caredocs.apvinyldesigns.com` to `http://<host-ip>:8080`.
+
+Use the helper scripts:
+```bash
+./scripts/prod-up.sh
+./scripts/prod-status.sh
+./scripts/prod-logs.sh
+./scripts/prod-down.sh
+```
+
 ## Critical Fixes Applied ✓
 
 All critical bugs have been fixed and pushed to GitHub. You can now safely deploy to your Raspberry Pi.
@@ -23,8 +36,8 @@ git pull origin main
 The application will **not start** without a proper `.env` file with a secure JWT secret.
 
 ```bash
-# Navigate to backend directory
-cd backend
+# From the repo root
+cd /path/to/care-docs-app
 
 # Copy the example file
 cp .env.example .env

@@ -1,6 +1,17 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-import { createEvent, getQuickMedsForRecipient, getQuickFeedsForRecipient, getMedications, getActiveContinuousFeed, startContinuousFeed, stopContinuousFeed, uploadPhoto, checkMedEarly } from '$lib/services/api';
+	import {
+		createEvent,
+		getQuickMedsForRecipient,
+		getQuickFeedsForRecipient,
+		getMedications,
+		getMedRoutes,
+		getActiveContinuousFeed,
+		startContinuousFeed,
+		stopContinuousFeed,
+		uploadPhoto,
+		checkMedEarly
+	} from '$lib/services/api';
 	import { timezone } from '$lib/stores/settings';
 import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/stores/recipients';
 	import { isOnline, queuePhoto } from '$lib/stores/offline';
@@ -28,6 +39,7 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 	let quickMeds = [];
 	let quickFeeds = [];
 	let medLibrary = [];
+	let medRoutes = [];
 	let medLibraryLoading = false;
 	let quickNoteEnabled = false;
 	let quickNote = '';
@@ -135,14 +147,16 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 		quickError = '';
 
 		try {
-			const [meds, feeds, medList] = await Promise.all([
+			const [meds, feeds, medList, routes] = await Promise.all([
 				getQuickMedsForRecipient($selectedRecipientId),
 				getQuickFeedsForRecipient($selectedRecipientId),
-				getMedications({ recipient_id: $selectedRecipientId })
+				getMedications({ recipient_id: $selectedRecipientId }),
+				getMedRoutes({ recipient_id: $selectedRecipientId })
 			]);
 			quickMeds = meds;
 			quickFeeds = feeds;
 			medLibrary = medList;
+			medRoutes = routes;
 			quickLoaded = true;
 		} catch (err) {
 			quickError = err.message || 'Failed to load quick templates';
@@ -227,7 +241,32 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 		const dose = medication.default_dose || '';
 		const unit = medication.dose_unit ? ` ${medication.dose_unit}` : '';
 		dosage = `${dose}${unit}`.trim();
-		route = medication.default_route || '';
+		const availableRoutes = getAvailableRoutes(medication);
+		route = medication.default_route || availableRoutes[0] || '';
+	}
+
+	function getAvailableRoutes(medication) {
+		const medRouteNames = medication?.routes?.map((item) => item.name) || [];
+		if (medRoutes.length) {
+			const activeNames = new Set(medRoutes.map((item) => item.name));
+			const filtered = medRouteNames.filter((name) => activeNames.has(name));
+			if (filtered.length) return filtered;
+			if (medication?.default_route && activeNames.has(medication.default_route)) {
+				return [medication.default_route];
+			}
+			return medRoutes.map((item) => item.name);
+		}
+		if (medRouteNames.length) return medRouteNames;
+		if (medication?.default_route) return [medication.default_route];
+		return [];
+	}
+
+	function getRouteOptionsForSelect() {
+		if (selectedMedicationId && selectedMedicationId !== 'other') {
+			const med = medLibrary.find((item) => item.id === selectedMedicationId);
+			if (med) return getAvailableRoutes(med);
+		}
+		return medRoutes.map((item) => item.name);
 	}
 
 	function formatRunningTime(value) {
@@ -756,18 +795,27 @@ import { selectedRecipientId, selectedRecipient, CARE_CATEGORIES } from '$lib/st
 							<label for="quick-medication-route" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
 								Route
 							</label>
-							<select
-								id="quick-medication-route"
-								bind:value={route}
-								required
-								class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-base"
-							>
-								<option value="" disabled>Select route</option>
-								<option value="oral">Oral</option>
-								<option value="tube">Tube Fed</option>
-								<option value="topical">Topical</option>
-								<option value="injection">Injection</option>
-							</select>
+							{#if getRouteOptionsForSelect().length > 0}
+								<select
+									id="quick-medication-route"
+									bind:value={route}
+									required
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-base"
+								>
+									<option value="" disabled>Select route</option>
+									{#each getRouteOptionsForSelect() as routeOption}
+										<option value={routeOption}>{routeOption}</option>
+									{/each}
+								</select>
+							{:else}
+								<input
+									id="quick-medication-route"
+									type="text"
+									bind:value={route}
+									class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-base"
+									placeholder="Route"
+								/>
+							{/if}
 						</div>
 
 						<div>

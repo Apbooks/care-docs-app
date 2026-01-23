@@ -1,5 +1,25 @@
 # Troubleshooting Guide
 
+## Problem: Site down after running dev stack / rebuild
+
+**Cause:** Running the dev stack (`docker-compose.yml`) on the production host will
+remove or conflict with the production nginx container. NPM expects the site on
+`http://<host-ip>:8080`.
+
+**Fix:**
+```bash
+# Stop dev stack if running
+docker compose down
+
+# Start production stack
+./scripts/prod-up.sh
+
+# Confirm nginx is listening on 8080
+curl -I http://localhost:8080/
+```
+
+**Prevention:** This host should run **production only**. Do not run the dev stack here.
+
 ## Problem: "error parsing value for field CORS_ORIGINS"
 
 **Full Error:**
@@ -12,7 +32,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 
 **Solution:**
 
-Make sure your `backend/.env` file has CORS_ORIGINS as a comma-separated string (not JSON array):
+Make sure your `.env` file has CORS_ORIGINS as a comma-separated string (not JSON array):
 
 ```env
 # CORRECT ✓
@@ -26,8 +46,8 @@ CORS_ORIGINS=["http://localhost:3000", "http://localhost:5173"]
 ```bash
 cd ~/Docker/care-docs-app
 git pull origin main
-# Edit backend/.env and ensure CORS_ORIGINS is comma-separated
-nano backend/.env
+# Edit .env and ensure CORS_ORIGINS is comma-separated
+nano .env
 # Restart containers
 docker compose -f docker-compose.prod.yml restart
 ```

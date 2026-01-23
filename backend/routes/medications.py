@@ -3,10 +3,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from models.medication import Medication
+from models.med_route import MedRoute
 from models.user import User
 from routes.auth import get_current_user, get_current_active_admin
 from routes.stream import broadcast_event
@@ -21,6 +22,7 @@ class MedicationCreate(BaseModel):
     default_dose: Optional[str] = None
     dose_unit: Optional[str] = None
     default_route: Optional[str] = None
+    route_ids: Optional[List[str]] = None
     interval_hours: int = 4
     early_warning_minutes: int = 15
     notes: Optional[str] = None
@@ -36,6 +38,7 @@ class MedicationUpdate(BaseModel):
     default_dose: Optional[str] = None
     dose_unit: Optional[str] = None
     default_route: Optional[str] = None
+    route_ids: Optional[List[str]] = None
     interval_hours: Optional[int] = None
     early_warning_minutes: Optional[int] = None
     notes: Optional[str] = None
@@ -46,12 +49,18 @@ class MedicationUpdate(BaseModel):
     recipient_id: Optional[str] = None
 
 
+class MedicationRouteResponse(BaseModel):
+    id: str
+    name: str
+
+
 class MedicationResponse(BaseModel):
     id: str
     name: str
     default_dose: Optional[str]
     dose_unit: Optional[str]
     default_route: Optional[str]
+    routes: List[MedicationRouteResponse]
     interval_hours: int
     early_warning_minutes: int
     notes: Optional[str]
@@ -74,6 +83,10 @@ def _to_response(med: Medication) -> MedicationResponse:
         default_dose=med.default_dose,
         dose_unit=med.dose_unit,
         default_route=med.default_route,
+        routes=[
+            MedicationRouteResponse(id=str(route.id), name=route.name)
+            for route in (med.routes or [])
+        ],
         interval_hours=med.interval_hours,
         early_warning_minutes=med.early_warning_minutes,
         notes=med.notes,
@@ -104,7 +117,7 @@ async def list_medications(
             )
         if not allowed:
             return []
-    query = db.query(Medication)
+    query = db.query(Medication).options(joinedload(Medication.routes))
     if not include_inactive:
         query = query.filter(Medication.is_active.is_(True))
     if quick_only:
@@ -127,6 +140,24 @@ async def create_medication(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_admin)
 ):
+    med_routes: List[MedRoute] = []
+    if payload.route_ids:
+        med_routes = db.query(MedRoute).filter(MedRoute.id.in_(payload.route_ids)).all()
+        if len(med_routes) != len(set(payload.route_ids)):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more routes are invalid")
+        if payload.recipient_id:
+            for route in med_routes:
+                if str(route.recipient_id) != payload.recipient_id:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Route does not match recipient")
+        else:
+            for route in med_routes:
+                if route.recipient_id is not None:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Route does not match recipient")
+        if payload.default_route:
+            route_names = {route.name for route in med_routes}
+            if payload.default_route not in route_names:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Default route must be one of the selected routes")
+
     med = Medication(
         name=payload.name.strip(),
         default_dose=payload.default_dose,
@@ -142,6 +173,8 @@ async def create_medication(
         recipient_id=payload.recipient_id,
         created_by_user_id=current_user.id
     )
+    if med_routes:
+        med.routes = med_routes
     db.add(med)
     db.commit()
     db.refresh(med)
@@ -160,11 +193,31 @@ async def update_medication(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")
 
     data = updates.model_dump(exclude_unset=True)
-    prev_auto_start = med.auto_start_reminder
+    route_ids = data.pop("route_ids", None)
     for key, value in data.items():
         setattr(med, key, value)
 
     db.add(med)
+    if route_ids is not None:
+        if route_ids:
+            med_routes = db.query(MedRoute).filter(MedRoute.id.in_(route_ids)).all()
+            if len(med_routes) != len(set(route_ids)):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more routes are invalid")
+            if med.recipient_id:
+                for route in med_routes:
+                    if str(route.recipient_id) != str(med.recipient_id):
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Route does not match recipient")
+            else:
+                for route in med_routes:
+                    if route.recipient_id is not None:
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Route does not match recipient")
+            if med.default_route:
+                route_names = {route.name for route in med_routes}
+                if med.default_route not in route_names:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Default route must be one of the selected routes")
+            med.routes = med_routes
+        else:
+            med.routes = []
     if data.get("auto_start_reminder") is False:
         db.query(MedicationReminder).filter(
             MedicationReminder.medication_id == med_id

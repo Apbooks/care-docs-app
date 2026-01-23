@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 from database import Base
+from models.med_route import medication_routes
 
 
 class Medication(Base):
@@ -27,6 +28,8 @@ class Medication(Base):
 
     created_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_by = relationship("User")
+
+    routes = relationship("MedRoute", secondary=medication_routes, back_populates="medications")
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

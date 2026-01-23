@@ -37,6 +37,26 @@ A Progressive Web App (PWA) for documenting care activities for individuals with
 - Raspbian OS (64-bit)
 - Docker and Docker Compose installed
 
+## Quick Start (Production-only on this host)
+
+This host should run **production only**. Nginx Proxy Manager should forward
+`caredocs.apvinyldesigns.com` to `http://<host-ip>:8080`.
+
+```bash
+cp .env.example .env
+# Edit .env (DB_PASSWORD, JWT_SECRET_KEY, PUBLIC_ORIGIN, PUBLIC_API_URL)
+./scripts/prod-up.sh
+./scripts/prod-status.sh
+./scripts/prod-logs.sh
+```
+
+To stop:
+```bash
+./scripts/prod-down.sh
+```
+
+Do **not** run the dev stack (`docker-compose.yml`) on this host.
+
 ## Quick Start (Development)
 
 ### 1. Clone the Repository

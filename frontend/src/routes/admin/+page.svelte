@@ -10,9 +10,13 @@
 		updateQuickFeed,
 		deleteQuickFeed,
 		getMedications,
+		getMedRoutes,
 		createMedication,
 		updateMedication,
 		deleteMedication,
+		createMedRoute,
+		updateMedRoute,
+		deleteMedRoute,
 		getMedReminders,
 		createMedReminder,
 		updateMedReminder,
@@ -97,6 +101,14 @@
 	let medications = [];
 	let medicationsLoading = true;
 	let medicationsError = '';
+	let medRoutes = [];
+	let medRoutesLoading = true;
+	let medRoutesError = '';
+	let newMedRouteName = '';
+	let newMedRouteActive = true;
+	let editMedRouteId = null;
+	let editMedRouteName = '';
+	let editMedRouteActive = true;
 	let medReminders = [];
 	let medRemindersLoading = true;
 	let medRemindersError = '';
@@ -135,7 +147,7 @@
 	let newMedicationName = '';
 	let newMedicationDose = '';
 	let newMedicationUnit = '';
-	let newMedicationRoute = '';
+	let newMedicationRouteIds = [];
 	let newMedicationInterval = '4';
 	let newMedicationWarning = '15';
 	let newMedicationNotes = '';
@@ -146,13 +158,25 @@
 	let editMedicationName = '';
 	let editMedicationDose = '';
 	let editMedicationUnit = '';
-	let editMedicationRoute = '';
+	let editMedicationRouteIds = [];
 	let editMedicationInterval = '';
 	let editMedicationWarning = '';
 	let editMedicationNotes = '';
 	let editMedicationActive = true;
 	let editMedicationAutoStart = false;
 	let editMedicationQuick = false;
+
+	function getRouteNameById(routeId) {
+		return medRoutes.find((route) => route.id === routeId)?.name;
+	}
+
+	function routeNamesFromIds(routeIds) {
+		return routeIds.map(getRouteNameById).filter(Boolean);
+	}
+
+	function getDefaultRouteFromIds(routeIds) {
+		return routeNamesFromIds(routeIds)[0] || null;
+	}
 
 	let newReminderMedicationId = '';
 	let newReminderStartTime = '';
@@ -354,6 +378,7 @@
 			loadRecipients(),
 			loadQuickFeeds(),
 			loadMedications(),
+			loadMedRoutes(),
 			loadMedReminders(),
 			loadTimezone(),
 			loadNotificationSettings(),
@@ -366,6 +391,7 @@
 		lastTemplateRecipientId = $selectedRecipientId;
 		loadQuickFeeds();
 		loadMedications();
+		loadMedRoutes();
 		loadMedReminders();
 	}
 
@@ -572,6 +598,22 @@
 		}
 	}
 
+	async function loadMedRoutes() {
+		medRoutesLoading = true;
+		medRoutesError = '';
+		try {
+			if (!$selectedRecipientId) {
+				medRoutes = [];
+				return;
+			}
+			medRoutes = await getMedRoutes({ recipient_id: $selectedRecipientId, include_inactive: true });
+		} catch (err) {
+			medRoutesError = err.message || 'Failed to load medication routes';
+		} finally {
+			medRoutesLoading = false;
+		}
+	}
+
 	async function loadMedReminders() {
 		medRemindersLoading = true;
 		medRemindersError = '';
@@ -589,15 +631,75 @@
 		}
 	}
 
+	async function handleCreateMedRoute() {
+		medRoutesError = '';
+		try {
+			if (!$selectedRecipientId) {
+				throw new Error('Select a recipient first');
+			}
+			const created = await createMedRoute({
+				name: newMedRouteName,
+				recipient_id: $selectedRecipientId,
+				is_active: newMedRouteActive
+			});
+			medRoutes = [created, ...medRoutes];
+			newMedRouteName = '';
+			newMedRouteActive = true;
+		} catch (err) {
+			medRoutesError = err.message || 'Failed to create route';
+		}
+	}
+
+	function startEditMedRoute(route) {
+		editMedRouteId = route.id;
+		editMedRouteName = route.name || '';
+		editMedRouteActive = route.is_active;
+	}
+
+	function cancelEditMedRoute() {
+		editMedRouteId = null;
+		editMedRouteName = '';
+		editMedRouteActive = true;
+	}
+
+	async function handleSaveMedRoute() {
+		medRoutesError = '';
+		try {
+			const updated = await updateMedRoute(editMedRouteId, {
+				name: editMedRouteName,
+				is_active: editMedRouteActive,
+				recipient_id: $selectedRecipientId || null
+			});
+			medRoutes = medRoutes.map((item) => (item.id === updated.id ? updated : item));
+			cancelEditMedRoute();
+		} catch (err) {
+			medRoutesError = err.message || 'Failed to update route';
+		}
+	}
+
+	async function handleDeleteMedRoute(routeId) {
+		medRoutesError = '';
+		try {
+			await deleteMedRoute(routeId);
+			medRoutes = medRoutes.filter((item) => item.id !== routeId);
+			newMedicationRouteIds = newMedicationRouteIds.filter((id) => id !== routeId);
+			editMedicationRouteIds = editMedicationRouteIds.filter((id) => id !== routeId);
+		} catch (err) {
+			medRoutesError = err.message || 'Failed to delete route';
+		}
+	}
+
 	async function handleCreateMedication() {
 		medicationsError = '';
 
 		try {
+			const defaultRoute = getDefaultRouteFromIds(newMedicationRouteIds);
 			const created = await createMedication({
 				name: newMedicationName,
 				default_dose: newMedicationDose || null,
 				dose_unit: newMedicationUnit || null,
-				default_route: newMedicationRoute || null,
+				default_route: defaultRoute,
+				route_ids: newMedicationRouteIds,
 				interval_hours: parseInt(newMedicationInterval || '4'),
 				early_warning_minutes: parseInt(newMedicationWarning || '15'),
 				notes: newMedicationNotes || null,
@@ -610,7 +712,7 @@
 			newMedicationName = '';
 			newMedicationDose = '';
 			newMedicationUnit = '';
-			newMedicationRoute = '';
+			newMedicationRouteIds = [];
 			newMedicationInterval = '4';
 			newMedicationWarning = '15';
 			newMedicationNotes = '';
@@ -627,7 +729,7 @@
 		editMedicationName = med.name;
 		editMedicationDose = med.default_dose || '';
 		editMedicationUnit = med.dose_unit || '';
-		editMedicationRoute = med.default_route || '';
+		editMedicationRouteIds = (med.routes || []).map((route) => route.id);
 		editMedicationInterval = med.interval_hours?.toString() || '';
 		editMedicationWarning = med.early_warning_minutes?.toString() || '';
 		editMedicationNotes = med.notes || '';
@@ -641,7 +743,7 @@
 		editMedicationName = '';
 		editMedicationDose = '';
 		editMedicationUnit = '';
-		editMedicationRoute = '';
+		editMedicationRouteIds = [];
 		editMedicationInterval = '';
 		editMedicationWarning = '';
 		editMedicationNotes = '';
@@ -654,11 +756,13 @@
 		medicationsError = '';
 
 		try {
+			const defaultRoute = getDefaultRouteFromIds(editMedicationRouteIds);
 			const updated = await updateMedication(editMedicationId, {
 				name: editMedicationName,
 				default_dose: editMedicationDose || null,
 				dose_unit: editMedicationUnit || null,
-				default_route: editMedicationRoute || null,
+				default_route: defaultRoute,
+				route_ids: editMedicationRouteIds,
 				interval_hours: editMedicationInterval ? parseInt(editMedicationInterval) : null,
 				early_warning_minutes: editMedicationWarning ? parseInt(editMedicationWarning) : null,
 				notes: editMedicationNotes || null,
@@ -1793,20 +1897,37 @@
 						placeholder="ml"
 					/>
 				</div>
-				<div>
-					<label for="new-med-route" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route</label>
-					<select
-						id="new-med-route"
-						bind:value={newMedicationRoute}
-						class="w-full px-4 py-3 border border-gray-300 rounded-xl text-base"
-						required
-					>
-						<option value="" disabled>Select route</option>
-						<option value="oral">Oral</option>
-						<option value="tube">Tube Fed</option>
-						<option value="topical">Topical</option>
-						<option value="injection">Injection</option>
-					</select>
+				<div class="sm:col-span-3">
+					<p class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Routes</p>
+					{#if medRoutes.length === 0}
+						<p class="text-sm text-gray-500 dark:text-slate-400">Add routes above to select them here.</p>
+					{:else}
+						<div class="flex flex-wrap items-center gap-3 text-sm text-gray-700 dark:text-slate-300">
+							{#each medRoutes as route}
+								<label class="flex items-center gap-2">
+									<input
+										type="checkbox"
+										value={route.id}
+										checked={newMedicationRouteIds.includes(route.id)}
+										on:change={(event) => {
+											if (event.target.checked) {
+												newMedicationRouteIds = [...newMedicationRouteIds, route.id];
+											} else {
+												newMedicationRouteIds = newMedicationRouteIds.filter((id) => id !== route.id);
+											}
+										}}
+										class="w-4 h-4 text-blue-600 border-gray-300 rounded"
+									/>
+									<span class={route.is_active ? '' : 'text-slate-400'}>{route.name}</span>
+								</label>
+							{/each}
+						</div>
+					{/if}
+				</div>
+				<div class="sm:col-span-3">
+					<p class="text-xs text-gray-500 dark:text-slate-400 mt-1">
+						Select one or more routes above.
+					</p>
 				</div>
 				<div>
 					<label for="new-med-interval" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Interval (hrs)</label>
@@ -1903,20 +2024,35 @@
 											/>
 										</div>
 									</div>
-									<div>
-										<label for="edit-med-route" class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Route</label>
-										<select
-											id="edit-med-route"
-											bind:value={editMedicationRoute}
-											class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-											required
-										>
-											<option value="" disabled>Select route</option>
-											<option value="oral">Oral</option>
-											<option value="tube">Tube Fed</option>
-											<option value="topical">Topical</option>
-											<option value="injection">Injection</option>
-										</select>
+									<div class="space-y-2">
+										<p class="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1">Routes</p>
+										{#if medRoutes.length === 0}
+											<p class="text-xs text-gray-500 dark:text-slate-400">Add routes above to select them here.</p>
+										{:else}
+											<div class="flex flex-wrap items-center gap-2 text-xs text-gray-700 dark:text-slate-300">
+												{#each medRoutes as route}
+													<label class="flex items-center gap-2">
+														<input
+															type="checkbox"
+															value={route.id}
+															checked={editMedicationRouteIds.includes(route.id)}
+															on:change={(event) => {
+																if (event.target.checked) {
+																	editMedicationRouteIds = [...editMedicationRouteIds, route.id];
+																} else {
+																	editMedicationRouteIds = editMedicationRouteIds.filter((id) => id !== route.id);
+																}
+															}}
+															class="w-4 h-4 text-blue-600 border-gray-300 rounded"
+														/>
+														<span class={route.is_active ? '' : 'text-slate-400'}>{route.name}</span>
+													</label>
+												{/each}
+											</div>
+										{/if}
+										<p class="text-xs text-gray-500 dark:text-slate-400">
+											Select one or more routes above.
+										</p>
 									</div>
 									<div class="grid gap-3 sm:grid-cols-2">
 										<div>
@@ -1971,7 +2107,9 @@
 									<div>
 										<p class="text-base font-semibold text-slate-900 dark:text-slate-100">{med.name}</p>
 										<p class="text-sm text-slate-500 dark:text-slate-400">
-											{med.default_dose ? `${med.default_dose}${med.dose_unit ? ` ${med.dose_unit}` : ''}` : 'No dose'} · {med.default_route || 'Route not set'} · Every {med.interval_hours} hrs
+											{med.default_dose ? `${med.default_dose}${med.dose_unit ? ` ${med.dose_unit}` : ''}` : 'No dose'}
+											· {(med.routes && med.routes.length ? med.routes.map((route) => route.name).join(', ') : (med.default_route || 'Route not set'))}
+											· Every {med.interval_hours} hrs
 										</p>
 										<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
 											{med.is_active ? 'Active' : 'Inactive'} · Warn {med.early_warning_minutes} min early
@@ -1986,6 +2124,91 @@
 										<button on:click={() => handleDeleteMedication(med.id)} class="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm">
 											Delete
 										</button>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Medication Routes -->
+	<div class="mt-8 bg-white dark:bg-slate-900 rounded-xl shadow">
+		<div class="p-6 border-b border-gray-200 dark:border-slate-800">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-slate-100">Medication Routes</h2>
+			<p class="text-base text-gray-600 dark:text-slate-300 mt-1">Manage per-recipient routes (e.g., Nebulizer).</p>
+		</div>
+		<div class="p-6 space-y-6">
+			<RecipientSwitcher label="Routes for" />
+			{#if medRoutesError}
+				<div class="p-4 bg-red-50 border border-red-200 rounded-xl dark:bg-red-950 dark:border-red-900">
+					<p class="text-red-800 dark:text-red-200 text-base">{medRoutesError}</p>
+				</div>
+			{/if}
+			<form class="grid gap-3 sm:grid-cols-4" on:submit|preventDefault={handleCreateMedRoute}>
+				<div class="sm:col-span-3">
+					<label for="new-med-route-name" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Route Name</label>
+					<input
+						id="new-med-route-name"
+						type="text"
+						bind:value={newMedRouteName}
+						class="w-full px-4 py-2 border border-gray-300 rounded-xl text-base"
+						placeholder="Nebulizer"
+						required
+					/>
+				</div>
+				<div class="flex items-end gap-3">
+					<label class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+						<input type="checkbox" bind:checked={newMedRouteActive} class="w-5 h-5 text-blue-600 border-gray-300 rounded" />
+						Active
+					</label>
+				</div>
+				<div class="sm:col-span-4">
+					<button
+						type="submit"
+						class="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:bg-blue-300"
+						disabled={!$selectedRecipientId || !newMedRouteName}
+					>
+						Add Route
+					</button>
+				</div>
+			</form>
+
+			{#if medRoutesLoading}
+				<p class="text-sm text-gray-600 dark:text-slate-300">Loading routes...</p>
+			{:else if medRoutes.length === 0}
+				<p class="text-sm text-gray-600 dark:text-slate-300">No routes yet.</p>
+			{:else}
+				<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					{#each medRoutes as route (route.id)}
+						<div class="border border-slate-200 dark:border-slate-800 rounded-lg p-3">
+							{#if editMedRouteId === route.id}
+								<div class="space-y-2">
+									<input
+										type="text"
+										bind:value={editMedRouteName}
+										class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+									/>
+									<label class="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
+										<input type="checkbox" bind:checked={editMedRouteActive} class="w-4 h-4 text-blue-600 border-gray-300 rounded" />
+										Active
+									</label>
+									<div class="flex items-center gap-2">
+										<button on:click={handleSaveMedRoute} class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs">Save</button>
+										<button on:click={cancelEditMedRoute} class="px-3 py-1.5 border border-slate-200 rounded-lg text-xs">Cancel</button>
+									</div>
+								</div>
+							{:else}
+								<div class="flex items-center justify-between">
+									<div>
+										<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{route.name}</p>
+										<p class="text-xs text-slate-500 dark:text-slate-400">{route.is_active ? 'Active' : 'Inactive'}</p>
+									</div>
+									<div class="flex items-center gap-2">
+										<button on:click={() => startEditMedRoute(route)} class="px-2 py-1 border border-slate-200 rounded-lg text-xs">Edit</button>
+										<button on:click={() => handleDeleteMedRoute(route.id)} class="px-2 py-1 border border-red-200 text-red-600 rounded-lg text-xs">Delete</button>
 									</div>
 								</div>
 							{/if}

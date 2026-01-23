@@ -959,6 +959,34 @@ export async function getMedications(params = {}) {
 	return apiRequest(`/medications${query ? '?' + query : ''}`);
 }
 
+export async function getMedRoutes(params = {}) {
+	const queryParams = new URLSearchParams();
+	if (params.recipient_id) queryParams.append('recipient_id', params.recipient_id);
+	if (params.include_inactive) queryParams.append('include_inactive', 'true');
+	const query = queryParams.toString();
+	return apiRequest(`/med-routes${query ? '?' + query : ''}`);
+}
+
+export async function createMedRoute(data) {
+	return apiRequest('/med-routes', {
+		method: 'POST',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function updateMedRoute(routeId, data) {
+	return apiRequest(`/med-routes/${routeId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(data)
+	});
+}
+
+export async function deleteMedRoute(routeId) {
+	return apiRequest(`/med-routes/${routeId}`, {
+		method: 'DELETE'
+	});
+}
+
 export async function createMedication(data) {
 	return apiRequest('/medications', {
 		method: 'POST',

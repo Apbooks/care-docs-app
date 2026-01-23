@@ -306,6 +306,42 @@
 - [x] Disabled auth refresh on invite route to avoid redirect to login
 - [x] Fixed user delete to clear recipient access first (prevents FK 500)
 
+### 2026-01-22 - Medication Routes (In Progress)
+
+#### Completed
+- [x] Added `med_routes` model and `medication_routes` join table for multi-route medications
+- [x] Added `/api/med-routes` CRUD endpoints (admin create/update/delete, list with include_inactive)
+- [x] Added medication `routes` response data and `route_ids` create/update support with validation
+- [x] Updated Quick Entry to load per-recipient routes and use route-based selections
+- [x] Updated Admin Medications tab with route management + multi-route selection + default route
+
+#### Pending
+- [ ] Run DB migrations for `med_routes` + `medication_routes`
+
+#### Migration Notes (manual SQL)
+```sql
+CREATE TABLE med_routes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(120) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    recipient_id UUID REFERENCES care_recipients(id),
+    created_by_user_id UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX med_routes_recipient_id_idx ON med_routes (recipient_id);
+
+CREATE TABLE medication_routes (
+    medication_id UUID NOT NULL REFERENCES medications(id) ON DELETE CASCADE,
+    route_id UUID NOT NULL REFERENCES med_routes(id) ON DELETE CASCADE,
+    PRIMARY KEY (medication_id, route_id)
+);
+```
+
+#### Workflow Note
+- Work on `dev` unless explicitly requested otherwise.
+
 ## Architecture Decisions
 
 ### Why SvelteKit?

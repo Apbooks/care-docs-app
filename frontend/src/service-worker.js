@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { clientsClaim } from 'workbox-core';
 import { registerRoute, NavigationRoute, Route } from 'workbox-routing';
 import { NetworkFirst, NetworkOnly, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
@@ -9,6 +10,10 @@ import { BackgroundSyncPlugin } from 'workbox-background-sync';
 // Self reference for service worker
 const sw = /** @type {ServiceWorkerGlobalScope} */ (/** @type {unknown} */ (self));
 
+// Activate updated service worker immediately
+sw.skipWaiting();
+clientsClaim();
+
 // Precache static assets (injected by workbox)
 precacheAndRoute(self.__WB_MANIFEST || []);
 
@@ -17,9 +22,9 @@ cleanupOutdatedCaches();
 
 // Cache names
 const CACHE_NAMES = {
-	api: 'api-cache-v2',
-	images: 'image-cache-v2',
-	static: 'static-cache-v2'
+	api: 'api-cache-v3',
+	images: 'image-cache-v3',
+	static: 'static-cache-v3'
 };
 
 // Background sync queue for offline event creation

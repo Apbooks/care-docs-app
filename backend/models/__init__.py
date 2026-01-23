@@ -8,6 +8,7 @@ from .care_recipient import CareRecipient
 from .photo import Photo
 from .medication import Medication
 from .med_reminder import MedicationReminder
+from .med_route import MedRoute, medication_routes
 from .push_subscription import PushSubscription
 from .user_invite import UserInvite
 from .user_recipient_access import UserRecipientAccess
@@ -24,6 +25,8 @@ __all__ = [
     "Photo",
     "Medication",
     "MedicationReminder",
+    "MedRoute",
+    "medication_routes",
     "PushSubscription",
     "UserInvite",
     "UserRecipientAccess",

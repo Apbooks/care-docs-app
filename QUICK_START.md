@@ -1,5 +1,26 @@
 # Quick Start - Raspberry Pi Deployment
 
+## Production-Only (Recommended on this host)
+
+This host should run **production only**. The reverse proxy (Nginx Proxy Manager) points to
+`http://localhost:8080`, which is the nginx container in `docker-compose.prod.yml`.
+
+### Start / Stop / Status
+```bash
+./scripts/prod-up.sh
+./scripts/prod-status.sh
+./scripts/prod-logs.sh
+./scripts/prod-down.sh
+```
+
+### One-time checks
+- Ensure `.env` exists at repo root and includes `DB_PASSWORD`, `JWT_SECRET_KEY`, `PUBLIC_ORIGIN`, `PUBLIC_API_URL`.
+- NPM should proxy `caredocs.apvinyldesigns.com` → `http://<host-ip>:8080`
+
+### Do not run dev on this host
+The dev stack (`docker-compose.yml`) uses ports 3000/8000 and will collide with production.
+Run it on a different machine if needed.
+
 ## What Was Fixed
 
 All critical bugs blocking the application have been fixed and pushed to GitHub:
@@ -52,7 +73,6 @@ If you prefer manual control:
 git pull origin main
 
 # 2. Create .env file
-cd backend
 cp .env.example .env
 
 # 3. Generate JWT secret and edit .env
@@ -73,7 +93,7 @@ docker compose -f docker-compose.prod.yml exec backend python create_admin.py
 
 ### Required Environment Variable
 
-The app **will not start** without a valid `JWT_SECRET_KEY` in `backend/.env`:
+The app **will not start** without a valid `JWT_SECRET_KEY` in `.env`:
 
 ```env
 JWT_SECRET_KEY=<32+ character secure random string>
@@ -83,7 +103,7 @@ Generate one with: `openssl rand -hex 32`
 
 ### Production Settings
 
-For production deployment, set in `backend/.env`:
+For production deployment, set in `.env`:
 
 ```env
 ENVIRONMENT=production
